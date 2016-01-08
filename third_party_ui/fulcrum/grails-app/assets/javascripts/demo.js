@@ -2,9 +2,6 @@
 //= require bootstrap
 //= require ol-debug.js
 
-var email = "knaquin@radiantblue.com";
-var password = "f56fc8aa";
-
 
 var clusterLayer;
 var map;
@@ -132,6 +129,8 @@ function createOverlay() {
 }
 
 function getAuthenticationKey() {
+console.dir(email);
+console.dir(password);
 	$(".alert").append("Getting user authentication key...");
 	$.ajax({
 		contentType: "application/json",

@@ -19,6 +19,10 @@
 			</div>
 		</div>	
 
+		<script>
+			var email = "${raw(grailsApplication.config.email)}";
+			var password = "${raw(grailsApplication.config.password)}";
+		</script>
 		<asset:javascript src = "demo.js"/> 
 	</body>
 </html>
