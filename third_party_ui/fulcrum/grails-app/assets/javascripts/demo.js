@@ -3,6 +3,7 @@
 //= require ol-debug.js
 
 
+var authKey;
 var clusterLayer;
 var map;
 var popupContent = document.getElementById("popup-content");
@@ -34,7 +35,31 @@ $(document).ready(
 					$.each(
 						feature.getProperties().features[0].getProperties().attributes,
 						function(i, x) {
-							popupContent.innerHTML += "<b>" + i + ":</b> " + x + "<br>"; 
+							popupContent.innerHTML += "<b>" + i + ":</b> ";
+							if (i == "Photos") { 
+								popupContent.innerHTML += "<br>";
+								$.each(
+									x,
+									function(j, y) {
+										popupContent.innerHTML += 
+											"<a id = 'href" + j + "' target = '_blank'>" + 
+												"<img height = '100px' id = 'img" + j + "'/>" + 
+											"</a><br><br>";
+										$.ajax({
+											contentType: "application/json",
+											dataType: "json",
+											headers: { "X-ApiToken": authKey },
+											success: function (data) {
+   												var imageUrl = data.photo.original;
+												$("#href" + j).attr("href", imageUrl);
+												$("#img" + j).attr("src", imageUrl);
+											},
+											url: "https://api.fulcrumapp.com/api/v2/photos/" + y.photo_id + ".json"
+										});
+									}
+								);
+							}
+							else { popupContent.innerHTML += x + "<br>"; }
 						}
 					);
 				}
@@ -129,8 +154,6 @@ function createOverlay() {
 }
 
 function getAuthenticationKey() {
-console.dir(email);
-console.dir(password);
 	$(".alert").append("Getting user authentication key...");
 	$.ajax({
 		contentType: "application/json",
@@ -138,25 +161,26 @@ console.dir(password);
 		headers: { "Authorization": "Basic " + btoa(email + ":" + password) },
 		success: function(data) { 
 			$(".alert").append(" Done!<br>");
-			getFormDetails(data.user.contexts[0].api_token); 
+			authKey = data.user.contexts[0].api_token;
+			getFormDetails(); 
 		},
 		url: "https://api.fulcrumapp.com/api/v2/users.json",
 	});
 }
 
-function getFormDetails(authKey) {
+function getFormDetails() {
 	$(".alert").append("Getting form details...");
 	$.ajax({
 		contentType: "application/json",
 		dataType: "json",
 		headers: { "X-ApiToken": authKey },
-		success: function (data) {
+		success: function (data) { 
    			$.each(
 				data.forms,
 				function(i, x) {
 					if (x.name == "Starbucks") {
 						$(".alert").append(" Done!<br>");
-						getRecords(x, authKey);
+						getRecords(x);
 						
 
 						return false;
@@ -168,7 +192,7 @@ function getFormDetails(authKey) {
 	});
 }
 
-function getRecords(form, authKey) { 
+function getRecords(form) { 
 	$(".alert").append("Getting records...");
 
 	var records = [];
@@ -176,8 +200,8 @@ function getRecords(form, authKey) {
 		data: {form_id: form.id},
 		contentType: "application/json",
 		dataType: "json",
-		headers: { "X-ApiToken": authKey },
-		success: function (data) {
+		headers: { "X-ApiToken": authKey},
+		success: function (data) { 
 			$(".alert").append(" Done!<br>");
 			$.each(
 				data.records,
@@ -185,14 +209,14 @@ function getRecords(form, authKey) {
 					var record = {latitude: x.latitude, longitude: x.longitude};
 					$.each(
 						x.form_values, 
-						function(j, y) {
+						function(j, y) {				
 							$.each(
 								form.elements, 
 								function(k, z) {
 									if (z.key == j) {
 										record[z.label] = y;
-										
-					
+											
+			
 										return false;
 									}
 								}
@@ -202,7 +226,6 @@ function getRecords(form, authKey) {
 					records.push(record);
 				}
 			);
-	
 			addRecordsToMap(records);
 		},
 		url: "https://api.fulcrumapp.com/api/v2/records.json",
