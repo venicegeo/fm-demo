@@ -1,4 +1,5 @@
 from geoserver.catalog import Catalog
+import os
 
 localDSObj = None
 localDSName = None
@@ -56,4 +57,8 @@ if not localLayerName:
     # Publish remote layer    
     featureType = cat.publish_featuretype(remoteLayerName, localDSObj, WGS84, srs=WGS84)
     print "Published layer " + remoteLayerName
+    
+    # Update layers in GeoSHAPE
+    os.system("sudo geoshape-config updatelayers")
+
 
