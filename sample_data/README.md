@@ -13,7 +13,7 @@ Open the config.groovy file and supply your fulcrum email and password.
 2. Create a form for the app with various text fields for the data.
 3. Import the data from the `starbucks_locations.csv` file. 
 4. `cd fulcrum`.
-5. `grauls run-app`.
+5. `grails run-app`.
 6. Go to `http://localhost:8080/fulcrum/home`.
 7. Use the form to upload all the images from the `./images` folder. 
 8. The form will randomly assign two images to each record in the data set. Due to Fulcrum throttling, this will take over 10 hours. 
