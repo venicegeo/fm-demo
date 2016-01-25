@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leaflet GeoJSON Example</title>
+	<meta charset="utf-8" />
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load staticfiles %}
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"/>
+	<link rel="stylesheet" href="{% static "Leaflet.MousePosition/src/L.Control.MousePosition.css" %}" />
+	<link rel="stylesheet" href="{% static "LeafletMiniMap/src/Control.MiniMap.css" %}" />
+	<link rel="stylesheet" href="{% static "LeafletLocateControl/src/L.Control.Locate.css" %}"/>
+	<link rel="stylesheet" href="{% static "Leaflet.ZoomHome/dist/leaflet.zoomhome.css" %}"/>
+	<link rel="stylesheet" href="{% static "Leaflet.EasyButton/src/easy-button.css" %}"/>
+
+	<style>
+		#map {
+			position: fixed;
+			top: 5%;
+			right: 0%;
+			bottom: 5%;
+			left: 0%;
+		}
+		
+		#top { 
+			position: fixed;
+			background-color: #999999;
+			top: 0%;
+			right: 0%;
+			bottom: 95%;
+			left: 0%;
+		}
+		
+		#bottom {
+			position: fixed;
+			background-color: #999999;
+			top: 95%;
+			right: 0%;
+			bottom: 0%;
+			left: 0%;
+		}
+		
+		#title {
+			font-size: 100%;
+			font-weight: bold;
+			text-align: center;
+			letter-spacing : 3px;
+			color: #FFFFFF}
+	</style>
+</head>
+<body>
+	<div id="top">
+	<center></center>
+		<p id="title">Alerter</p>
+	</div>
+	
+	<div id="map"></div>
+	
+	<div id="bottom"></div>
+    
+
+	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+	<script src="{% static "Leaflet.MousePosition/src/L.Control.MousePosition.js" %}"></script>
+    <script src="{% static "LeafletMiniMap/src/Control.MiniMap.js" %}"></script>
+    <script src="{% static "LeafletLocateControl/src/L.Control.Locate.js" %}"></script>
+    <script src="{% static "Leaflet.ZoomHome/dist/leaflet.zoomhome.js" %}"></script>
+    <script src="{% static "Leaflet.EasyButton/src/easy-button.js" %}"></script>
+    <script>
+
+ 		if (!Date.now) {
+				Date.now = function() { return new Date().getTime() }
+			}
+
+		var OpenStreetMap = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+			maxZoom : 15,
+			attribution : 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
+			id : 'mapbox.light'
+		});
+
+		var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+			maxZoom : 15,
+			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+		});
+
+		var mini = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			minZoom: 0,
+			maxZoom: 13,
+			attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
+		});
+
+		var map = L.map('map', {
+			zoomControl: false,
+			center:[0, 0],
+			zoom: 2,
+			layers: [Esri_WorldImagery, OpenStreetMap]
+		});
+
+		var baseMaps = {
+			"Esri_WorldImagery": Esri_WorldImagery,
+			"OpenStreetMap": OpenStreetMap
+		};
+
+		// Adds layer selection to map
+		L.control.layers(baseMaps).addTo(map);
+
+		//Adds a locator map to bottom corner of the main map
+		var miniMap = new L.Control.MiniMap(mini).addTo(map);
+
+		function onEachFeature(feature, layer) {
+			var popupContent = " " + feature.properties.name + "<br> " + feature.properties.date + "</p>" + feature.properties.photos_url + "</p>";
+
+			if (feature.properties && feature.properties.popupContent) {
+				popupContent += feature.properties.popupContent;
+			}
+
+			layer.bindPopup(popupContent);
+		}
+
+		//Symbolizes new points in red, old points in grey
+		function Markers (feature) {
+
+			if (feature.properties.time + 60000 > Date.now()){
+				return {
+					radius : 4,
+					fillColor : "#e60000",
+					color : "#000000",
+					weight : 1,
+					opacity : 1,
+					fillOpacity : 1
+				}
+			}
+			else {
+			    return {
+				  radius : 4,
+				  fillColor : "#737373",
+				  color : "#000000",
+				  weight : 1,
+				  opacity : 1,
+				  fillOpacity : 1
+				 }
+			}
+		}
+
+		var alayer;
+
+			function updateMap(geojson){
+
+				alayer = L.geoJson(geojson, {
+
+					//Does not display old points on the map
+					filter : function(feature) {
+						return feature.properties.time + 240000 > Date.now();
+					},
+
+					style : function (feature) {
+						return feature.properties && feature.properties.style;
+					},
+
+					onEachFeature : onEachFeature,
+
+					pointToLayer : function (feature, latlng) {
+						return L.circleMarker(latlng, Markers(feature));
+					}
+				}).addTo(map);
+		}
+
+		//Get features from geojson file every second
+		setInterval(function () {
+
+			$.ajax({
+					url : "{{geojson_request_url}}",
+					dataType: "json",
+					success : function (result) {
+						if (map.hasLayer(alayer)) {
+							map.removeLayer(alayer);
+						}
+						updateMap(result);
+					}
+				});
+		}, 1000);
+
+		//Show coordinates of mouse position
+		L.control.mousePosition().addTo(map);
+
+		//Option to get your own location on the map
+		L.control.locate({
+			position: 'topleft',
+			drawCircle: false,
+			remainActive: false,
+			icon: 'fa fa-map-marker'
+		}).addTo(map);
+
+		//Adds a return to home extend button
+		var zoomHome = L.Control.zoomHome();
+		zoomHome.addTo(map);
+
+		//Adds numeric scale to map
+		L.control.scale().addTo(map);
+
+		//Button to fit map extent to bounds of point layer
+		var extentButton = L.easyButton({
+			states: [{
+				stateName: 'Zoom to extent of current alerts',
+				icon: 'fa-map',
+				title: 'Zoom to extent of current alerts',
+				onClick: function(btn, map) {
+					map.fitBounds(alayer.getBounds());
+				}
+			}]
+		}).addTo(map);
+
+	</script>
+</body>
+</html>
