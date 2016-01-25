@@ -118,10 +118,11 @@ def update_consumer(consumer_name):
 
     """
     print "Updating: " + str(consumer_name)
-    if is_alive(consumer_name):
-        stop(consumer_name)
-        while is_alive(consumer_name):
-            time.sleep(.01)
+    if cache.get(consumer_cache_name(consumer_name)):
+        if is_alive(consumer_name):
+            stop(consumer_name)
+            while is_alive(consumer_name):
+                time.sleep(.01)
     create_consumer(consumer_name)
 
 

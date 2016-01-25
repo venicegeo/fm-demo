@@ -8,9 +8,9 @@ with open(file_path) as data_file:
     features = json.load(data_file).get('features')
 
 # To send messages asynchronously
-client = KafkaClient('rgi-0027:9092')
+client = KafkaClient('kafka.dev:9092')
 producer = KeyedProducer(client, async=True)
-topic = 'starbucks'
+topic = 'starbucks7'
 client.ensure_topic_exists(topic)
 feature_count = 30
 interval = 1 #in seconds

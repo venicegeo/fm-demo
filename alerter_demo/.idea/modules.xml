@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://F:/google_drive/Work/alerter_demo/.idea/alerter_demo.iml" filepath="F:/google_drive/Work/alerter_demo/.idea/alerter_demo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/alerter_demo.iml" filepath="$PROJECT_DIR$/.idea/alerter_demo.iml" />
     </modules>
   </component>
 </project>

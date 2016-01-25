@@ -108,14 +108,24 @@
 		//Adds a locator map to bottom corner of the main map
 		var miniMap = new L.Control.MiniMap(mini).addTo(map);
 
+		//Adds a popup with information for each point
 		function onEachFeature(feature, layer) {
-			var popupContent = " " + feature.properties.name + "<br> " + feature.properties.date + "</p>" + feature.properties.photos_url + "</p>";
+			//var popupContent = " " + feature.properties.name + "<br> " + feature.properties.date + "</p>" + feature.properties.photos_url + "</p>";
 
-			if (feature.properties && feature.properties.popupContent) {
-				popupContent += feature.properties.popupContent;
-			}
-
-			layer.bindPopup(popupContent);
+			//if (feature.properties && feature.properties.popupContent) {
+			//	popupContent += feature.properties.popupContent;
+			//}
+			//layer.bindPopup(popupContent);
+			layer.on('click', function (e) {
+				if (e.target.feature.properties.photos_url != null && e.target.feature.properties.photos_url != "") {
+					var content = e.target.feature.properties.name + "</br>" + e.target.feature.properties.created_at + "</br>" + '<a href="' + e.target.feature.properties.photos_url + '">Available photos</a>';
+				}
+				else {
+					var content = e.target.feature.properties.name + "</br>" + e.target.feature.properties.created_at + "</br>" + "No photos available";
+				}
+				coords = [e.target.feature.geometry.coordinates[1],e.target.feature.geometry.coordinates[0]];
+				var popup = L.popup().setLatLng(coords).setContent(content).openOn(map);
+			});
 		}
 
 		//Symbolizes new points in red, old points in grey
