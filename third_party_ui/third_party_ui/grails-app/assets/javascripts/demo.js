@@ -19,7 +19,7 @@ $(document).ready(
 			overlays: [overlay],
 			view: new ol.View({
 				center: [0, 0],
-				zoom: 2
+				zoom: 3
 			})
 		});
 
@@ -110,8 +110,6 @@ function addClusterLayer() {
 function addFulcrumData() { getAuthenticationKey(); }
 
 function addRecordsToMap(array) {	
-	$(".alert").append("Adding records to map...");
-
 	var features = [];
 	$.each(
 		array,
@@ -128,7 +126,6 @@ function addRecordsToMap(array) {
 	);
 
 	clusterLayer.getSource().getSource().addFeatures(features);
-	$(".alert").append(" Done!");
 }
 
 function createOverlay() {
@@ -180,7 +177,7 @@ function getFormDetails() {
 				function(i, x) {
 					if (x.name == "Starbucks") {
 						$(".alert").append(" Done!<br>");
-						getRecords(x);
+						getRecords(x, 1);
 						
 
 						return false;
@@ -192,17 +189,21 @@ function getFormDetails() {
 	});
 }
 
-function getRecords(form) { 
-	$(".alert").append("Getting records...");
+function getRecords(form, pageNumber) { 
+	$(".alert").append("Getting records... page " + pageNumber + "... ");
 
 	var records = [];
 	$.ajax({
-		data: {form_id: form.id},
+		data: {form_id: form.id, page: pageNumber},
 		contentType: "application/json",
 		dataType: "json",
 		headers: { "X-ApiToken": authKey},
 		success: function (data) { 
 			$(".alert").append(" Done!<br>");
+			if (pageNumber < data.total_pages) { 
+				pageNumber++;
+				getRecords(form, pageNumber);
+			}
 			$.each(
 				data.records,
 				function(i, x) {
