@@ -10,7 +10,7 @@ with open(file_path) as data_file:
 # To send messages asynchronously
 client = KafkaClient('kafka.dev:9092')
 producer = KeyedProducer(client, async=True)
-topic = 'starbucks7'
+topic = 'starbucks5'
 client.ensure_topic_exists(topic)
 feature_count = 30
 interval = 1 #in seconds

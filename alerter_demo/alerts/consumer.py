@@ -98,8 +98,9 @@ def stop(consumer_name):
 
 def is_running(consumer_name):
     consumer = cache.get(consumer_cache_name(consumer_name))
-    if consumer.get("running"):
-        return True
+    if consumer:
+        if consumer.get("running"):
+            return True
     return False
 
 
