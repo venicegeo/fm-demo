@@ -13,10 +13,17 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url, include
+from django.conf.urls import url
+from . import views
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
-    url(r'^messages/', include('piazza_consumer.urls')),
+    url(r'^$', views.index),
+    url(r'^index.html$', views.index),
+    url(r'^messages', views.messages),
+    url(r'^messages.html$', views.messages),
+    url(r'^geojson$',views.geojson),
+    url(r'^map$',views.map)
 ]
+
