@@ -26,14 +26,14 @@ def index(request):
         else:
             key, created_listener = consumer.write_listener('consumer', listener_topic, listener_key)
             if created_listener:
-                return render(request, 'register.html', {'created': created_listener,'key':key})
+                return render(request, 'alerts/register.html', {'created': created_listener,'key':key})
             else:
                 return HttpResponse("That listener already exists.",status=400)
     else:
         print "GET REQUEST"
         form = ListenerForm()
         keys = Key.objects.all().order_by('listener')
-        return render(request, 'register.html', {'form': form,'keys':keys})
+        return render(request, 'alerts/register.html', {'form': form,'keys':keys})
 
 
 def alerts(request):
@@ -79,9 +79,9 @@ def map(request):
         if type(geojson) == 'HttpResponse':
             return geojson
         if geojson:
-            return render(request, 'map.html', {'geojson_request_url':'/alerts/geojson?topic='+str(request.GET['topic'])})
+            return render(request, 'alerts/map.html', {'geojson_request_url':'/alerts/geojson?topic='+str(request.GET['topic'])})
         else:
-            return render(request, 'map.html', {'geojson_request_url':''})
+            return render(request, 'alerts/map.html', {'geojson_request_url':''})
 
 def __get_geojson(request):
         print "Searching for {}".format(str(request.GET['topic']))
