@@ -77,8 +77,9 @@ class Consumer:
 
     def _set_alive(self, bool):
         consumer = cache.get(consumer_cache_name(self.name))
-        consumer['alive'] = bool
-        cache.set(consumer_cache_name(self.name), consumer)
+        if consumer:
+            consumer['alive'] = bool
+            cache.set(consumer_cache_name(self.name), consumer)
 
 def is_alive(consumer_name):
     consumer = cache.get(consumer_cache_name(consumer_name))
