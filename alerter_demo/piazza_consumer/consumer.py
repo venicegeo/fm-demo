@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.cache import cache
 from kafka import KafkaConsumer
-from piazza_consumer.models import Listener, Message, Key
+from piazza_consumer.models import Listener, Message, Key, Asset
 from threading import Thread
 import time
 
@@ -55,7 +55,13 @@ class Consumer:
                     try:
                         key = Key.objects.get(listener=Listener.objects.get(listener_topic=message.topic),
                                               listener_key=message.key)
-                        write_message(key, message.value)
+                        if key.listener_key.lower() == 'asset':
+                            import json
+                            import base64
+                            data = json.loads(message.value)
+                            write_asset(key, data.get('uid'), data.get('type'), base64.b64decode(data.get('data')))
+                        else:
+                            write_message(key, message.value)
                     except Exception as e:
                         if 'DoesNotExist' in e:
                             return
@@ -79,9 +85,11 @@ class Consumer:
             consumer['alive'] = bool
             cache.set(consumer_cache_name(self.name), consumer)
 
+
 def is_alive(consumer_name):
     consumer = cache.get(consumer_cache_name(consumer_name))
     return consumer.get("alive")
+
 
 def start(consumer_name):
     consumer = cache.get(consumer_cache_name(consumer_name))
@@ -136,6 +144,11 @@ def write_listener(consumer_name, topic, key):
 def write_message(key, message):
     print "Writing message for : (" + str(key.listener_key) + ") " + message
     return Message.objects.get_or_create(key=key, message_body=message)
+
+
+def write_asset(key, asset_uid, asset_type, asset_data):
+    print "Writing asset for : (" + str(key.listener_key) + ")"
+    return Asset.objects.get_or_create(asset_uid=asset_uid,asset_type=asset_type,asset_data=asset_data)
 
 
 def consumer_cache_name(consumer_name):

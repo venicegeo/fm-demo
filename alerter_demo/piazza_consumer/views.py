@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from piazza_consumer import consumer
-from piazza_consumer.models import Listener, Key, Message
+from piazza_consumer.models import Listener, Key, Message, Asset
 from .forms import ListenerForm
 from django.http import HttpResponse
 from django.core.exceptions import ObjectDoesNotExist
@@ -102,6 +102,8 @@ def __get_geojson(request):
             json_feature = json.loads(feature.message_body)
             json_feature["properties"]["time"] = int(time.mktime(feature.message_date.timetuple()) * 1000)
             json_feature["properties"]["date"] = str(feature.message_date)
+            assets = Asset.objects.get(asset_uid='duck')
+            json_feature["properties"]["assets"] = str(assets.asset_data)
             features += [json_feature]
 
         feature_collection = {"type":"FeatureCollection","features": features}

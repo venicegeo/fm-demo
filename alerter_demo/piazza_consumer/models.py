@@ -41,3 +41,14 @@ class Message(models.Model):
 
     # def save(self, *args, **kwargs):
     #     super(Message, self).save(*args, **kwargs)
+
+
+class Asset(models.Model):
+    asset_uid = models.CharField(max_length=100)
+    asset_type = models.CharField(max_length=100)
+    asset_data = models.FileField(upload_to='assets/')
+
+
+class Links(models.Model):
+    message = models.ForeignKey(Message,on_delete=models.CASCADE,default="")
+    asset = models.ForeignKey(Asset,on_delete=models.CASCADE,default="")
