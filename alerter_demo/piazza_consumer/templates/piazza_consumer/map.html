@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Leaflet GeoJSON Example</title>
+	<title>piazza-consumer</title>
 	<meta charset="utf-8" />
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,48 +17,17 @@
 	<style>
 		#map {
 			position: fixed;
-			top: 5%;
-			right: 0%;
-			bottom: 5%;
-			left: 0%;
-		}
-		
-		#top { 
-			position: fixed;
-			background-color: #999999;
 			top: 0%;
-			right: 0%;
-			bottom: 95%;
-			left: 0%;
-		}
-		
-		#bottom {
-			position: fixed;
-			background-color: #999999;
-			top: 95%;
 			right: 0%;
 			bottom: 0%;
 			left: 0%;
 		}
 		
-		#title {
-			font-size: 100%;
-			font-weight: bold;
-			text-align: center;
-			letter-spacing : 3px;
-			color: #FFFFFF}
 	</style>
 </head>
 <body>
-	<div id="top">
-	<center></center>
-		<p id="title">Alerter</p>
-	</div>
 	
 	<div id="map"></div>
-	
-	<div id="bottom"></div>
-    
 
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
