@@ -13,6 +13,7 @@
 	<link rel="stylesheet" href="{% static "piazza_consumer/LeafletLocateControl/src/L.Control.Locate.css" %}"/>
 	<link rel="stylesheet" href="{% static "piazza_consumer/Leaflet.ZoomHome/dist/leaflet.zoomhome.css" %}"/>
 	<link rel="stylesheet" href="{% static "piazza_consumer/Leaflet.EasyButton/src/easy-button.css" %}"/>
+	<link rel="stylesheet" href="{% static "piazza_consumer/Leaflet.ZoomBox/L.Control.ZoomBox.css" %}"/>
 
 	<style>
 		#map {
@@ -36,6 +37,7 @@
     <script src="{% static "piazza_consumer/LeafletLocateControl/src/L.Control.Locate.js" %}"></script>
     <script src="{% static "piazza_consumer/Leaflet.ZoomHome/dist/leaflet.zoomhome.js" %}"></script>
     <script src="{% static "piazza_consumer/Leaflet.EasyButton/src/easy-button.js" %}"></script>
+	<script src="{% static "piazza_consumer/Leaflet.ZoomBox/L.Control.ZoomBox.min.js" %}"></script>
     <script>
 
  		if (!Date.now) {
@@ -100,7 +102,7 @@
 		//Symbolizes new points in red, old points in grey
 		function Markers (feature) {
 
-			if (feature.properties.time + 60000 > Date.now()){
+			if (feature.properties.time + (colortime * 1000) > Date.now() && colortime > 0){
 				return {
 					radius : 4,
 					fillColor : "#e60000",
@@ -130,7 +132,12 @@
 
 					//Does not display old points on the map
 					filter : function(feature) {
-						return feature.properties.time + 240000 > Date.now();
+						if (timeout != 0) {
+							return feature.properties.time + (timeout * 1000) > Date.now();
+						}
+						else {
+							return true;
+						}
 					},
 
 					style : function (feature) {
@@ -188,6 +195,46 @@
 					map.fitBounds(alayer.getBounds());
 				}
 			}]
+		});
+		
+		var timeout = 0;
+		//Button to set alert times
+		var timeoutButton = L.easyButton({
+			states: [{
+				stateName: 'Set timeout for alerts',
+				icon: 'fa-clock-o',	
+				title: 'Set timeout for alerts',
+				onClick: function(btn, map) {
+					var inStr = prompt("Enter seconds for timeout, or enter 0 to disable timeout.\n\nCurrent time: " + timeout +" seconds",timeout);
+					timeout = parseInt(inStr);
+					if (isNaN(timeout) || timeout < 0) {
+						timeout = 0;
+					};
+				}
+			}]
+		});
+		
+		var colortime = 0;
+		//Button to set new alert color time
+		var colorTimeButton = L.easyButton({
+			states: [{
+				stateName: 'Set time for new alert color',
+				icon: 'fa-exclamation-circle',	
+				title: 'Set timeout for new alert color',
+				onClick: function(btn, map) {
+					var inStr = prompt("Enter seconds for alert color or enter 0 to disable alert color.\n\nCurrent time: " + colortime +" seconds", colortime);
+					colortime = parseInt(inStr);
+					if (isNaN(colortime) || colortime < 0) {
+						colortime = 0;
+					};
+				}
+			}]
+		});
+		
+		var toolbar = L.easyBar([extentButton, timeoutButton, colorTimeButton]).addTo(map);
+		
+		var zoomBox = L.control.zoomBox({
+			modal: true,
 		}).addTo(map);
 
 	</script>
