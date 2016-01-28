@@ -15,6 +15,8 @@ Including another URLconf
 """
 from django.conf.urls import url
 from . import views
+from django.conf import settings
+from django.conf.urls.static import static
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -26,4 +28,7 @@ urlpatterns = [
     url(r'^geojson$',views.geojson),
     url(r'^map$',views.map)
 ]
+
+if settings.DEBUG is True:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

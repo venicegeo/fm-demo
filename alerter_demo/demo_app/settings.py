@@ -26,7 +26,6 @@ SECRET_KEY = 'wev&eoj^^la1pdqsa+rbb%ia*(#i07-fti99wroo^zoxu79fpp'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-
 ALLOWED_HOSTS = []
 
 KAFKA_HOST = 'kafka.dev'
@@ -154,3 +153,6 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
 
 STATIC_URL = '/static/'
+
+MEDIA_ROOT = os.path.join(BASE_DIR,'assets')
+MEDIA_URL = 'assets/'

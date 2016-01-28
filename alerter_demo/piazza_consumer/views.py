@@ -102,8 +102,6 @@ def __get_geojson(request):
             json_feature = json.loads(feature.message_body)
             json_feature["properties"]["time"] = int(time.mktime(feature.message_date.timetuple()) * 1000)
             json_feature["properties"]["date"] = str(feature.message_date)
-            assets = Asset.objects.get(asset_uid='duck')
-            json_feature["properties"]["assets"] = str(assets.asset_data)
             features += [json_feature]
 
         feature_collection = {"type":"FeatureCollection","features": features}
