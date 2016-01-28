@@ -43,10 +43,18 @@
 			position: absolute;
 			top: 70px; left: 60px; bottom: 0; right: 0;
 		}
+		#placeholder {
+			position: absolute;
+			height: 10px;
+			width: 50px;
+			visibility: hidden;
+		}
 		
 	</style>
 </head>
 <body>
+
+	<div id="placeholder"></div>
 	
 	<form id="timeoutForm" title="Alert Timeout Controller" visibility="hidden">
 			<label for="timeout" style="display: block;" id="timeoutLable">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
@@ -241,9 +249,17 @@
 			var TimeDialogBox = $("#timeoutForm").dialog({
 				autoOpen: false,
 				closeOnEscape: false,
-				open: function(event, ui) { $(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); },
+				open: function(event, ui) {
+					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+					$("#colortimeForm").dialog('close');
+				},
 				height: 250,
 				width: 350,
+				position: {
+					my: "left top",
+					at: "right bottom",
+					of: placeholder
+				},
 				modal: false,
 				buttons: {
 					"Submit": function() {
@@ -300,9 +316,17 @@
 			var colorDialogBox = $("#colortimeForm").dialog({
 				autoOpen: false,
 				closeOnEscape: false,
-				open: function(event, ui) { $(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); },
+				open: function(event, ui) {
+					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); 
+					$("#timeoutForm").dialog('close');
+				},
 				height: 250,
 				width: 350,
+				position: {
+					my: "left top",
+					at: "right bottom",
+					of: placeholder
+				},
 				modal: false,
 				buttons: {
 					"Submit": function() {
@@ -326,7 +350,7 @@
 			$('#colortimeForm').keypress( function(e) {
 				if (e.charCode == 13) {
 					var inNum = parseInt($("#colortime").val());
-						if(isNaN(inNum) || inNum < 0 || inNum == '') {
+						if(isNaN(inNum) || inNum < 0 || inNum == "") {
 							colortime = 0;
 							document.getElementById("colortime").value = colortime;
 						}
