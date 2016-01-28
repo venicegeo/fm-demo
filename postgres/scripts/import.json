@@ -1,0 +1,18 @@
+{
+   "import": {
+      "targetWorkspace": {
+         "workspace": {
+            "name": "geonode"
+         }
+      },
+   "targetStore": {
+      "dataStore": {
+         "name": "test"
+         }
+      },
+      "data": {
+        "type": "file",
+        "file": "/tmp/starbucks.geojson"
+      }
+   }
+}
