@@ -49,4 +49,4 @@ http://127.0.0.1:8000/alerts/map?topic=<topic_name>
 ```
 
 ## Bugs
-- in some browsers pressing the enter key when changing the alert properties will cause an error.
+ - None known.
