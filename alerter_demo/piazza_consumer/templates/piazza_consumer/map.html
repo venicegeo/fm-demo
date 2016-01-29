@@ -49,7 +49,6 @@
 			width: 50px;
 			visibility: hidden;
 		}
-		
 	</style>
 </head>
 <body>
@@ -125,7 +124,12 @@
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
 				if (e.target.feature.properties.photos_url != null && e.target.feature.properties.photos_url != "") {
-					var content = e.target.feature.properties.name + "</br>" + e.target.feature.properties.created_at + "</br>" + '<a href="' + e.target.feature.properties.photos_url + '" target="_blank">Available photos</a>';
+					var urlStr = "";
+					for (var url in e.target.feature.properties.photos_url){
+						urlStr += '<p><img src="' + e.target.feature.properties.photos_url[url] + '" style="width: 250px; height: 250px;"/></p>';
+					};
+					
+					var content = '<p>' + e.target.feature.properties.name + '</p><p>' + e.target.feature.properties.created_at + '</p>' + urlStr;
 				}
 				else {
 					var content = e.target.feature.properties.name + "</br>" + e.target.feature.properties.created_at + "</br>" + "No photos available";
@@ -281,7 +285,7 @@
 			});
 			
 			$('#timeoutForm').keypress( function(e) {
-				if (e.charCode == 13) {
+				if (e.charCode == 13 || e.keyCode == 13) {
 					var inNum = parseInt($("#timeout").val());
 						if(isNaN(inNum) || inNum < 0 || inNum == "") {
 							timeout = 0;
@@ -348,7 +352,7 @@
 			});
 			
 			$('#colortimeForm').keypress( function(e) {
-				if (e.charCode == 13) {
+				if (e.charCode == 13 || e.keyCode == 13) {
 					var inNum = parseInt($("#colortime").val());
 						if(isNaN(inNum) || inNum < 0 || inNum == "") {
 							colortime = 0;
