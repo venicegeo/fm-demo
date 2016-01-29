@@ -9,6 +9,7 @@
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
     <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"/>
 	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+	<link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
 	<link rel="stylesheet" href="{% static "piazza_consumer/Leaflet.MousePosition/src/L.Control.MousePosition.css" %}" />
 	<link rel="stylesheet" href="{% static "piazza_consumer/LeafletMiniMap/src/Control.MiniMap.css" %}" />
 	<link rel="stylesheet" href="{% static "piazza_consumer/LeafletLocateControl/src/L.Control.Locate.css" %}"/>
@@ -68,6 +69,7 @@
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+	<script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
 	<script src="{% static "piazza_consumer/Leaflet.MousePosition/src/L.Control.MousePosition.js" %}"></script>
     <script src="{% static "piazza_consumer/LeafletMiniMap/src/Control.MiniMap.js" %}"></script>
     <script src="{% static "piazza_consumer/LeafletLocateControl/src/L.Control.Locate.js" %}"></script>
@@ -104,6 +106,7 @@
 		
 		var map = L.map('map', {
 			zoomControl: false,
+			fullscreenControl: true,
 			center:[0, 0], 
 			zoom: 2,
 			layers: [Esri_WorldImagery, OpenStreetMap]
