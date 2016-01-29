@@ -45,7 +45,8 @@ http://127.0.0.1:8000/alerts/geojson?topic=<topic_name>
 
 A map can be used to view the data at:
 ```
-A geojson of recieved alerts can be viewed at:
-```
 http://127.0.0.1:8000/alerts/map?topic=<topic_name>
 ```
+
+## Bugs
+- in some browsers pressing the enter key when changing the alert properties will cause an error.
