@@ -7,8 +7,8 @@ This is a django application which allows the user to connect to a kafka server 
  - Python > 2.7
  
 Python Dependencies (installable via pip)
-    - django
-    - kafka-python 
+- django
+- kafka-python 
     
 Additionally to Receive Kakfa alerts you need the kafka-devbox
 https://github.com/venicegeo/kafka-devbox
