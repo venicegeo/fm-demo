@@ -27,6 +27,7 @@
 			left: 0%;
 			z-index: -1;
 		}
+	<style> 
 		.ui-widget-content {
 			text-align: center;
 		}
@@ -42,6 +43,7 @@
 		}
 		input{
 			margin: auto;
+			text-align: center;
 			position: absolute;
 			top: 70px; left: 60px; bottom: 0; right: 0;
 		}
@@ -51,9 +53,11 @@
 			width: 50px;
 			visibility: hidden;
 		}
+		span {
+			text-align: right;
+		}
 	
 	</style>
-	
 	
 </head>
 <body>
@@ -88,7 +92,7 @@
  	"use strict";
 		
 	$(document).ready(function () {
-
+	
 		if (!Date.now) {
 				Date.now = function() { return new Date().getTime() }
 			}
@@ -132,18 +136,66 @@
 		//Adds a popup with information for each point
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
+				var content = "";
+				
+				// Add alert name //
+				if (e.target.feature.properties.name != null && e.target.feature.properties.name != "") {
+					content += '<p><strong>Name: </strong> ' + e.target.feature.properties.name + '</p>';
+				}
+				else  {
+					content += '<p><strong>Name: </strong>Unavailable</p>';
+				}
+				
+				// Add alert time //
+				if (e.target.feature.properties.time != null && e.target.feature.properties != "") {
+					var time = new Date(e.target.feature.properties.time);
+					content += '<p><strong>Alert time: </strong>'+ time + '</p>';
+				}
+				else {
+					content += '<p><strong>Alert time: </strong>Unavailable</p>';
+				}
+				
+				// Add alert address //
+				if (e.target.feature.properties.address_1 != null && e.target.feature.properties.address_1 != "") {
+					content += '<p><strong>Address: </strong>' + e.target.feature.properties.address_1;
+				}
+				else {
+					content += '<p><strong>Address: </strong>Unavailable';
+				}
+				
+				// Add alert city //
+				if (e.target.feature.properties.city != null && e.target.feature.properties.city != "") {
+					content += '</br><strong>City: </strong>' + e.target.feature.properties.city;
+				}
+				else {
+					content += '</br><strong>City: </strong>Unavailable';
+				}
+				
+				// Add alert country //
+				if (e.target.feature.properties.country != null && e.target.feature.properties.country != "") {
+					content += '</br><strong>Country: </strong>' + e.target.feature.properties.country;
+				}
+				else {
+					content += '</br><strong>Country: </strong>Unavailable';
+				}
+				
+				// close the address, city, country paragraph //
+				content += '</p>';
+				
+				// Add alert photos //
 				if (e.target.feature.properties.photos_url != null && e.target.feature.properties.photos_url != "") {
 					var urlStr = "";
 					for (var url in e.target.feature.properties.photos_url){
 						urlStr += '<p><a href="' + e.target.feature.properties.photos_url[url] + '" target="_blank"><img src="' + e.target.feature.properties.photos_url[url] + '" style="width: 250px; height: 250px;"/></a></p>';
 					};
 					
-					var content = '<p>' + e.target.feature.properties.name + '</p><p>' + e.target.feature.properties.created_at + '</p>' + urlStr;
+					content += urlStr;
 				}
-				else {
-					var content = e.target.feature.properties.name + "</br>" + e.target.feature.properties.created_at + "</br>" + "No photos available";
-				}
+				
+				// Get position for popup //
 				var coords = [e.target.feature.geometry.coordinates[1],e.target.feature.geometry.coordinates[0]];
+				
+				// Create popup and add to map //
 				var popup = L.popup().setLatLng(coords).setContent(content).openOn(map);
 			});
 		}
