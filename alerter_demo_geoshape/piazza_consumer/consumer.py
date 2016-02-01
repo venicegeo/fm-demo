@@ -10,6 +10,9 @@ class Consumer:
     def __init__(self, name='consumer', listener_topics=None):
         print "Creating consumer " + name + "(" + str(id(self)) + ")"
 
+        self.db_user = 'geoshape'
+        self.db_name = 'fulcrum'
+        self.layer_name = 'starbucks'
         self.name = name
         cache.set(consumer_cache_name(self.name), {"running": False, "alive": False})
         if listener_topics:
@@ -74,7 +77,7 @@ class Consumer:
                             message_success = False
                         else:
                             print "Message {} was written.".format(feature_data.get('properties').get('city'))
-                            upload(feature_data, 'geoshape', 'gE8rCp5cSmUKM8kX', 'fulcrum', 'starbucks')
+                            upload(feature_data, self.db_user, self.db_name, self.layer_name)
                     except Exception as e:
                         if 'DoesNotExist' in e:
                             continue
@@ -87,6 +90,7 @@ class Consumer:
                 if message_success and asset_success:
                     consumer.task_done(message)
                     consumer.commit()
+                    publish_layer(self.layer_name)
         consumer.close()
         self._set_alive(False)
 
@@ -194,7 +198,7 @@ def get_listener_topics():
     return listener_topics
 
 
-def upload(feature_data, user, password, database, table):
+def upload(feature_data, user, database, table):
     import json
     import subprocess
     import os.path
@@ -208,7 +212,7 @@ def upload(feature_data, user, password, database, table):
     with open(temp_file, 'w') as open_file:
         open_file.write(json.dumps(feature_data))
     out = ""
-    conn_string = "host=localhost dbname={} user={} password={}".format(database, user, password)
+    conn_string = "host=localhost dbname={} user={}".format(database, user)
     execute = ['ogr2ogr',
                '-f', 'PostgreSQL',
                '-append',
@@ -223,10 +227,84 @@ def upload(feature_data, user, password, database, table):
         print "Failed to call:\n" + ' '.join(execute)
         print out
 
+def publish_layer(layer_name):
+    from geoserver.catalog import Catalog
+
+    url = "http://localhost:8080/geoserver/rest"
+    workspace_name = "geonode"
+    workspace_uri = "http://www.geonode.org/"
+    datastore_name = "fulcrum"
+    host = "localhost"
+    port = "5432"
+    database = "fulcrum"
+    db_type = "postgis"
+    user = "geoshape"
+    srs="EPSG:4326"
+
+    cat = Catalog(url)
+
+    # Check if local workspace exists and if not create it
+    workspace = cat.get_workspace(workspace_name)
+
+    if workspace is None:
+        current_workspace = cat.create_workspace(workspace_name, workspace_uri)
+        print "Workspace " + workspace_name + " created."
+
+    # Get list of datastores
+    datastores = cat.get_stores()
+
+    datastore = None
+    # Check if remote datastore exists on local system
+    for ds in datastores:
+        if ds.name.lower() == datastore_name.lower():
+            datastore = ds
+
+    if not datastore:
+        datastore = cat.create_datastore(datastore_name, workspace_name)
+        datastore.connection_parameters.update(host=host,
+                                               port=port,
+                                               database=database,
+                                               user=user,
+                                               dbtype=db_type)
+
+        cat.save(datastore)
+        print "Datastore " + datastore.name + " created."
+
+    # Check if remote layer already exists on local system
+    layers = cat.get_layers()
+
+    layer = None
+    for lyr in layers:
+        if lyr.resource.name.lower() == layer_name.lower():
+            layer = lyr
+
+    if not layer:
+        # Publish remote layer
+        layer = cat.publish_featuretype(layer_name, datastore, srs, srs=srs)
+        print "Published layer {}.".format(layer_name)
+        update_layers()
+        from multiprocessing import Process
+        p = Process(target=update_layers())
+        p.start()
+
+def update_layers():
+    import subprocess, os
+
+    new_env = os.environ.copy()
+    # Update layers in GeoSHAPE
+    python_bin = "/var/lib/geonode/bin/python2.7"
+    manage = "/var/lib/geonode/rogue_geonode/manage.py"
+    new_env['DJANGO_SETTINGS_MODULE'] = 'geoshape.settings'
+    subprocess.call([python_bin,
+                     manage,
+                     "updatelayers",
+                     "--ignore-errors",
+                     "--remove-deleted",
+                     "--skip-unadvertised"], env=new_env)
 
 def main():
-    pass
+    publish_layer('starbucks')
 
 
 if __name__ == "__main__":
-    pass
+    main()

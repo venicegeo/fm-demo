@@ -156,3 +156,8 @@ STATIC_URL = '/static/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR,'assets')
 MEDIA_URL = 'assets/'
+
+try:
+    from local_settings import *  # noqa
+except ImportError:
+    pass

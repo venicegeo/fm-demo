@@ -13,12 +13,12 @@ producer = KeyedProducer(client, async=True)
 topic = 'starbucks'
 client.ensure_topic_exists(topic)
 #run all?
-# feature_count = len(features)
+feature_count = len(features)
 #or run some?
-feature_count = 50
+#feature_count = 7
 interval = 1 #in seconds
 
-index = 5
+index = 0
 while index < feature_count:
     time.sleep(interval)
     photos = []
