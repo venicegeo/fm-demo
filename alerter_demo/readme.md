@@ -35,17 +35,17 @@ Which will run a development webserver on port 80.
 
 The alert register can be accessed at:
 ```
-http://127.0.0.1:8000/alerts
+http://127.0.0.1:8000/messages
 ```
 
 A geojson of recieved alerts can be viewed at:
 ```
-http://127.0.0.1:8000/alerts/geojson?topic=<topic_name>
+http://127.0.0.1:8000/messages/geojson?topic=<topic_name>
 ```
 
 A map can be used to view the data at:
 ```
-http://127.0.0.1:8000/alerts/map?topic=<topic_name>
+http://127.0.0.1:8000/messages/map?topic=<topic_name>
 ```
 
 ## Bugs
