@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+{% if form %}
+<form action="/messages/" method="post">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" value="Submit" />
+</form>
+{% endif %}
+{% if key %}
+    The consumer {{key.listener.listener_topic}}:{{key.listener_key}} is now available.
+{% endif %}
+<br>
+{% if keys %}
+<b>Listeners:</b>
+<div id="keys">
+<br>
+    {% for key in keys %}
+        {{key.listener.listener_topic}}:{{key.listener_key}}
+        <br>
+    {% endfor %}
+{% endif %}
+    </div>
+</body>
+</html>

@@ -67,10 +67,14 @@ class Consumer:
                                     urls += [asset.asset_data.url]
                                 feature_data['properties']['{}_url'.format(asset_type)] = urls
                                 print "URLS:" + str(urls)
+                            else:
+                                feature_data['properties'][asset_type] = None
+                                feature_data['properties']['{}_url'.format(asset_type)] = None
                         if not write_message(key, json.dumps(feature_data)):
                             message_success = False
                         else:
                             print "Message {} was written.".format(feature_data.get('properties').get('city'))
+                            upload(feature_data, 'geoshape', 'gE8rCp5cSmUKM8kX', 'fulcrum', 'starbucks')
                     except Exception as e:
                         if 'DoesNotExist' in e:
                             continue
@@ -188,6 +192,36 @@ def get_listener_topics():
     for listener in listeners:
         listener_topics += [listener.listener_topic]
     return listener_topics
+
+
+def upload(feature_data, user, password, database, table):
+    import json
+    import subprocess
+    import os.path
+
+    for property in feature_data.get('properties'):
+        if type(feature_data.get('properties').get(property)) == list:
+            feature_data['properties'][property] = ','.join(feature_data['properties'][property])
+
+    temp_file = os.path.abspath('./temp.json')
+    temp_file = '/'.join(temp_file.split('\\'))
+    with open(temp_file, 'w') as open_file:
+        open_file.write(json.dumps(feature_data))
+    out = ""
+    conn_string = "host=localhost dbname={} user={} password={}".format(database, user, password)
+    execute = ['ogr2ogr',
+               '-f', 'PostgreSQL',
+               '-append',
+               'PG:"{}"'.format(conn_string),
+               temp_file,
+               '-nln', table
+               ]
+    try:
+        out = subprocess.call(' '.join(execute), shell=True)
+        print "Uploaded the feature {} to postgis.".format(feature_data.get('properties').get('city'))
+    except subprocess.CalledProcessError:
+        print "Failed to call:\n" + ' '.join(execute)
+        print out
 
 
 def main():

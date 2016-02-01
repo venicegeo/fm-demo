@@ -13,9 +13,9 @@ producer = KeyedProducer(client, async=True)
 topic = 'starbucks'
 client.ensure_topic_exists(topic)
 #run all?
-feature_count = len(features)
+# feature_count = len(features)
 #or run some?
-#feature_count = 10
+feature_count = 50
 interval = 1 #in seconds
 
 index = 5
@@ -26,7 +26,7 @@ while index < feature_count:
     if features[index].get('properties').get('photos'):
         for photo in features[index].get('properties').get('photos').split(','):
             photos += [photo]
-            photos_url += ['http://127.0.0.1:8001/starbucks/{}.jpg'.format(photo)]
+            photos_url += ['http://192.168.99.1:8001/starbucks/{}.jpg'.format(photo)]
     if features[index].get('properties').get('photos'):
         features[index]['properties']['photos'] = photos
     if features[index].get('properties').get('photos_url'):
