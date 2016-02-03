@@ -23,10 +23,9 @@ from django.conf.urls.static import static
 urlpatterns = [
     url(r'^$', views.index),
     url(r'^index.html$', views.index),
-    url(r'^messages', views.messages),
-    url(r'^messages.html$', views.messages),
     url(r'^geojson$',views.geojson),
-    url(r'^map$',views.map)
+    url(r'^map$',views.map),
+    url(r'^upload$',views.upload),
 ]
 
 if settings.DEBUG is True:

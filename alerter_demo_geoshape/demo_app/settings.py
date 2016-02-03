@@ -153,9 +153,13 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
 STATIC_ROOT = './piazza_consumer/static'
 STATIC_URL = '/static/'
+DB_USER = 'geoshape'
+DB_NAME = 'fulcrum'
 
 MEDIA_ROOT = os.path.join(BASE_DIR,'assets')
 MEDIA_URL = 'assets/'
+
+FULCRUM_UPLOAD = os.path.join(BASE_DIR,'fulcrum_data')
 
 try:
     from local_settings import *  # noqa
