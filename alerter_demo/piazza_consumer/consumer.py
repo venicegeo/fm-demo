@@ -177,6 +177,7 @@ def write_asset(key, asset_uid, asset_type, asset_data_url):
     asset.asset_data.save('{}.{}'.format(asset_uid, file_ext.get(file_type)), File(img_temp))
     return asset, created
 
+
 def consumer_cache_name(consumer_name):
     return consumer_name + '_consumer'
 
