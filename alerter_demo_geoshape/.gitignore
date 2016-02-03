@@ -1,2 +1,5 @@
 demo_env
 assets/*
+db.sqlite3
+fulcrum_data/*
+fulcrum/*
