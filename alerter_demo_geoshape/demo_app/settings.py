@@ -53,7 +53,7 @@ MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -160,8 +160,3 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'assets')
 MEDIA_URL = 'assets/'
 
 FULCRUM_UPLOAD = os.path.join(BASE_DIR,'fulcrum_data')
-
-try:
-    from local_settings import *  # noqa
-except ImportError:
-    pass

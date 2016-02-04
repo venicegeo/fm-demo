@@ -47,7 +47,7 @@ def map(request):
     from mapping import get_geojson
     if request.method=='GET':
         if 'layer' not in request.GET:
-            return None
+            return render(request, 'piazza_consumer/map.html', {'geojson_request_url':''})
         geojson = {}
         layers = []
         for layer in request.GET.getlist('layer'):

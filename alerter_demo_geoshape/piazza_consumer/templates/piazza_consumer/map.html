@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>piazza-consumer</title>
+	<title>fulcrum-viewer</title>
 	<meta charset="utf-8" />
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     {% load staticfiles %}
 	
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
@@ -27,6 +28,7 @@
 			left: 0%;
 			z-index: -1;
 		}
+		
 		.ui-widget-content {
 			text-align: center;
 		}
@@ -40,20 +42,77 @@
 			text-align: center;
 			width: 100%;
 		}
-		input{
-			margin: auto;
-			position: absolute;
-			top: 70px; left: 60px; bottom: 0; right: 0;
-		}
 		#placeholder {
 			position: absolute;
 			height: 10px;
 			width: 50px;
 			visibility: hidden;
 		}
+		<!--#files {
+			position: absolute;
+			top: 247px;
+			left: 50px;
+			visibility: hidden;
+		}
+		-->
+        #progress{
+            height: 20px;
+			width: 100%;
+            display: block;
+        }
+        #uploadFormButton {
+            display: block;
+            width: 100%;
+        }
+		#fileUpload {
+			width: 100%;
+			z-index: 2;
+		}
+		#files {
+			width: 0.1px;
+			height: 0.1px;
+			opacity: 0;
+			overflow: hidden;
+			position: absolute;
+			z-index: -1;
+		}
+		#submitbutton {
+			width: 0.1px;
+			height: 0.1px;
+			opacity: 0;
+			overflow: hidden;
+			position: absolute;
+			z-index: -1;
+		}
+		#Submit {
+			position: absolute;
+			height: 30px;
+			width: 70px;
+			top: 240px;
+			left: 115px;
+		}
+		#upload {
+			position: absolute;
+			height: 30px;
+			width: 200px;
+			top: 35px;
+			left: 50px;
+		}
+		#drop_zone {
+			position: absolute;
+			top: 79px;
+			left: 75px;
+			height: 100px;
+			width: 100px;
+			border: 2px dashed #ffffff;
+			border-radius: 5px;
+			padding: 25px;
+			text-align: center;
+			color: #ffffff;
+			background-color: #cccccc;
+		}
 	
 	</style>
-	
 	
 </head>
 <body>
@@ -63,14 +122,39 @@
 	<div id="placeholder"></div>
 	
 	<form id="timeoutForm" title="Alert Timeout Controller" visibility="hidden">
-			<label for="timeout" style="display: block;" id="timeoutLable">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
+			<label for="timeout" style="display: block;" id="timeoutLabel">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
 			<input type="text" name="timeout" id="timeout" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
-	</form>
+    </form>
 	
 	<form id="colortimeForm" title="Alert Color Controller" visibility="hidden">
-			<label for="colortime" style="display: block;" id="colortimeLable">Enter seconds for alert color,<br>or enter 0 to disable alert color.</label></br>
+			<label for="colortime" style="display: block;" id="colortimeLabel">Enter seconds for alert color,<br>or enter 0 to disable alert color.</label></br>
 			<input type="text" name="colortime" id="colortime" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
 	</form>
+    <div id="formContainer" title="Upload File"> 
+        <form id="fileUpload" enctype="multipart/form-data" visibility="hidden">
+            <div >
+                <input id="uploadFormButton"  name="file" type="file" />
+            </div>                
+        </form>
+        <progress id='progress'></progress>
+    <div>
+	<!--<form action="/messages/upload" method="post" enctype="multipart/form-data" id="fileUpload">
+				
+					
+					<h2 style="text-align: center; top: 10px; margin-top: 5px; color: #666666;">File Uploader</h2>
+					
+					<button type="button" id="upload" onClick="document.getElementById('files').click()">Select file to upload</button>
+					<input id="files" name="file" type="file" />
+					
+					<div id="drop_zone">Or drop a file here!</div>
+				
+					<button type="button" id="Submit" onClick="document.getElementById('submitbutton').click()">Submit</button>
+					<input type="submit" value="Submit" id="submitbutton"/>
+				
+			
+	</form> -->
+
+	
 	
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
@@ -88,7 +172,7 @@
  	"use strict";
 		
 	$(document).ready(function () {
-
+	
 		if (!Date.now) {
 				Date.now = function() { return new Date().getTime() }
 			}
@@ -123,8 +207,10 @@
 			"OpenStreetMap": OpenStreetMap
 		};
 		
+		var layers = {};
+		
 		// Adds layer selection to map
-		var layerControl = L.control.layers(baseMaps).addTo(map);
+		var layerControl = L.control.layers(baseMaps, layers).addTo(map);
 		
 		//Adds a locator map to bottom corner of the main map
 		var miniMap = new L.Control.MiniMap(mini).addTo(map);
@@ -132,18 +218,66 @@
 		//Adds a popup with information for each point
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
+				var content = "";
+				
+				// Add alert name //
+				if (e.target.feature.properties.name != null && e.target.feature.properties.name != "") {
+					content += '<p><strong>Name: </strong> ' + e.target.feature.properties.name + '</p>';
+				}
+				else  {
+					content += '<p><strong>Name: </strong>Unavailable</p>';
+				}
+				
+				// Add alert time //
+				if (e.target.feature.properties.time != null && e.target.feature.properties != "") {
+					var time = new Date(e.target.feature.properties.time);
+					content += '<p><strong>Alert time: </strong>'+ time + '</p>';
+				}
+				else {
+					content += '<p><strong>Alert time: </strong>Unavailable</p>';
+				}
+				
+				// Add alert address //
+				if (e.target.feature.properties.address_1 != null && e.target.feature.properties.address_1 != "") {
+					content += '<p><strong>Address: </strong>' + e.target.feature.properties.address_1;
+				}
+				else {
+					content += '<p><strong>Address: </strong>Unavailable';
+				}
+				
+				// Add alert city //
+				if (e.target.feature.properties.city != null && e.target.feature.properties.city != "") {
+					content += '</br><strong>City: </strong>' + e.target.feature.properties.city;
+				}
+				else {
+					content += '</br><strong>City: </strong>Unavailable';
+				}
+				
+				// Add alert country //
+				if (e.target.feature.properties.country != null && e.target.feature.properties.country != "") {
+					content += '</br><strong>Country: </strong>' + e.target.feature.properties.country;
+				}
+				else {
+					content += '</br><strong>Country: </strong>Unavailable';
+				}
+				
+				// close the address, city, country paragraph //
+				content += '</p>';
+				
+				// Add alert photos //
 				if (e.target.feature.properties.photos_url != null && e.target.feature.properties.photos_url != "") {
 					var urlStr = "";
 					for (var url in e.target.feature.properties.photos_url){
 						urlStr += '<p><a href="' + e.target.feature.properties.photos_url[url] + '" target="_blank"><img src="' + e.target.feature.properties.photos_url[url] + '" style="width: 250px; height: 250px;"/></a></p>';
 					};
 					
-					var content = '<p>' + e.target.feature.properties.name + '</p><p>' + e.target.feature.properties.created_at + '</p>' + urlStr;
+					content += urlStr;
 				}
-				else {
-					var content = e.target.feature.properties.name + "</br>" + e.target.feature.properties.created_at + "</br>" + "No photos available";
-				}
+				
+				// Get position for popup //
 				var coords = [e.target.feature.geometry.coordinates[1],e.target.feature.geometry.coordinates[0]];
+				
+				// Create popup and add to map //
 				var popup = L.popup().setLatLng(coords).setContent(content).openOn(map);
 			});
 		}
@@ -204,7 +338,8 @@
 		}
 		
 		//Get features from geojson file every second
-		setInterval(function () {
+		/*
+        setInterval(function () {
 			
 			$.ajax({
 					url : "{{geojson_request_url}}",
@@ -217,6 +352,8 @@
 					}
 				});
 		}, 1000);
+        */
+		
 		
 		//Show coordinates of mouse position
 		L.control.mousePosition().addTo(map);
@@ -250,6 +387,7 @@
 		
 		//Adds draggable zoom box
 		var zoomBox = L.control.zoomBox({
+			className: 'fa fa-search-plus',
 			modal: true,
 		}).addTo(map);
 		
@@ -266,8 +404,6 @@
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 					$("#colortimeForm").dialog('close');
 				},
-				height: 250,
-				width: 350,
 				position: {
 					my: "left top",
 					at: "right bottom",
@@ -385,8 +521,167 @@
 					}
 				}]
 			}).addTo(map);
-		});	
+		});		
+		var styler = {
+			radius : 4,
+			fillColor : "#33cc33",
+			color : "#000000",
+			weight : 1, 
+			opacity : 1,
+			fillOpacity : 1
+		};
 		
+		/*
+		var newlayer;
+		function handleFileSelect(evt) {
+			var file = evt.target.files[0];
+			var reader = new FileReader();
+			if (file) {
+				reader.onload = function(e) {
+					var contents = e.target.result;
+					var parsedfile = JSON.parse(contents);
+					newlayer = new L.geoJson(parsedfile, {
+						pointToLayer : function (feature, latlng) {
+							return L.circleMarker(latlng, styler);
+						}
+					}).addTo(map); */ /*
+						
+					//document.getElementById('files').style.visibility = 'hidden';
+				};
+				reader.readAsText(file);
+			}
+		*/	
+		/*
+		};
+		var listening = document.getElementById('files').addEventListener('change', handleFileSelect, false);
+		
+		var removeButton = L.easyButton({
+			position: 'bottomleft',
+			states: [{
+				stateName: 'Add-geoJson-Layer',
+				icon: 'fa-plus',
+				title: 'Add geoJson Layer',
+				onClick: function(btn, map) {
+					//document.getElementById('files').click();
+					document.getElementById('files').style.visibility = 'visible';
+					btn.state('Remove-added-layer');
+				}
+			},
+			{
+				stateName: 'Remove-added-layer',
+				icon: 'fa-trash-o',	
+				title: 'Remove Added Layer',
+				onClick: function(btn, map) {
+					if(newlayer) {
+						map.removeLayer(newlayer);
+					}
+					btn.state('Add-geoJson-Layer');
+				}
+			}]
+		}).addTo(map);
+		
+				
+		
+		function handleDragOver(evt) {
+			evt.stopPropagation();
+			evt.preventDefault();
+			evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
+		}
+
+		// Setup the dnd listeners.
+		var dropZone = document.getElementById('drop_zone');
+		dropZone.addEventListener('dragover', handleDragOver, false);
+		dropZone.addEventListener('drop', handleFileSelect, false);
+	*/
+		var uploadForm = (function(){
+            var formData = new FormData($('#fileUpload')[0]);
+            $.ajax({
+                url: '/messages/upload',  //Server script to process data
+                type: 'POST',
+                xhr: function() {  // Custom XMLHttpRequest
+                    var myXhr = $.ajaxSettings.xhr();
+                    if(myXhr.upload){ // Check if upload property exists
+                        myXhr.upload.addEventListener('progress',progressHandlingFunction, false); // For handling the progress of the upload
+                    }
+                    return myXhr;
+                },
+                //Ajax events
+                beforeSend: console.log("Sending"),
+                success: console.log("Success"),
+                error: console.log("Fail"),
+                // Form data
+                data: formData,
+                //Options to tell jQuery not to process data or worry about content-type.
+                cache: false,
+                contentType: false,
+                processData: false
+            });
+        });
+        
+        function progressHandlingFunction(e){
+            if(e.lengthComputable){
+                $('progress').attr({value:e.loaded,max:e.total});
+            }
+        }
+        
+        /* var uploadFile = $(function() {*/
+		
+			var uploadFileDialogBox = $("#formContainer").dialog({
+				autoOpen: false,
+				closeOnEscape: false,
+				open: function(event, ui) {
+					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); 
+					$("#timeoutForm").dialog('close');
+                    $("#colortimeForm").dialog('close');
+				},
+				height: 175,
+				width: 500,
+				position: {
+					my: "left top",
+					at: "right bottom",
+					of: placeholder
+				},
+				modal: true,
+				buttons: {
+					"Upload": uploadForm,
+					"Cancel": function() {
+						$(this).dialog("close");
+					}
+				},
+			
+			});
+            
+            var uploadFileButton = L.easyButton({
+				states: [{
+					stateName: 'Upload File',
+					icon: 'fa fa-upload',	
+					title: 'Upload File',
+					onClick: function(btn, map) {
+						uploadFileDialogBox.dialog("open");
+					}
+				}]
+			}).addTo(map);
+		
+        $('#timeoutForm').keypress( function(e) {
+				if (e.charCode == 13 || e.keyCode == 13) {
+					uploadForm();
+					e.preventDefault();
+				}
+			});
+            
+        /*
+			$.ajax({
+				url: url,
+				dataType: "json",
+				success: function (result) {
+					for(var key in result) {
+						var value = result[key];
+						var geolayer = L.geoJson(value).addTo(map);
+						layers[key] = geolayer;
+					}
+				}
+			}); 
+		*/
 	});
 	
 	</script>
