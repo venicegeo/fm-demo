@@ -17,9 +17,10 @@ def geojson(request):
             return None
         geojson = {}
         for layer in request.GET.getlist('layer'):
-            geojson[layer] = json.loads(get_geojson(layer))
+            if get_geojson(layer):
+                geojson[layer] = json.loads(get_geojson(layer))
     if not geojson:
-        return HttpResponse("A topic must be specific as a GET parameter.",status=400)
+        return HttpResponse("No layer exists, or a layer was not specified.",status=400)
     return HttpResponse(json.dumps(geojson), content_type="application/json")
 
 
@@ -34,7 +35,8 @@ def upload(request):
         if form.is_valid():
             layers = process_fulcrum_data(request.FILES['file'])
             for layer in layers:
-                geojson[layer] = json.loads(get_geojson(layer))
+                if get_geojson(layer):
+                    geojson[layer] = json.loads(get_geojson(layer))
             return HttpResponse(json.dumps(geojson), content_type="application/json")
         else:
             print "FORM NOT VALID."

@@ -11,12 +11,13 @@ def process_fulcrum_data(f):
             for filename in files:
                 if '.geojson' in filename:
                     upload_geojson(os.path.abspath(os.path.join(folder,filename)))
+                    layers += [os.path.splitext(filename)[0]]
                     delete_file(os.path.abspath(os.path.join(folder,filename)))
                 if '.jpg' in filename:
                     shutil.copy(os.path.abspath(os.path.join(folder,filename)),
                                 os.path.abspath(os.path.join(settings.MEDIA_ROOT,filename)))
                     delete_file(os.path.abspath(os.path.join(folder,filename)))
-        layers += [os.path.splitext(file_path)[0]]
+
         delete_folder(os.path.splitext(file_path)[0])
     return layers
 
@@ -97,7 +98,7 @@ def upload_geojson(file_path):
         write_feature(feature.get('properties').get('fulcrum_id'),
                       layer,
                       json.dumps(feature))
-        upload(feature, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
+        upload_to_postgis(feature, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
 
 
 def write_layer(name):
@@ -120,9 +121,11 @@ def write_asset(asset_uid, asset_type, asset_data_path, key=None):
     import urllib2
     import os
     from .models import Asset
+    from django.conf import settings
 
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
-
+    if not os.path.exists(settings.MEDIA_ROOT):
+            os.mkdir(settings.MEDIA_ROOT)
     img_temp = NamedTemporaryFile()
     if 'http' in asset_data_path.lower():
         file_ext = {'image': 'jpg'}
@@ -137,7 +140,7 @@ def write_asset(asset_uid, asset_type, asset_data_path, key=None):
     return asset, created
 
 
-def upload(feature_data, user, database, table):
+def upload_to_postgis(feature_data, user, database, table):
     import json
     import subprocess
     import os.path
@@ -158,7 +161,7 @@ def upload(feature_data, user, database, table):
     with open(temp_file, 'w') as open_file:
         open_file.write(json.dumps(feature_data))
     out = ""
-    conn_string = "host=localhost dbname={} user={}".format(database, user)
+    conn_string = "dbname={} user={}".format(database, user)
     execute_append = ['ogr2ogr',
                        '-f', 'PostgreSQL',
                        '-append',
