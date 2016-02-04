@@ -317,7 +317,7 @@
 		}
 		
 		// Get features from geojson file every second //
-        setInterval(function () {
+/* setInterval(function () {
 			
 			$.ajax({
 					url : "{{geojson_request_url}}",
@@ -331,7 +331,7 @@
 				});
 		}, 1000);
 		
-		
+	*/	
 		// Show coordinates of mouse position //
 		L.control.mousePosition().addTo(map);
 		
@@ -578,7 +578,7 @@
                 },
                 // Ajax events //
                 beforeSend: console.log("Sending"),
-                success: console.log("Success"),
+                success: function(result){console.log(result)},
                 error: console.log("Fail"),
                 // Form data //
                 data: formData,
@@ -616,10 +616,7 @@
 			},
 			modal: true,
 			buttons: {
-				"Upload": function() {
-					uploadForm;
-					getLayer();
-				},
+				"Upload": uploadForm,
 				"Cancel": function() {
 					$(this).dialog("close");
 				}

@@ -25,7 +25,7 @@ def geojson(request):
 
 
 def upload(request):
-    from fulcrum import process_fulcrum_data
+    from geoshape_fulcrum import process_fulcrum_data
     from mapping import get_geojson
 
     if request.method == 'POST':
