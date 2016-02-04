@@ -12,7 +12,7 @@ sudo mv fm-demo-geoshape_demo/alerter_demo_geoshape /var/lib/demo
 /var/lib/demo/demo_env/bin/pip install django
 /var/lib/demo/demo_env/bin/pip install requests
 /var/lib/demo/demo_env/bin/pip install gsconfig
-/var/lib/demo/demo_env/bin/pip install dateutil
+/var/lib/demo/demo_env/bin/pip install python-dateutil
 
 ln -s /etc/geoshape/local_settings.py /var/lib/demo/demo_app/local_settings.py
 
