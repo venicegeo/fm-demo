@@ -28,7 +28,10 @@
 			left: 0%;
 			z-index: -1;
 		}
-		
+		#timeout, #colortime {
+			position: absolute;
+			left: 60px;
+		}
 		.ui-widget-content {
 			text-align: center;
 		}
@@ -49,9 +52,11 @@
 			visibility: hidden;
 		}
         #progress{
+			position: absolute;
             height: 20px;
-			width: 100%;
+			width: 450px;
             display: block;
+			top: 60px;
         }
         #uploadFormButton {
             display: block;
@@ -381,6 +386,8 @@
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 					$("#colortimeForm").dialog('close');
 				},
+				height: 250,
+				width: 350,
 				position: {
 					my: "left top",
 					at: "right bottom",
@@ -562,7 +569,8 @@
 		dropZone.addEventListener('dragover', handleDragOver, false);
 		dropZone.addEventListener('drop', handleFileSelect, false);
 	*/
-	
+		var layercount = 0;
+		var layerResult;
 		// Uploads user data //
 		var uploadForm = (function(){
             var formData = new FormData($('#fileUpload')[0]);
@@ -578,7 +586,40 @@
                 },
                 // Ajax events //
                 beforeSend: console.log("Sending"),
-                success: console.log("Success"),
+				// Adds layer to the map //
+                success: function (result) {
+					for(var key in result) {
+						var value = result[key];
+						
+						// Styles the layer being added to map //
+						var styler = {
+							radius : 4,
+							fillColor : getRandomColor(),
+							color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
+						};
+					
+						var newlayer = L.geoJson(value, {
+							pointToLayer : function (feature, latlng) {
+								return L.circleMarker(latlng, styler);
+							}
+						}).addTo(map);
+						layers["newlayer" + layercount++] = newlayer;
+						layerControl.removeFrom(map);
+						layerControl = L.control.layers(baseMaps, layers).addTo(map);
+					};
+					// Gets randomized color for new layer //
+						function getRandomColor() {
+							var letters = '0123456789ABCDEF'.split('');
+							var color = '#';
+							for (var i = 0; i < 6; i++ ) {
+								color += letters[Math.floor(Math.random() * 16)];
+							}
+							return color;
+						};
+				},
                 error: console.log("Fail"),
                 // Form data //
                 data: formData,
@@ -607,7 +648,7 @@
 				$("#timeoutForm").dialog('close');
 				$("#colortimeForm").dialog('close');
 			},
-			height: 175,
+			height: 250,
 			width: 500,
 			position: {
 				my: "left top",
@@ -616,10 +657,7 @@
 			},
 			modal: true,
 			buttons: {
-				"Upload": function() {
-					uploadForm;
-					getLayer();
-				},
+				"Upload": uploadForm,
 				"Cancel": function() {
 					$(this).dialog("close");
 				}
@@ -645,48 +683,6 @@
 				e.preventDefault();
 			}
 		});
-            
-        // Receives user upload file back from server as a list of geojson files //
-		var layercount = 0;
-		function getLayer() {
-			$.ajax({
-				url: '/messages/geojson?layer=starbucks',
-				dataType: "json",
-				success: function (result) {
-					for(var key in result) {
-						var value = result[key];
-						var newlayer = L.geoJson(value, {
-							pointToLayer : function (feature, latlng) {
-								return L.circleMarker(latlng, styler);
-							}
-						}).addTo(map);
-						layers["newlayer" + layercount++] = newlayer;
-						layerControl.removeFrom(map);
-						layerControl = L.control.layers(baseMaps, layers).addTo(map);
-					}
-				}
-			});
-			
-			// Styles the layer being added to map //
-			var styler = {
-				radius : 4,
-				fillColor : getRandomColor(),
-				color : "#000000",
-				weight : 1, 
-				opacity : 1,
-				fillOpacity : 1
-			};
-			
-			// Gets randomized color for new layer //
-			function getRandomColor() {
-				var letters = '0123456789ABCDEF'.split('');
-				var color = '#';
-				for (var i = 0; i < 6; i++ ) {
-					color += letters[Math.floor(Math.random() * 16)];
-				}
-				return color;
-			};
-		};
 	});
 	
 	</script>
