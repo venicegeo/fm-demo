@@ -3,7 +3,7 @@ cd ~
 sudo yum install unzip -y
 wget -O demo.zip https://github.com/venicegeo/fm-demo/archive/master.zip
 unzip demo.zip
-sudo mv fm-demo-geoshape_demo/alerter_demo_geoshape /var/lib/demo
+sudo mv fm-demo-master/alerter_demo_geoshape /var/lib/demo
 
 # Create VirtualEnv
 /var/lib/geonode/bin/pip install virtualenv
