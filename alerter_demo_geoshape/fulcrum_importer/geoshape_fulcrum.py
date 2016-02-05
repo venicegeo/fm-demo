@@ -86,7 +86,7 @@ def upload_geojson(file_path):
         for asset_type in ['photos']:
             if feature.get('properties').get(asset_type):
                 urls = []
-                if type(feature.get('properties').get(asset_type)) == 'list':
+                if type(feature.get('properties').get(asset_type)) == list:
                     for asset_uid in feature.get('properties').get(asset_type):
                         asset, created = write_asset_from_file(asset_uid,
                                                                asset_type,
