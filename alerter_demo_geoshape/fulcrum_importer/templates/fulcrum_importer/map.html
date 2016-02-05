@@ -113,7 +113,7 @@
 			position: absolute;
 			height: 35px;
 			width: 35px;
-			top: 12px;
+			top: 52px;
 			right: 10px;
 			border-radius: 5px;
 			text-align: center;
@@ -609,27 +609,30 @@
                 success: function (result) {
 					document.getElementById('waiting').style.visibility = 'hidden';
 					for(var key in result) {
-							if(!(key in layers)) {
-							var value = result[key];
-							
-							// Styles the layer being added to map //
-							var styler = {
-								radius : 4,
-								fillColor : getRandomColor(),
-								color : "#000000",
-								weight : 1, 
-								opacity : 1,
-								fillOpacity : 1
-							};
-							var newlayer = L.geoJson(value, {
-								pointToLayer : function (feature, latlng) {
-									return L.circleMarker(latlng, styler);
-								}
-							}).addTo(map);
-							layers[key] = newlayer;
-							layerControl.removeFrom(map);
-							layerControl = L.control.layers(baseMaps, layers).addTo(map);
+						// If layer already exists, remove first, then add new version
+						if(key in layers) {
+							map.removeLayer(layers[key]);
+							layerControl.removeLayer(key);
+						}
+						var value = result[key];
+						
+						// Styles the layer being added to map //
+						var styler = {
+							radius : 4,
+							fillColor : getRandomColor(),
+							color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
 						};
+						var newlayer = L.geoJson(value, {
+							pointToLayer : function (feature, latlng) {
+								return L.circleMarker(latlng, styler);
+							}
+						}).addTo(map);
+						layers[key] = newlayer;
+						layerControl.removeFrom(map);
+						layerControl = L.control.layers(baseMaps, layers).addTo(map);
 					};
 					// Gets randomized color for new layer //
 						function getRandomColor() {
