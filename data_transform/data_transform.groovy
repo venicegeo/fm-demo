@@ -4,7 +4,9 @@
 // import the http builder jars
 @Grab(group = "org.codehaus.groovy.modules.http-builder", module = "http-builder", version = "0.7")
 import groovyx.net.http.HTTPBuilder
-import static groovyx.net.http.Method.GET
+import static groovyx.net.http.Method.*
+import static groovyx.net.http.ContentType.*
+import groovy.json.JsonOutput
 
 
 email = ""
@@ -23,6 +25,7 @@ assembleData()
 // script end
 
 
+
 // script functions
 def assembleData() {
 	def data = []
@@ -32,36 +35,75 @@ def assembleData() {
 			recordKey, recordValue -> 
 			def key = form.elements.find { recordKey == it.key }.data_name
 	
-			
+				
 			return [(key): recordValue]	
 		}).inject([:]) { result, map -> result + map }
 
 		record += [latitude: it.latitude, longitude: it.longitude]
 		data.push(record)
-	}
 
-	// download all images for all records
-	def imageAccessKeys = ((data.collect { it.photos.collect { it.photo_id } }).inject([]) { result, array -> result + array }).unique().sort()
-	imageAccessKeys.eachWithIndex() { value, index ->
-		print "Getting metadata for image ${index + 1}/${imageAccessKeys.size()}... "
-		def filename = value
-		def http = new HTTPBuilder("https://api.fulcrumapp.com/api/v2/photos/${filename}.json")
+		//downloadRecordImages(record)
+		downloadRecordVideos(record)
+	}
+}
+
+def downloadFile(url, filename) {
+        def file = new File(filename).newOutputStream()  
+	file << new URL(url).openStream()  
+	file.close()  
+}
+
+def downloadRecordImages(record) {
+	record.photos.eachWithIndex() { value, index ->
+		def photoId = value.photo_id
+		print "Getting metadata for image ${index + 1}... "
+		def http = new HTTPBuilder("https://api.fulcrumapp.com/api/v2/photos/${photoId}.json")
 		http.request(GET) { req ->
 			headers."X-ApiToken" = authKey
 			response.success = { resp, reader ->
 				def url = reader.photo.original
 				print "Downloading it... "
-				downloadImage(url, "${filename}.jpg")
+				//downloadFile(url, "${photoId}.jpg")
 				print "Done!\n"
-                        }
+			}
 		}
 	}
 }
 
-def downloadImage(url, filename) {
-        def file = new File(filename).newOutputStream()  
-	file << new URL(url).openStream()  
-	file.close()  
+def downloadRecordVideos(record) {
+	record.videos.eachWithIndex() { value, index ->
+		println record
+		def videoId = value.video_id
+		print "Getting metadata for video ${index + 1}... "
+		def http = new HTTPBuilder("https://api.fulcrumapp.com/api/v2/photos/${videoId}.json")
+		http.request(GET) { req ->
+			headers."X-ApiToken" = authKey
+			response.success = { resp, reader ->
+				def url = reader.video.original
+				print "Downloading it... "
+				//downloadFile(url, "${photoId}.mp4")
+				print "Done!\n"
+			}
+		}
+	}
+}
+
+def filterData(filter) {
+/*
+	def body
+	def http
+	
+	if (filter == "geospatial") {
+		http = new HTTPBuilder("http://localhost:8080/us-geospatial-filter/filter")
+		body = new File("starbucks.geojson").getText()
+		http.request(POST) { req ->
+			send JSON, body
+			response.success = { resp, reader ->
+				println reader
+			}
+		}
+	}
+*/
 }
 
 def getFormData() {
