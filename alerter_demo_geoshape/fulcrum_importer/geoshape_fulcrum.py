@@ -81,6 +81,7 @@ def upload_geojson(file_path):
     import os
     with open(file_path) as data_file:
         features = json.load(data_file).get('features')
+    print("DEBUG: File path is {}".format(file_path))
     uploads = []
     for feature in features:
         for asset_type in ['photos']:
@@ -91,13 +92,21 @@ def upload_geojson(file_path):
                         asset, created = write_asset_from_file(asset_uid,
                                                                asset_type,
                                                                os.path.dirname(file_path))
-                        urls += [asset.asset_data.url]
+                        if asset:
+                            if asset.asset_data:
+                                urls += [asset.asset_data.url]
+                        else:
+                            urls += ['Import Needed.']
                 else:
                     for asset_uid in feature.get('properties').get(asset_type).split(','):
                         asset, created = write_asset_from_file(asset_uid,
                                                                asset_type,
                                                                os.path.dirname(file_path))
-                        urls += [asset.asset_data.url]
+                        if asset:
+                            if asset.asset_data:
+                                urls += [asset.asset_data.url]
+                        else:
+                            urls += ['Import Needed.']
                 feature['properties']['{}_url'.format(asset_type)] = urls
             else:
                 feature['properties'][asset_type] = None
@@ -157,9 +166,13 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
     if created:
         if not os.path.exists(settings.MEDIA_ROOT):
             os.mkdir(settings.MEDIA_ROOT)
-        with open(file_path) as open_file:
-            asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
-                                  File(open_file))
+        if os.path.exists(file_path):
+            with open(file_path) as open_file:
+                asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
+                                      File(open_file))
+        else:
+            print("The file {}.{} was not included in the archive.".format(asset_uid, asset_types.get(asset_type)))
+            return None, False
     return asset, created
 
 
@@ -177,7 +190,8 @@ def upload_to_postgis(feature_data, user, database, table):
         for feature in feature_data:
             if feature.get('properties').get(asset_type):
                 for asset in feature.get('properties').get(asset_type).split(','):
-                    feature['properties'][asset_type] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
+                    feature['properties'][
+                        asset_type] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
                     feature['properties'][
                         asset_type + '_url'] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
 
