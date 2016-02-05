@@ -1,9 +1,9 @@
 # Copy scripts (for now just create a vagrant shared folder)
 cd ~
 sudo yum install unzip -y
-wget -O demo.zip https://github.com/venicegeo/fm-demo/archive/geoshape_demo.zip
+wget -O demo.zip https://github.com/venicegeo/fm-demo/archive/master.zip
 unzip demo.zip
-sudo mv fm-demo-geoshape_demo/alerter_demo_geoshape /var/lib/demo
+sudo mv fm-demo-master/alerter_demo_geoshape /var/lib/demo
 
 # Create VirtualEnv
 /var/lib/geonode/bin/pip install virtualenv
@@ -13,6 +13,7 @@ sudo mv fm-demo-geoshape_demo/alerter_demo_geoshape /var/lib/demo
 /var/lib/demo/demo_env/bin/pip install requests
 /var/lib/demo/demo_env/bin/pip install gsconfig
 /var/lib/demo/demo_env/bin/pip install python-dateutil
+/var/lib/demo/demo_env/bin/pip install fulcrum
 
 ln -s /etc/geoshape/local_settings.py /var/lib/demo/demo_app/local_settings.py
 

@@ -93,15 +93,19 @@ def upload_geojson(file_path):
             if feature.get('properties').get(asset_type):
                 urls = []
                 if type(feature.get('properties').get(asset_type))=='list':
-                    for index, value in enumerate(feature.get('properties').get(asset_type)):
-                        asset, created = write_asset(value, asset_type, file_path)
-                        print "Asset {} was written.".format(value)
+                    for asset_uid in feature.get('properties').get(asset_type):
+                        print "DEBUG: WRITING ASSET for: {},{},{} match list".format(asset_uid,asset_type,file_path)
+                        asset, created = write_asset(asset_uid, asset_type, file_path)
+                        print "Asset {} was written.".format(asset_uid)
                         urls += [asset.asset_data.url]
                 else:
-                    asset, created = write_asset(feature.get('properties').get(asset_type),
-                                                 asset_type,
-                                                 file_path)
-                    urls += [asset.asset_data.url]
+                    for index, value in enumerate(feature.get('properties').get(asset_type).split(',')):
+                        print "DEBUG: WRITING ASSET for: {},{},{} match CSV".format(value,asset_type,file_path)
+                        asset, created = write_asset(value,
+                                                     asset_type,
+                                                     file_path)
+                        print "DEBUG: {} : {}".format(asset.assasset.asset_data.url)
+                        urls += [asset.asset_data.url]
                 feature['properties']['{}_url'.format(asset_type)] = urls
             else:
                 feature['properties'][asset_type] = None
@@ -116,14 +120,12 @@ def upload_geojson(file_path):
 
 def write_layer(name):
     from .models import Layer
-
     layer, layer_created = Layer.objects.get_or_create(layer_name=name)
     return layer
 
 
 def write_feature(key, app, data):
     from .models import Feature
-
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key, defaults={'layer': app, 'feature_data':data})
     return feature
 
@@ -144,10 +146,10 @@ def write_asset(asset_uid, asset_type, asset_data_path, key=None):
         if 'http' in asset_data_path.lower():
             file_ext = {'image': 'jpg'}
             response = urllib2.urlopen(asset_data_path)
-            img_temp.write(response.read())
+            temp.write(response.read())
             file_type = response.info().maintype
-            img_temp.flush()
-            asset.asset_data.save('{}.{}'.format(asset_uid, file_ext.get(file_type)), File(img_temp))
+            temp.flush()
+            asset.asset_data.save('{}.{}'.format(asset_uid, file_ext.get(file_type)), File(temp))
         else:
             asset.asset_data.save('{}.{}'.format(asset_uid, os.path.splitext(asset_data_path)[0]),
                                   File(open(asset_data_path)))
