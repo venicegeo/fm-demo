@@ -6,7 +6,7 @@ from django.db import models
 class Asset(models.Model):
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
-    asset_data = models.FileField(upload_to='assets/')
+    asset_data = models.FileField(upload_to='./')
 
 
 class Layer(models.Model):

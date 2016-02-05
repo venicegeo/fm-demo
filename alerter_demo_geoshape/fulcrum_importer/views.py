@@ -14,7 +14,7 @@ def geojson(request):
     from mapping import get_geojson
     if request.method=='GET':
         if 'layer' not in request.GET:
-            return None
+            return HttpResponse("No layer exists, or a layer was not specified.",status=400)
         geojson = {}
         for layer in request.GET.getlist('layer'):
             if get_geojson(layer):
