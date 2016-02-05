@@ -87,6 +87,7 @@ def upload_geojson(file_path):
     import os
     with open(file_path) as data_file:
         features = json.load(data_file).get('features')
+    uploads = []
     for feature in features:
         for asset_type in ['photos', 'videos', 'sounds']:
             if feature.get('properties').get(asset_type):
@@ -109,7 +110,8 @@ def upload_geojson(file_path):
         write_feature(feature.get('properties').get('fulcrum_id'),
                       layer,
                       json.dumps(feature))
-        upload_to_postgis(feature, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
+        uploads += [feature]
+    upload_to_postgis(uploads, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
 
 
 def write_layer(name):
@@ -134,21 +136,22 @@ def write_asset(asset_uid, asset_type, asset_data_path, key=None):
     from .models import Asset
     from django.conf import settings
 
+    print "WRITING ASSET FOR {}".format(asset_uid)
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
     if not os.path.exists(settings.MEDIA_ROOT):
             os.mkdir(settings.MEDIA_ROOT)
-    img_temp = NamedTemporaryFile()
-    if 'http' in asset_data_path.lower():
-        file_ext = {'image': 'jpg'}
-        response = urllib2.urlopen(asset_data_path)
-        img_temp.write(response.read())
-        file_type = response.info().maintype
-        img_temp.flush()
-        asset.asset_data.save('{}.{}'.format(asset_uid, file_ext.get(file_type)), File(img_temp))
-    else:
-        asset.asset_data.save('{}.{}'.format(asset_uid, os.path.splitext(asset_data_path)[0]),
-                              File(open(asset_data_path)))
-    return asset, created
+    with NamedTemporaryFile() as temp:
+        if 'http' in asset_data_path.lower():
+            file_ext = {'image': 'jpg'}
+            response = urllib2.urlopen(asset_data_path)
+            img_temp.write(response.read())
+            file_type = response.info().maintype
+            img_temp.flush()
+            asset.asset_data.save('{}.{}'.format(asset_uid, file_ext.get(file_type)), File(img_temp))
+        else:
+            asset.asset_data.save('{}.{}'.format(asset_uid, os.path.splitext(asset_data_path)[0]),
+                                  File(open(asset_data_path)))
+        return asset, created
 
 
 def upload_to_postgis(feature_data, user, database, table):
@@ -156,21 +159,26 @@ def upload_to_postgis(feature_data, user, database, table):
     import subprocess
     import os
 
-    for property in feature_data.get('properties'):
-        if type(feature_data.get('properties').get(property)) == list:
-            feature_data['properties'][property] = ','.join(feature_data['properties'][property])
+    for feature in feature_data:
+        for property in feature.get('properties'):
+            if type(feature.get('properties').get(property)) == list:
+                feature['properties'][property] = ','.join(feature['properties'][property])
 
     for asset_type in ['photos', 'videos', 'sounds']:
-        if feature_data.get('properties').get(asset_type):
-            for asset in feature_data.get('properties').get(asset_type).split(','):
-                feature_data['properties'][asset_type] = "http://geoshape.dev:8004/messages/assets/assets/{}.jpg".format(asset)
-                feature_data['properties'][asset_type+'_url'] = "http://geoshape.dev:8004/messages/assets/assets/{}.jpg".format(asset)
+        for feature in feature_data:
+            if feature.get('properties').get(asset_type):
+                for asset in feature.get('properties').get(asset_type).split(','):
+                    feature['properties'][asset_type] = "http://geoshape.dev:8004/messages/assets/{}.jpg".format(asset)
+                    feature['properties'][asset_type+'_url'] = "http://geoshape.dev:8004/messages/assets/{}.jpg".format(asset)
 
     temp_file = os.path.abspath('./temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
 
+    feature_collection = {"type":"FeatureCollection","features": feature_data}
+
+    print feature_collection
     with open(temp_file, 'w') as open_file:
-        open_file.write(json.dumps(feature_data))
+        open_file.write(json.dumps(feature_collection))
     out = ""
     conn_string = "dbname={} user={}".format(database, user)
     execute_append = ['ogr2ogr',

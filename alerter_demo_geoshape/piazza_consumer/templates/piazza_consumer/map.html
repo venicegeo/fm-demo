@@ -5,7 +5,7 @@
 	<meta charset="utf-8" />
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="_token" content={% csrf_token %}/>
+    
     {% load staticfiles %}
 	
 	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
@@ -28,7 +28,10 @@
 			left: 0%;
 			z-index: -1;
 		}
-		
+		#timeout, #colortime {
+			position: absolute;
+			left: 60px;
+		}
 		.ui-widget-content {
 			text-align: center;
 		}
@@ -42,37 +45,26 @@
 			text-align: center;
 			width: 100%;
 		}
-		<!--input{
-			margin: auto;
-			text-align: center;
-			position: absolute;
-			top: 70px; left: 60px; bottom: 0; right: 0;
-		}-->
 		#placeholder {
 			position: absolute;
 			height: 10px;
 			width: 50px;
 			visibility: hidden;
 		}
-		<!--#files {
+        #progress{
 			position: absolute;
-			top: 247px;
-			left: 50px;
-			visibility: hidden;
-		}
-		-->
+            height: 20px;
+			width: 450px;
+            display: block;
+			top: 60px;
+        }
+        #uploadFormButton {
+            display: block;
+            width: 100%;
+        }
 		#fileUpload {
-			position: absolute;
-			top: 10px;
-			left: 50px;
-			height: 300px;
-			width: 300px;
+			width: 100%;
 			z-index: 2;
-			border-style: dashed;
-			border-color: #8c8c8c;
-			border-radius: 25px;
-			color: #000000;
-			background-color: #cccccc;
 		}
 		#files {
 			width: 0.1px;
@@ -128,33 +120,23 @@
 	<div id="placeholder"></div>
 	
 	<form id="timeoutForm" title="Alert Timeout Controller" visibility="hidden">
-			<label for="timeout" style="display: block;" id="timeoutLable">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
+			<label for="timeout" style="display: block;" id="timeoutLabel">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
 			<input type="text" name="timeout" id="timeout" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
-	</form>
+    </form>
 	
 	<form id="colortimeForm" title="Alert Color Controller" visibility="hidden">
-			<label for="colortime" style="display: block;" id="colortimeLable">Enter seconds for alert color,<br>or enter 0 to disable alert color.</label></br>
+			<label for="colortime" style="display: block;" id="colortimeLabel">Enter seconds for alert color,<br>or enter 0 to disable alert color.</label></br>
 			<input type="text" name="colortime" id="colortime" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
 	</form>
 	
-	{% include '/var/lib/demo/piazza_consumer/templates/piazza_consumer/upload.html' %}
-	<!--<form action="/messages/upload" method="post" enctype="multipart/form-data" id="fileUpload">
-				
-					
-					<h2 style="text-align: center; top: 10px; margin-top: 5px; color: #666666;">File Uploader</h2>
-					
-					<button type="button" id="upload" onClick="document.getElementById('files').click()">Select file to upload</button>
-					<input id="files" name="file" type="file" />
-					
-					<div id="drop_zone">Or drop a file here!</div>
-				
-					<button type="button" id="Submit" onClick="document.getElementById('submitbutton').click()">Submit</button>
-					<input type="submit" value="Submit" id="submitbutton"/>
-				
-			
-	</form> -->
-
-	
+    <div id="formContainer" title="Upload File"> 
+        <form id="fileUpload" enctype="multipart/form-data" visibility="hidden">
+            <div >
+                <input id="uploadFormButton"  name="file" type="file" />
+            </div>                
+        </form>
+        <progress id='progress'></progress>
+    <div>
 	
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
@@ -207,15 +189,16 @@
 			"OpenStreetMap": OpenStreetMap
 		};
 		
+		// Empty layer list for any user uploaded layers //
 		var layers = {};
 		
-		// Adds layer selection to map
+		// Adds layer selection to map //
 		var layerControl = L.control.layers(baseMaps, layers).addTo(map);
 		
-		//Adds a locator map to bottom corner of the main map
+		// Adds a locator map to bottom corner of the main map //
 		var miniMap = new L.Control.MiniMap(mini).addTo(map);
 		
-		//Adds a popup with information for each point
+		// Adds a popup with information for each point //
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
 				var content = "";
@@ -282,7 +265,7 @@
 			});
 		}
 		
-		//Symbolizes new points in red, old points in grey
+		// Symbolizes new points in red, old points in grey //
 		function Markers (feature) {
 			
 			
@@ -309,13 +292,14 @@
 			}
 		}
 		
+		// Create main layer for subscribed data stream //
 		var alayer;
 
 			function updateMap(geojson){
 
 				alayer = L.geoJson(geojson, {
 					
-					//Does not display old points on the map
+					// Does not display old points on the map //
 					filter : function(feature) {
 						if (timeout != 0) {
 							return feature.properties.time + (timeout * 1000) > Date.now();
@@ -337,8 +321,8 @@
 				}).addTo(map);
 		}
 		
-		//Get features from geojson file every second
-		setInterval(function () {
+		// Get features from geojson file every second //
+        setInterval(function () {
 			
 			$.ajax({
 					url : "{{geojson_request_url}}",
@@ -353,10 +337,10 @@
 		}, 1000);
 		
 		
-		//Show coordinates of mouse position
+		// Show coordinates of mouse position //
 		L.control.mousePosition().addTo(map);
 		
-		//Option to get your own location on the map
+		// Option to get your own location on the map //
 		L.control.locate({
 			position: 'topleft',
 			drawCircle: false,
@@ -364,14 +348,14 @@
 			icon: 'fa fa-map-marker'
 		}).addTo(map);
 		
-		//Adds a return to home extend button
+		// Adds a return to home extend button //
 		var zoomHome = L.Control.zoomHome();
 		zoomHome.addTo(map);
 		
-		//Adds numeric scale to map
+		// Adds numeric scale to map //
 		L.control.scale().addTo(map);
 		
-		//Button to fit map extent to bounds of point layer
+		// Button to fit map extent to bounds of point layer //
 		var extentButton = L.easyButton({
 			states: [{
 				stateName: 'Zoom to extent of current alerts',
@@ -383,14 +367,14 @@
 			}]
 		}).addTo(map);
 		
-		//Adds draggable zoom box
+		// Adds draggable zoom box //
 		var zoomBox = L.control.zoomBox({
 			className: 'fa fa-search-plus',
 			modal: true,
 		}).addTo(map);
 		
 		
-		//Button to set alert timeout
+		// Button to set alert timeout //
 		var timeout = 0;
 		document.getElementById("timeout").value = timeout;
 		var getTimeout = $(function() {
@@ -457,7 +441,7 @@
 		});		
 	
 		
-		//Button to set new alert color time
+		// Button to set new alert color time //
 		var colortime = 0;
 		document.getElementById("colortime").value = colortime;
 		var getColortime = $(function() {
@@ -522,14 +506,6 @@
 				}]
 			}).addTo(map);
 		});		
-		var styler = {
-			radius : 4,
-			fillColor : "#33cc33",
-			color : "#000000",
-			weight : 1, 
-			opacity : 1,
-			fillOpacity : 1
-		};
 		
 		/*
 		var newlayer;
@@ -593,47 +569,119 @@
 		dropZone.addEventListener('dragover', handleDragOver, false);
 		dropZone.addEventListener('drop', handleFileSelect, false);
 	*/
-		$('#Submit').click(function() {
-			
-			//$.ajaxSetup({
-			//	headers: {
-			//		'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')
-			//	}
-			//});
-			var formData = new FormData($('fileUpload')[0]);
-			$.ajax({
-				url: '/messages/upload',
-				type: 'POST',
-				xhr: function() {
-					var myXhr = $.ajaxSettings.xhr();
-					//if(myXhr.upload) {
-					//	myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
-					//}
-					return myXhr;
-				},
-				data: formData,
-				cache: false,
-				contentType: false,
-				processData: false
-			});
-			
-			function progressHandlingFunction(e) {
-				if(e.lengthComputable){
-					$('progress').attr({value:e.loaded,max:e.total});
-				}
-			};
-		/*
-			$.ajax({
-				url: url,
-				dataType: "json",
-				success: function (result) {
+		var layercount = 0;
+		var layerResult;
+		// Uploads user data //
+		var uploadForm = (function(){
+            var formData = new FormData($('#fileUpload')[0]);
+            $.ajax({
+                url: '/messages/upload',  //Server script to process data
+                type: 'POST',
+                xhr: function() {  // Custom XMLHttpRequest
+                    var myXhr = $.ajaxSettings.xhr();
+                    if(myXhr.upload){ // Check if upload property exists
+                        myXhr.upload.addEventListener('progress',progressHandlingFunction, false); // For handling the progress of the upload
+                    }
+                    return myXhr;
+                },
+                // Ajax events //
+                beforeSend: console.log("Sending"),
+				// Adds layer to the map //
+                success: function (result) {
 					for(var key in result) {
 						var value = result[key];
-						var geolayer = L.geoJson(value).addTo(map);
-						layers[key] = geolayer;
-					}
+						
+						// Styles the layer being added to map //
+						var styler = {
+							radius : 4,
+							fillColor : getRandomColor(),
+							color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
+						};
+					
+						var newlayer = L.geoJson(value, {
+							pointToLayer : function (feature, latlng) {
+								return L.circleMarker(latlng, styler);
+							}
+						}).addTo(map);
+						layers["newlayer" + layercount++] = newlayer;
+						layerControl.removeFrom(map);
+						layerControl = L.control.layers(baseMaps, layers).addTo(map);
+					};
+					// Gets randomized color for new layer //
+						function getRandomColor() {
+							var letters = '0123456789ABCDEF'.split('');
+							var color = '#';
+							for (var i = 0; i < 6; i++ ) {
+								color += letters[Math.floor(Math.random() * 16)];
+							}
+							return color;
+						};
+				},
+                error: console.log("Fail"),
+                // Form data //
+                data: formData,
+                // Options to tell jQuery not to process data or worry about content-type. //
+                cache: false,
+                contentType: false,
+                processData: false
+            });
+        });
+        
+		// For progress bar ..
+        function progressHandlingFunction(e){
+            if(e.lengthComputable){
+                $('progress').attr({value:e.loaded,max:e.total});
+            }
+        }
+        
+        /* var uploadFile = $(function() {*/
+		
+		// Upload dialog box //
+		var uploadFileDialogBox = $("#formContainer").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); 
+				$("#timeoutForm").dialog('close');
+				$("#colortimeForm").dialog('close');
+			},
+			height: 250,
+			width: 500,
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: true,
+			buttons: {
+				"Upload": uploadForm,
+				"Cancel": function() {
+					$(this).dialog("close");
 				}
-			}); */
+			},
+		});
+         
+		// Button to call upload dialog box //
+        var uploadFileButton = L.easyButton({
+			states: [{
+				stateName: 'Upload File',
+				icon: 'fa fa-upload',	
+				title: 'Upload File',
+				onClick: function(btn, map) {
+					uploadFileDialogBox.dialog("open");
+				}
+			}]
+		}).addTo(map);
+		
+		// Handles use of enter key //
+        $('#fileUpload').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				uploadForm();
+				e.preventDefault();
+			}
 		});
 	});
 	

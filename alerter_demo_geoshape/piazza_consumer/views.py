@@ -53,10 +53,10 @@ def map(request):
         geojson = {}
         layers = []
         for layer in request.GET.getlist('layer'):
-            geojson[layer] = json.loads(get_geojson(layer))
-            layers += ['layer=' + layer]
+            if get_geojson(layer):
+                layers += ['layer=' + layer]
         if geojson:
-            return render(request, 'piazza_consumer/map.html', {'geojson_request_url':'/messages/geojson?{}'+str(request.GET['topic'])})
+            return render(request, 'piazza_consumer/map.html', {'geojson_request_url':'/messages/geojson?{}'+'&'.join(layers)})
         else:
             return render(request, 'piazza_consumer/map.html', {'geojson_request_url':''})
 
