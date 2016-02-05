@@ -1,12 +1,23 @@
 from fulcrum import Fulcrum
 from django.conf import settings
+from .models import Layer, Feature
 
 
-class Fulcrum(Fulcrum):
+class Fulcrum():
+
     def __init__(self):
-        key = settings.FULCRUM_API_KEY
-        super(Fulcrum, self).__init__()
+        self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
 
+    def get_forms(self):
+        return self.conn.forms.find('')
+
+    def get_records(self, form):
+        layer = Layer.objects.get(layer_name=form)
+        return
+
+    def update_all_layers(self):
+        for form in self.get_forms():
+            self.get_records(form)
 
 def process_fulcrum_data(f):
     from django.conf import settings
@@ -81,7 +92,6 @@ def upload_geojson(file_path):
     import os
     with open(file_path) as data_file:
         features = json.load(data_file).get('features')
-    print("DEBUG: File path is {}".format(file_path))
     uploads = []
     for feature in features:
         for asset_type in ['photos']:
@@ -114,7 +124,7 @@ def upload_geojson(file_path):
         layer = write_layer(os.path.basename(os.path.dirname(file_path)))
         write_feature(feature.get('properties').get('fulcrum_id'),
                       layer,
-                      json.dumps(feature))
+                      feature)
         uploads += [feature]
     upload_to_postgis(uploads, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
 
@@ -125,10 +135,12 @@ def write_layer(name):
     return layer
 
 
-def write_feature(key, app, data):
+def write_feature(key, app, feature_data):
     from .models import Feature
+    import json
+
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
-                                                             defaults={'layer': app, 'feature_data': data})
+                                                             defaults={'layer': app, 'feature_data': json.dumps(feature_data)})
     return feature
 
 

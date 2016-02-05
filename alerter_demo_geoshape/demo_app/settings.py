@@ -160,3 +160,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'assets')
 MEDIA_URL = 'assets/'
 
 FULCRUM_UPLOAD = os.path.join(BASE_DIR,'fulcrum_data')
+FULCRUM_API_KEY = "a71542b97f785861cb56380913312f5ec3ef0f786c6a5b887e815de81caa01a9"

@@ -60,5 +60,6 @@ def viewer(request):
         else:
             return render(request, 'fulcrum_importer/map.html', {'geojson_request_url':''})
 
-
-
+def layers(request):
+    from mapping import get_layers
+    return HttpResponse(json.dumps(get_layers()), content_type="application/json")
