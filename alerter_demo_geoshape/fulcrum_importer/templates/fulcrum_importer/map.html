@@ -606,7 +606,7 @@
 								return L.circleMarker(latlng, styler);
 							}
 						}).addTo(map);
-						layers["newlayer" + layercount++] = newlayer;
+						layers[key] = newlayer;
 						layerControl.removeFrom(map);
 						layerControl = L.control.layers(baseMaps, layers).addTo(map);
 					};
