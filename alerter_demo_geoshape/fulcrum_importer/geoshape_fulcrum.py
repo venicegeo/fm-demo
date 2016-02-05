@@ -83,7 +83,7 @@ def upload_geojson(file_path):
         features = json.load(data_file).get('features')
     uploads = []
     for feature in features:
-        for asset_type in ['photos', 'videos', 'audio']:
+        for asset_type in ['photos']:
             if feature.get('properties').get(asset_type):
                 urls = []
                 if type(feature.get('properties').get(asset_type)) == 'list':
@@ -173,13 +173,13 @@ def upload_to_postgis(feature_data, user, database, table):
             if type(feature.get('properties').get(property)) == list:
                 feature['properties'][property] = ','.join(feature['properties'][property])
 
-    for asset_type in ['photos', 'videos', 'audio']:
+    for asset_type in ['photos']:
         for feature in feature_data:
             if feature.get('properties').get(asset_type):
                 for asset in feature.get('properties').get(asset_type).split(','):
-                    feature['properties'][asset_type] = "http://geoshape.dev:8004/messages/assets/{}.jpg".format(asset)
+                    feature['properties'][asset_type] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
                     feature['properties'][
-                        asset_type + '_url'] = "http://geoshape.dev:8004/messages/assets/{}.jpg".format(asset)
+                        asset_type + '_url'] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
 
     temp_file = os.path.abspath('./temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
