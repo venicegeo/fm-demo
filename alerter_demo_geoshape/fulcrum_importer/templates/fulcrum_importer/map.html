@@ -575,7 +575,7 @@
 		var uploadForm = (function(){
             var formData = new FormData($('#fileUpload')[0]);
             $.ajax({
-                url: '/messages/upload',  //Server script to process data
+                url: '/fulcrum_importer/upload',  //Server script to process data
                 type: 'POST',
                 xhr: function() {  // Custom XMLHttpRequest
                     var myXhr = $.ajaxSettings.xhr();
