@@ -46,7 +46,7 @@ class Message(models.Model):
 class Asset(models.Model):
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
-    asset_data = models.FileField()
+    asset_data = models.FileField(upload_to='assets/')
 
 
 class Links(models.Model):
