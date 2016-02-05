@@ -2,7 +2,7 @@ import os, glob, subprocess
 
 if os.path.isfile('./db.sqlite3'):
     os.remove('./db.sqlite3')
-for filename in glob.glob("./piazza_consumer/migrations/*"):
+for filename in glob.glob("./fulcrum_importer/migrations/*"):
     if '__init__' not in filename:
         os.remove(filename)
 

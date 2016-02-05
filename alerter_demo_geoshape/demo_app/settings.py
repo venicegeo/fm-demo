@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'piazza_consumer'
+    'fulcrum_importer'
 ]
 
 
@@ -151,7 +151,7 @@ USE_TZ = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
-STATIC_ROOT = './piazza_consumer/static'
+STATIC_ROOT = './fulcrum_importer/static'
 STATIC_URL = '/static/'
 DB_USER = 'geoshape'
 DB_NAME = 'fulcrum'
