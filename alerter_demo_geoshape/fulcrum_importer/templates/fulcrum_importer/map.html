@@ -109,7 +109,20 @@
 			color: #ffffff;
 			background-color: #cccccc;
 		}
-	
+		#waiting {
+			position: absolute;
+			height: 35px;
+			width: 35px;
+			top: 12px;
+			right: 10px;
+			border-radius: 5px;
+			text-align: center;
+			vertical-align: middle;
+			visibility: hidden;
+			opacity: 0.8;
+			z-index: 3;
+		}
+
 	</style>
 	
 </head>
@@ -118,6 +131,9 @@
 	<div id="map"></div>
 	
 	<div id="placeholder"></div>
+	<div id="waiting" title="Waiting for layer return">
+		<i class="fa fa-cog fa-spin fa-2x"></i>
+	<div>
 	
 	<form id="timeoutForm" title="Alert Timeout Controller" visibility="hidden">
 			<label for="timeout" style="display: block;" id="timeoutLabel">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
@@ -135,8 +151,10 @@
                 <input id="uploadFormButton"  name="file" type="file" />
             </div>                
         </form>
-        <progress id='progress'></progress>
-    <div>
+        <progress id='progress' value="0.0" max="1.0"></progress>
+    </div>
+	
+	
 	
 	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
@@ -575,12 +593,13 @@
 		var uploadForm = (function(){
             var formData = new FormData($('#fileUpload')[0]);
             $.ajax({
-                url: '/messages/upload',  //Server script to process data
+                url: '/fulcrum_importer/upload',  //Server script to process data
                 type: 'POST',
                 xhr: function() {  // Custom XMLHttpRequest
                     var myXhr = $.ajaxSettings.xhr();
                     if(myXhr.upload){ // Check if upload property exists
                         myXhr.upload.addEventListener('progress',progressHandlingFunction, false); // For handling the progress of the upload
+						myXhr.upload.addEventListener('progress',progressFinishedFunction, false); // If progress is finished, close file upload dialog
                     }
                     return myXhr;
                 },
@@ -588,27 +607,29 @@
                 beforeSend: console.log("Sending"),
 				// Adds layer to the map //
                 success: function (result) {
+					document.getElementById('waiting').style.visibility = 'hidden';
 					for(var key in result) {
-						var value = result[key];
-						
-						// Styles the layer being added to map //
-						var styler = {
-							radius : 4,
-							fillColor : getRandomColor(),
-							color : "#000000",
-							weight : 1, 
-							opacity : 1,
-							fillOpacity : 1
+							if(!(key in layers)) {
+							var value = result[key];
+							
+							// Styles the layer being added to map //
+							var styler = {
+								radius : 4,
+								fillColor : getRandomColor(),
+								color : "#000000",
+								weight : 1, 
+								opacity : 1,
+								fillOpacity : 1
+							};
+							var newlayer = L.geoJson(value, {
+								pointToLayer : function (feature, latlng) {
+									return L.circleMarker(latlng, styler);
+								}
+							}).addTo(map);
+							layers[key] = newlayer;
+							layerControl.removeFrom(map);
+							layerControl = L.control.layers(baseMaps, layers).addTo(map);
 						};
-					
-						var newlayer = L.geoJson(value, {
-							pointToLayer : function (feature, latlng) {
-								return L.circleMarker(latlng, styler);
-							}
-						}).addTo(map);
-						layers[key] = newlayer;
-						layerControl.removeFrom(map);
-						layerControl = L.control.layers(baseMaps, layers).addTo(map);
 					};
 					// Gets randomized color for new layer //
 						function getRandomColor() {
@@ -636,6 +657,15 @@
                 $('progress').attr({value:e.loaded,max:e.total});
             }
         }
+		function progressFinishedFunction(e) {
+			if(e.lengthComputable){
+				if(e.loaded == e.total) {
+					$("#formContainer").dialog("close");
+					$('progress').attr({value: 0.0, max: 1.0});
+					document.getElementById('waiting').style.visibility = 'visible';
+				}
+			}
+		}
         
         /* var uploadFile = $(function() {*/
 		
