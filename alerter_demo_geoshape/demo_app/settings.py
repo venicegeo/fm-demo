@@ -160,3 +160,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'assets')
 MEDIA_URL = 'assets/'
 
 FULCRUM_UPLOAD = os.path.join(BASE_DIR,'fulcrum_data')
+TEST = "NONE"

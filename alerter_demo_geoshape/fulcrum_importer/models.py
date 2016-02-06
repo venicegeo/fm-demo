@@ -11,6 +11,7 @@ class Asset(models.Model):
 
 class Layer(models.Model):
     layer_name = models.CharField(max_length=100, primary_key=True)
+    layer_date = models.DateTimeField(max_length=100)
 
 
 class Feature(models.Model):

@@ -5,3 +5,4 @@ fulcrum_data/*
 fulcrum/*
 .idea
 *.pyc
+demo_app/*

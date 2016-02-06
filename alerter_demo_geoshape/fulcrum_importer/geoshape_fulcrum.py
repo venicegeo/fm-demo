@@ -119,9 +119,14 @@ def upload_geojson(file_path):
     upload_to_postgis(uploads, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
 
 
-def write_layer(name):
+def write_layer(name, date=None):
     from .models import Layer
-    layer, layer_created = Layer.objects.get_or_create(layer_name=name)
+    from datetime import datetime
+
+    if not date:
+        date = datetime.now()
+
+    layer, layer_created = Layer.objects.get_or_create(layer_name=name, defaults={'layer_date':date})
     return layer
 
 

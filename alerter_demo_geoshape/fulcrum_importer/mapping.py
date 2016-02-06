@@ -26,3 +26,12 @@ def get_geojson(layer):
 
     feature_collection = {"type":"FeatureCollection","features": json_features}
     return json.dumps(feature_collection)
+
+
+def get_layers():
+    from .models import Layer
+
+    layers = []
+    for layer in Layer.objects.all():
+        layers += [layer.layer_name]
+    return layers
