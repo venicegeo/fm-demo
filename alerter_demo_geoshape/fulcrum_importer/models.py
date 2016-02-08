@@ -13,6 +13,7 @@ class Layer(models.Model):
     layer_name = models.CharField(max_length=100, primary_key=True)
     layer_date = models.DateTimeField(default=datetime.now, blank=True)
 
+
 class Feature(models.Model):
     feature_uid = models.CharField(max_length=100, primary_key=True)
     layer = models.ForeignKey(Layer,on_delete=models.CASCADE,default="")

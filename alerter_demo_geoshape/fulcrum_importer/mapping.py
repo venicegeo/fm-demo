@@ -31,7 +31,7 @@ def get_geojson(layer):
 def get_layers():
     from .models import Layer
 
-    layer_list = []
+    layers = []
     for layer in Layer.objects.all():
-         layer_list += [layer.layer_name]
-    return layer_list
+        layers += [layer.layer_name]
+    return layers
