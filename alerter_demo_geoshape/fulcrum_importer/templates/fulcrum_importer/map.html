@@ -209,6 +209,24 @@
 		
 		// Empty layer list for any user uploaded layers //
 		var layers = {};
+		var activeLayers = {};
+		var defaultBounds = map.getBounds();
+		var north = 0.0;
+		var east = 0.0;
+		var south = 0.0;
+		var west = 0.0;
+		var bounds = defaultBounds;
+		
+		function fetchBounds(layer) {
+			var temp = L.latLngBounds(layer.getBounds()); 
+			north = (north > temp.getNorth() ? north : temp.getNorth());
+			east = (east > temp.getEast() ? east : temp.getEast());
+			south = (south < temp.getSouth() ? south : temp.getSouth());
+			west = (west < temp.getWest() ? west : temp.getWest());
+			var SW = L.latLng(south,west)
+			var NE = L.latLng(north,east);
+			return L.latLngBounds(SW, NE);
+		};
 		
 		var layerControl;
 		
@@ -256,6 +274,8 @@
 					dataType: "json",
 					success : function (result) {
 						layers[name].addData(result[name]);
+						activeLayers[name] = null;
+						bounds = fetchBounds(layers[name]);
 					}
 				});
 		};
@@ -267,6 +287,15 @@
 		function onOverlayRemove(e) {
 			var name = e["name"];
 			layers[name].clearLayers();
+			delete activeLayers[name];
+			north = 0.0;
+			east = 0.0;
+			south = 0.0;
+			west = 0.0;
+			bounds = defaultBounds;
+			for (var key in activeLayers) {
+				bounds = fetchBounds(layers[key]);
+			}
 		};
 		
 		// Adds a locator map to bottom corner of the main map //
@@ -288,10 +317,10 @@
 				// Add alert time //
 				if (e.target.feature.properties.time != null && e.target.feature.properties != "") {
 					var time = new Date(e.target.feature.properties.time);
-					content += '<p><strong>Alert time: </strong>'+ time + '</p>';
+					content += '<p><strong>Date: </strong>'+ time + '</p>';
 				}
 				else {
-					content += '<p><strong>Alert time: </strong>Unavailable</p>';
+					content += '<p><strong>Date: </strong>Unavailable</p>';
 				}
 				
 				// Add alert address //
@@ -367,11 +396,11 @@
 		}
 		
 		// Create main layer for subscribed data stream //
-		var alayer;
+		var streamLayer;
 
 			function updateMap(geojson){
 
-				alayer = L.geoJson(geojson, {
+				streamLayer = L.geoJson(geojson, {
 					
 					// Does not display old points on the map //
 					filter : function(feature) {
@@ -402,8 +431,8 @@
 					url : "{{geojson_request_url}}",
 					dataType: "json",
 					success : function (result) {
-						if (map.hasLayer(alayer)) {
-							map.removeLayer(alayer);
+						if (map.hasLayer(streamLayer)) {
+							map.removeLayer(streamLayer);
 						}
 						updateMap(result);
 					}
@@ -436,7 +465,7 @@
 				icon: 'fa-map',	
 				title: 'Zoom to extent of current alerts',
 				onClick: function(btn, map) {
-					map.fitBounds(alayer.getBounds());
+					map.fitBounds(bounds);
 				}
 			}]
 		}).addTo(map);
