@@ -210,8 +210,64 @@
 		// Empty layer list for any user uploaded layers //
 		var layers = {};
 		
-		// Adds layer selection to map //
-		var layerControl = L.control.layers(baseMaps, layers).addTo(map);
+		var layerControl;
+		
+		// Gets list of available layers //
+		$.ajax({
+			url : '/fulcrum_importer/layers',
+			dataType: "json",
+			success : function(result) {
+				updateLayers(result);
+			}
+		});
+
+		// Update the layer control with any new layers //
+		function updateLayers(result) {
+				for (var key in result) {
+					if(!layers[key]){
+						var styler = {
+							radius : 4,
+							fillColor : getRandomColor(),
+							color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
+						};
+						
+						layers[key] = result[key] = L.geoJson(false, {
+							onEachFeature: onEachFeature,
+							pointToLayer : function (feature, latlng) {
+								return L.circleMarker(latlng, styler);
+							}
+						});
+					}
+				}
+				layerControl = L.control.layers(baseMaps, layers).addTo(map);
+			};
+		
+		// Listens for user selecting a layer from Layer Control //
+		map.on('overlayadd', onOverlayAdd);
+
+		// Find which layer was selected, get its data from URL, add it to the empty layer, and add the layer to the map //
+		function onOverlayAdd(e) {
+			var name = e["name"];
+			$.ajax({
+					url : '/fulcrum_importer/geojson?layer=' + name,
+					dataType: "json",
+					success : function (result) {
+						layers[name].addData(result[name]);
+					}
+				});
+		};
+		
+		// Listens for user deselecting layer from Layer Control //
+		map.on('overlayremove', onOverlayRemove);
+		
+		// Removes layer data from the geojson layer //
+		function onOverlayRemove(e) {
+			var name = e["name"];
+			layers[name].clearLayers();
+		};
 		
 		// Adds a locator map to bottom corner of the main map //
 		var miniMap = new L.Control.MiniMap(mini).addTo(map);
@@ -393,7 +449,14 @@
 		
 		
 		// Button to set alert timeout //
-		var timeout = 0;
+		if(typeof(Storage) !== "undefined") {
+			if (sessionStorage.timeout) {
+				var timeout = Number(sessionStorage.timeout);
+			}
+		}
+		else {
+			var timeout = 0;
+		}
 		document.getElementById("timeout").value = timeout;
 		var getTimeout = $(function() {
 		
@@ -418,9 +481,11 @@
 						if(isNaN(inNum) || inNum < 0 || inNum == "") {
 							timeout = 0;
 							document.getElementById("timeout").value = timeout;
+							sessionStorage.timeout = timeout;
 						}
 						else {
 							timeout = inNum;
+							
 						}
 						$(this).dialog("close");
 					},
@@ -525,70 +590,6 @@
 			}).addTo(map);
 		});		
 		
-		/*
-		var newlayer;
-		function handleFileSelect(evt) {
-			var file = evt.target.files[0];
-			var reader = new FileReader();
-			if (file) {
-				reader.onload = function(e) {
-					var contents = e.target.result;
-					var parsedfile = JSON.parse(contents);
-					newlayer = new L.geoJson(parsedfile, {
-						pointToLayer : function (feature, latlng) {
-							return L.circleMarker(latlng, styler);
-						}
-					}).addTo(map); */ /*
-						
-					//document.getElementById('files').style.visibility = 'hidden';
-				};
-				reader.readAsText(file);
-			}
-		*/	
-		/*
-		};
-		var listening = document.getElementById('files').addEventListener('change', handleFileSelect, false);
-		
-		var removeButton = L.easyButton({
-			position: 'bottomleft',
-			states: [{
-				stateName: 'Add-geoJson-Layer',
-				icon: 'fa-plus',
-				title: 'Add geoJson Layer',
-				onClick: function(btn, map) {
-					//document.getElementById('files').click();
-					document.getElementById('files').style.visibility = 'visible';
-					btn.state('Remove-added-layer');
-				}
-			},
-			{
-				stateName: 'Remove-added-layer',
-				icon: 'fa-trash-o',	
-				title: 'Remove Added Layer',
-				onClick: function(btn, map) {
-					if(newlayer) {
-						map.removeLayer(newlayer);
-					}
-					btn.state('Add-geoJson-Layer');
-				}
-			}]
-		}).addTo(map);
-		
-				
-		
-		function handleDragOver(evt) {
-			evt.stopPropagation();
-			evt.preventDefault();
-			evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
-		}
-
-		// Setup the dnd listeners.
-		var dropZone = document.getElementById('drop_zone');
-		dropZone.addEventListener('dragover', handleDragOver, false);
-		dropZone.addEventListener('drop', handleFileSelect, false);
-	*/
-		var layercount = 0;
-		var layerResult;
 		// Uploads user data //
 		var uploadForm = (function(){
             var formData = new FormData($('#fileUpload')[0]);
@@ -626,6 +627,7 @@
 							fillOpacity : 1
 						};
 						var newlayer = L.geoJson(value, {
+							onEachFeature: onEachFeature,
 							pointToLayer : function (feature, latlng) {
 								return L.circleMarker(latlng, styler);
 							}
@@ -634,15 +636,7 @@
 						layerControl.removeFrom(map);
 						layerControl = L.control.layers(baseMaps, layers).addTo(map);
 					};
-					// Gets randomized color for new layer //
-						function getRandomColor() {
-							var letters = '0123456789ABCDEF'.split('');
-							var color = '#';
-							for (var i = 0; i < 6; i++ ) {
-								color += letters[Math.floor(Math.random() * 16)];
-							}
-							return color;
-						};
+					
 				},
                 error: console.log("Fail"),
                 // Form data //
@@ -716,6 +710,16 @@
 				e.preventDefault();
 			}
 		});
+		
+		// Gets randomized color for new layer //
+		function getRandomColor() {
+			var letters = '0123456789ABCDEF'.split('');
+			var color = '#';
+			for (var i = 0; i < 6; i++ ) {
+				color += letters[Math.floor(Math.random() * 16)];
+			}
+			return color;
+		};
 	});
 	
 	</script>

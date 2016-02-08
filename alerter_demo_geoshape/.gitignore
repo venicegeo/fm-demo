@@ -6,3 +6,4 @@ fulcrum/*
 .idea
 *.pyc
 demo_app/*
+fulcrum_importer/migrations/*
