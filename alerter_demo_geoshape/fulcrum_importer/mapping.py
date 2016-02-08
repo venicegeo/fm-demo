@@ -28,10 +28,10 @@ def get_geojson(layer):
     return json.dumps(feature_collection)
 
 
-def get_layers():
+def get_layer_names():
     from .models import Layer
 
-    layers = []
+    layers = {}
     for layer in Layer.objects.all():
-        layers += [layer.layer_name]
+        layers[layer.layer_name] = None
     return layers
