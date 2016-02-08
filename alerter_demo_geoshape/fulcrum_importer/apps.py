@@ -1,11 +1,12 @@
 from __future__ import unicode_literals
 
 from django.apps import AppConfig
-from django.core.cache import cache
 
 class FulcrumImporterConfig(AppConfig):
     name = 'fulcrum_importer'
 
     def ready(self):
+        from geoshape_fulcrum import Fulcrum_Importer
         print("Loaded server.")
-        pass
+        fulcrum = Fulcrum_Importer()
+        # fulcrum.start()

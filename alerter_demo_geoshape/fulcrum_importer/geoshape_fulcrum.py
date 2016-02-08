@@ -1,9 +1,9 @@
 from fulcrum import Fulcrum
 from django.conf import settings
 from django.core.cache import cache
-from .models import Layer, Feature
-import geoshape_fulcrum
+from .models import Layer
 import requests
+
 
 class Fulcrum_Importer():
 
@@ -14,7 +14,7 @@ class Fulcrum_Importer():
     def start(self, interval=60):
         import time
         from multiprocessing import Process
-        if cache.get(cache.set(settings.FULCRUM_API_KEY)):
+        if cache.get(settings.FULCRUM_API_KEY):
             return
         cache.set(settings.FULCRUM_API_KEY, True)
         while cache.get(settings.FULCRUM_API_KEY):
@@ -29,10 +29,11 @@ class Fulcrum_Importer():
         pass
 
     def get_forms(self):
-        return self.conn.forms.find('')
+        return self.conn.forms.find('').get('forms')
 
-    def ensure_layer(self,layer_name=None, layer_id=None):
-        layer, created = Layer.objects.get_or_create(layer_name=layer_name,layer_uid=layer_id, defaults={'layer_date':})
+    def ensure_layer(self, layer_name=None, layer_id=None):
+        layer, created = Layer.objects.get_or_create(layer_name=layer_name, layer_uid=layer_id)
+        return layer, created
 
     def update_records(self, form_uid):
         layer = Layer.objects.get(layer_uid=form_uid)
@@ -49,12 +50,14 @@ class Fulcrum_Importer():
                 print("Some features failed the {} filter.".format(filter))
             filtered_features = filter_results.get('passed')
 
-        geoshape_fulcrum.upload_geojson(features=filtered_features)
+        upload_geojson(features=filtered_features)
         return
 
     def update_all_layers(self):
         for form in self.get_forms():
-
+            layer, created = self.ensure_layer(layer_name=form.get('name'),layer_id=form.get('id'))
+            if created:
+                print("The layer {}({}) was created.".format(layer.layer_name, layer.layer_uid))
             print("Getting records for {}".format(form.get('name')))
             self.update_records(form.get('id'))
 
@@ -131,7 +134,7 @@ def delete_file(file_path):
 def upload_geojson(file_path=None, features=None):
     import json
     from django.conf import settings
-    from .models import Asset
+    from .models import get_type_extension
     import os
 
     if file_path and features:
@@ -151,25 +154,18 @@ def upload_geojson(file_path=None, features=None):
             if feature.get('properties').get(asset_type):
                 urls = []
                 if type(feature.get('properties').get(asset_type)) == list:
-                    for asset_uid in feature.get('properties').get(asset_type):
-                        asset, created = write_asset_from_file(asset_uid,
-                                                               asset_type,
-                                                               os.path.dirname(file_path))
-                        if asset:
-                            if asset.asset_data:
-                                urls += [asset.asset_data.url]
-                        else:
-                            urls += ['Import Needed.']
+                    asset_uids = feature.get('properties').get(asset_type)
                 else:
-                    for asset_uid in feature.get('properties').get(asset_type).split(','):
-                        asset, created = write_asset_from_file(asset_uid,
-                                                               asset_type,
-                                                               os.path.dirname(file_path))
-                        if asset:
-                            if asset.asset_data:
-                                urls += [asset.asset_data.url]
-                        else:
-                            urls += ['Import Needed.']
+                    asset_uids = feature.get('properties').get(asset_type).split(',')
+                for asset_uid in asset_uids:
+                    asset, created = write_asset_from_file(asset_uid,
+                                                           asset_type,
+                                                           os.path.dirname(file_path))
+                    if asset:
+                        if asset.asset_data:
+                            urls += [asset.asset_data.url]
+                    else:
+                        urls += ['Import Needed.']
                 feature['properties']['{}_url'.format(asset_type)] = urls
             else:
                 feature['properties'][asset_type] = None
@@ -189,7 +185,7 @@ def write_layer(name, date=None):
     if not date:
         date = datetime.now()
 
-    layer, layer_created = Layer.objects.get_or_create(layer_name=name, defaults={'layer_date':date})
+    layer, layer_created = Layer.objects.get_or_create(layer_name=name, defaults={'layer_date': date})
     return layer
 
 
@@ -198,7 +194,8 @@ def write_feature(key, app, feature_data):
     import json
 
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
-                                                             defaults={'layer': app, 'feature_data': json.dumps(feature_data)})
+                                                             defaults={'layer': app,
+                                                                       'feature_data': json.dumps(feature_data)})
     return feature
 
 
@@ -227,11 +224,10 @@ def write_asset_from_url(asset_uid, asset_type, url):
 def write_asset_from_file(asset_uid, asset_type, file_dir):
     from django.core.files import File
     import os
-    from .models import Asset
+    from .models import Asset, get_type_extension
     from django.conf import settings
 
-    asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
-    file_path = os.path.join(file_dir, '{}.{}'.format(asset_uid, asset_types.get(asset_type)))
+    file_path = os.path.join(file_dir, '{}.{}'.format(asset_uid, get_type_extension(asset_type)))
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
     if created:
         if not os.path.exists(settings.MEDIA_ROOT):
@@ -241,7 +237,7 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
                 asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
                                       File(open_file))
         else:
-            print("The file {}.{} was not included in the archive.".format(asset_uid, asset_types.get(asset_type)))
+            print("The file {}.{} was not included in the archive.".format(asset_uid, get_type_extension(asset_type)))
             return None, False
     return asset, created
 
