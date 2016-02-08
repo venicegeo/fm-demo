@@ -238,30 +238,21 @@
 				updateLayers(result);
 			}
 		});
-
+		var styler;
 		// Update the layer control with any new layers //
 		function updateLayers(result) {
-				for (var key in result) {
-					if(!layers[key]){
-						var styler = {
-							radius : 4,
-							fillColor : getRandomColor(),
-							color : "#000000",
-							weight : 1, 
-							opacity : 1,
-							fillOpacity : 1
-						};
-						
-						layers[key] = result[key] = L.geoJson(false, {
-							onEachFeature: onEachFeature,
-							pointToLayer : function (feature, latlng) {
-								return L.circleMarker(latlng, styler);
-							}
-						});
-					}
+			for (var key in result) {
+				if(!layers[key]){
+					layers[key] = result[key] = L.geoJson(false, {
+						onEachFeature: onEachFeature,
+						pointToLayer : function (feature, latlng) {
+							return L.circleMarker(latlng, styler);
+						}
+					});
 				}
-				layerControl = L.control.layers(baseMaps, layers).addTo(map);
-			};
+			}
+			layerControl = L.control.layers(baseMaps, layers).addTo(map);
+		};
 		
 		// Listens for user selecting a layer from Layer Control //
 		map.on('overlayadd', onOverlayAdd);
@@ -273,6 +264,14 @@
 					url : '/fulcrum_importer/geojson?layer=' + name,
 					dataType: "json",
 					success : function (result) {
+						styler = {
+							radius : 4,
+							fillColor : getRandomColor(),
+						 	color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
+						};
 						layers[name].addData(result[name]);
 						activeLayers[name] = null;
 						bounds = fetchBounds(layers[name]);
@@ -423,7 +422,7 @@
 					}
 				}).addTo(map);
 		}
-		
+		/*
 		// Get features from geojson file every second //
         setInterval(function () {
 			
@@ -438,7 +437,7 @@
 					}
 				});
 		}, 1000);
-		
+		*/
 		
 		// Show coordinates of mouse position //
 		L.control.mousePosition().addTo(map);
@@ -478,9 +477,13 @@
 		
 		
 		// Button to set alert timeout //
-		if(typeof(Storage) !== "undefined") {
+		if(typeof(Storage) != "undefined") {
 			if (sessionStorage.timeout) {
-				var timeout = Number(sessionStorage.timeout);
+				var timeout = parseInt(sessionStorage.timeout);
+			}
+			else {
+				sessionStorage.timeout = "0";
+				timeout = 0;
 			}
 		}
 		else {
@@ -514,6 +517,7 @@
 						}
 						else {
 							timeout = inNum;
+							sessionStorage.timeout = inNum;
 							
 						}
 						$(this).dialog("close");
@@ -531,9 +535,11 @@
 						if(isNaN(inNum) || inNum < 0 || inNum == "") {
 							timeout = 0;
 							document.getElementById("timeout").value = timeout;
+							sessionStorage.timeout = timeout;
 						}
 						else {
 							timeout = inNum;
+							sessionStorage.timeout = inNum;
 						}
 						$(this).dialog("close");
 					e.preventDefault();
@@ -554,7 +560,18 @@
 	
 		
 		// Button to set new alert color time //
-		var colortime = 0;
+		if(typeof(Storage) != "undefined") {
+			if (sessionStorage.colortime) {
+				var colortime = parseInt(sessionStorage.colortime);
+			}
+			else {
+				sessionStorage.colortime = "0";
+				colortime = 0;
+			}
+		}
+		else {
+			var colortime = 0;
+		}
 		document.getElementById("colortime").value = colortime;
 		var getColortime = $(function() {
 		
@@ -579,9 +596,11 @@
 						if(isNaN(inNum) || inNum < 0 || inNum == '') {
 							colortime = 0;
 							document.getElementById("colortime").value = colortime;
+							sessionStorage.colortime = colortime;
 						}
 						else {
 							colortime = inNum;
+							sessionStorage.colortime = inNum;
 						}
 						$(this).dialog("close");
 					},
@@ -598,9 +617,11 @@
 						if(isNaN(inNum) || inNum < 0 || inNum == "") {
 							colortime = 0;
 							document.getElementById("colortime").value = colortime;
+							sessionStorage.colortime = colortime;
 						}
 						else {
 							colortime = inNum;
+							sessionStorage.colortime = inNum;
 						}
 						$(this).dialog("close");
 					e.preventDefault();
@@ -662,6 +683,7 @@
 							}
 						}).addTo(map);
 						layers[key] = newlayer;
+						bounds = fetchBounds(newlayer);
 						layerControl.removeFrom(map);
 						layerControl = L.control.layers(baseMaps, layers).addTo(map);
 					};
@@ -739,17 +761,16 @@
 				e.preventDefault();
 			}
 		});
-		
-		// Gets randomized color for new layer //
-		function getRandomColor() {
-			var letters = '0123456789ABCDEF'.split('');
-			var color = '#';
-			for (var i = 0; i < 6; i++ ) {
-				color += letters[Math.floor(Math.random() * 16)];
-			}
-			return color;
-		};
 	});
+	// Gets randomized color for new layer //
+	function getRandomColor() {
+		var letters = '0123456789ABCDEF'.split('');
+		var color = '#';
+		for (var i = 0; i < 6; i++ ) {
+			color += letters[Math.floor(Math.random() * 16)];
+		}
+		return color;
+	};
 	
 	</script>
 	
