@@ -7,3 +7,4 @@ fulcrum/*
 *.pyc
 demo_app/*
 fulcrum_importer/migrations/*
+temp.json

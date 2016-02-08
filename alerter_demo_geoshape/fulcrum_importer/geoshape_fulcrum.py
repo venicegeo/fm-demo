@@ -1,9 +1,8 @@
 from fulcrum import Fulcrum
 from django.conf import settings
 from django.core.cache import cache
-from .models import Layer
 import requests
-
+from .models import Layer
 
 class Fulcrum_Importer():
 
@@ -13,12 +12,12 @@ class Fulcrum_Importer():
 
     def start(self, interval=60):
         import time
-        from multiprocessing import Process
+        from threading import Thread
         if cache.get(settings.FULCRUM_API_KEY):
             return
         cache.set(settings.FULCRUM_API_KEY, True)
         while cache.get(settings.FULCRUM_API_KEY):
-            Process(target=self.update_all_layers())
+            Thread(target=self.update_all_layers())
             time.sleep(interval)
 
     def stop(self):
@@ -26,26 +25,36 @@ class Fulcrum_Importer():
 
     def update_layer_uid(self, form_name):
         self.conn.forms.find("")
-        pass
 
     def get_forms(self):
         return self.conn.forms.find('').get('forms')
 
     def ensure_layer(self, layer_name=None, layer_id=None):
+
         layer, created = Layer.objects.get_or_create(layer_name=layer_name, layer_uid=layer_id)
         return layer, created
 
-    def update_records(self, form_uid):
-        layer = Layer.objects.get(layer_uid=form_uid)
-        if not layer:
-            print("Layer {} doesn't exist.".format(form_uid))
+    def update_records(self, form):
+        import json
 
-        imported_features = self.conn.records.search(url_params={'form_id': layer.layer_uid,
-                                                                 'client_created_since': layer.layer_date})
-        filtered_features = imported_features
+        layer = Layer.objects.get(layer_uid=form.get('id'))
+        if not layer:
+            print("Layer {} doesn't exist.".format(form.get('id')))
+
+
+        if layer.layer_date:
+            imported_features = self.conn.records.search(url_params={'form_id': layer.layer_uid,
+                                                                     'client_created_since': layer.layer_date})
+        else:
+            imported_features = self.conn.records.search(url_params={'form_id': layer.layer_uid})
+
+        imported_geojson = self.convert_to_geojson(imported_features.get('records'), form)
+
+        filtered_features = imported_geojson
 
         for filter in settings.DATA_FILTERS:
-            filter_results = requests.POST(filter, data={filtered_features}).json()
+            filter_results = requests.post(filter, data=json.dumps(filtered_features))
+            print filter_results.text
             if filter_results.get('failed'):
                 print("Some features failed the {} filter.".format(filter))
             filtered_features = filter_results.get('passed')
@@ -59,7 +68,66 @@ class Fulcrum_Importer():
             if created:
                 print("The layer {}({}) was created.".format(layer.layer_name, layer.layer_uid))
             print("Getting records for {}".format(form.get('name')))
-            self.update_records(form.get('id'))
+            self.update_records(form)
+
+    def convert_to_geojson(self, results, form):
+        map = self.get_element_map(form)
+        features = []
+        for result in results:
+            feature = {"type":"Feature",
+                       "geometry":{"type":"Point",
+                                   "coordinates": [result.get('longitude'),
+                                                   result.get('latitude')]
+                                   }}
+            properties = {}
+            id_types = {'video_id': 'videos', 'photo_id': 'photos', 'audio_id': 'audio'}
+            assets = {'videos':[], 'videos_cap':[], 'photos':[], 'photos_cap':[], 'audio':[], 'audio_cap':[]}
+            for asset in assets:
+                properties[asset] = assets[asset]
+            for key in result:
+                if key == 'form_values':
+                    for fv_key, fv_val in result['form_values'].iteritems():
+                        if map.get(fv_key) in assets:
+                            # if type(fv_val) == list:
+                            for asset_prop in fv_val:
+                                for asset_prop_key, asset_prop_val in asset_prop.iteritems():
+                                    if 'id' in asset_prop_key:
+                                        asset_key = map.get(fv_key)
+                                        properties[asset_key] += [asset_prop_val]
+                                        print(asset_prop_val)
+                                    elif 'caption' in asset_prop_key:
+                                        caption_key = '{}_cap'.format(map.get(fv_key))
+                                        properties[caption_key] += [asset_prop_val]
+                        else:
+                            properties[map.get(fv_key)] = fv_val
+                        # for asset in result['form_values'][fv]:
+                        #     for id_type in id_types:
+                        #         if asset.get(id_type):
+                        #             if asset.get(id_type) == list:
+                        #                 asset_key = id_types.get(id_type)
+                        #                 assets[asset_key] = assets.get(id_type)
+                        #                 caption_key = '{}_cap'.format(id_types.get(id_type))
+                        #                 assets[caption_key] = assets.get('caption')
+                        #         except AttributeError:
+                        #             print("Asset: {}".format(asset))
+                else:
+                    properties[key] = result[key]
+            # for asset in assets:
+            #     properties[asset] = assets[asset]
+            feature['properties'] = properties
+            features += [feature]
+        geojson = {"type": "FeatureCollection","features": features}
+        print "\n\n\n"
+        print geojson
+        print "\n\n\n"
+        return geojson
+
+    def get_element_map(self, form):
+        elements = form.get('elements')
+        map = {}
+        for element in elements:
+            map[element.get('key')] = element.get('data_name')
+        return map
 
     def __del__(self):
         cache.set(settings.FULCRUM_API_KEY, False)

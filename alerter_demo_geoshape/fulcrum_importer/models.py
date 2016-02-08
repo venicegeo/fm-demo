@@ -20,7 +20,7 @@ class Asset(models.Model):
 class Layer(models.Model):
     layer_name = models.CharField(max_length=100)
     layer_uid = models.CharField(max_length=100)
-    layer_date = models.DateTimeField(default=None)
+    layer_date = models.DateTimeField(default=None, blank=True, null=True)
 
     class Meta:
         unique_together = (("layer_name", "layer_uid"),)
