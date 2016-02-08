@@ -209,7 +209,11 @@
 		
 		// Empty layer list for any user uploaded layers //
 		var layers = {};
+		
+		// Track which layers are in the map //
 		var activeLayers = {};
+		
+		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
 		var north = 0.0;
 		var east = 0.0;
@@ -217,6 +221,7 @@
 		var west = 0.0;
 		var bounds = defaultBounds;
 		
+		// Get the bounds of a layer and compare to any other active layers //
 		function fetchBounds(layer) {
 			var temp = L.latLngBounds(layer.getBounds()); 
 			north = (north > temp.getNorth() ? north : temp.getNorth());
@@ -296,6 +301,9 @@
 				bounds = fetchBounds(layers[key]);
 			}
 		};
+		// Legend is on its way //
+		// http://gis.stackexchange.com/questions/88462/how-to-create-leaflet-legend-for-points //
+		// http://gis.stackexchange.com/questions/68941/how-to-add-remove-legend-with-leaflet-layers-control //
 		
 		// Adds a locator map to bottom corner of the main map //
 		var miniMap = new L.Control.MiniMap(mini).addTo(map);
@@ -501,6 +509,7 @@
 				},
 				height: 250,
 				width: 350,
+				appendTo: "#map",
 				position: {
 					my: "left top",
 					at: "right bottom",
@@ -584,6 +593,7 @@
 				},
 				height: 250,
 				width: 350,
+				appendTo: "#map",
 				position: {
 					my: "left top",
 					at: "right bottom",
@@ -728,6 +738,7 @@
 			},
 			height: 250,
 			width: 500,
+			appendTo: "#map",
 			position: {
 				my: "left top",
 				at: "right bottom",
