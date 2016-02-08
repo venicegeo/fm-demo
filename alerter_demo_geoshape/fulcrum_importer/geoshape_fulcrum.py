@@ -1,23 +1,66 @@
 from fulcrum import Fulcrum
 from django.conf import settings
+from django.core.cache import cache
 from .models import Layer, Feature
+import geoshape_fulcrum
+import requests
 
-
-class Fulcrum():
+class Fulcrum_Importer():
 
     def __init__(self):
         self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
+        self.lock = None
+
+    def start(self, interval=60):
+        import time
+        from multiprocessing import Process
+        if cache.get(cache.set(settings.FULCRUM_API_KEY)):
+            return
+        cache.set(settings.FULCRUM_API_KEY, True)
+        while cache.get(settings.FULCRUM_API_KEY):
+            Process(target=self.update_all_layers())
+            time.sleep(interval)
+
+    def stop(self):
+        cache.set(settings.FULCRUM_API_KEY, False)
+
+    def update_layer_uid(self, form_name):
+        self.conn.forms.find("")
+        pass
 
     def get_forms(self):
         return self.conn.forms.find('')
 
-    def get_records(self, form):
-        layer = Layer.objects.get(layer_name=form)
+    def ensure_layer(self,layer_name=None, layer_id=None):
+        layer, created = Layer.objects.get_or_create(layer_name=layer_name,layer_uid=layer_id, defaults={'layer_date':})
+
+    def update_records(self, form_uid):
+        layer = Layer.objects.get(layer_uid=form_uid)
+        if not layer:
+            print("Layer {} doesn't exist.".format(form_uid))
+
+        imported_features = self.conn.records.search(url_params={'form_id': layer.layer_uid,
+                                                                 'client_created_since': layer.layer_date})
+        filtered_features = imported_features
+
+        for filter in settings.DATA_FILTERS:
+            filter_results = requests.POST(filter, data={filtered_features}).json()
+            if filter_results.get('failed'):
+                print("Some features failed the {} filter.".format(filter))
+            filtered_features = filter_results.get('passed')
+
+        geoshape_fulcrum.upload_geojson(features=filtered_features)
         return
 
     def update_all_layers(self):
         for form in self.get_forms():
-            self.get_records(form)
+
+            print("Getting records for {}".format(form.get('name')))
+            self.update_records(form.get('id'))
+
+    def __del__(self):
+        cache.set(settings.FULCRUM_API_KEY, False)
+
 
 def process_fulcrum_data(f):
     from django.conf import settings
@@ -31,7 +74,7 @@ def process_fulcrum_data(f):
         for folder, subs, files in os.walk(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])):
             for filename in files:
                 if '.geojson' in filename:
-                    upload_geojson(os.path.abspath(os.path.join(folder, filename)))
+                    upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)))
                     layers += [os.path.splitext(filename)[0]]
         delete_folder(os.path.splitext(file_path)[0])
     return layers
@@ -85,13 +128,23 @@ def delete_file(file_path):
     os.remove(file_path)
 
 
-def upload_geojson(file_path):
+def upload_geojson(file_path=None, features=None):
     import json
     from django.conf import settings
     from .models import Asset
     import os
-    with open(file_path) as data_file:
-        features = json.load(data_file).get('features')
+
+    if file_path and features:
+        raise "upload_geojson() must take file_path OR features"
+        return False
+    if file_path:
+        with open(file_path) as data_file:
+            features = json.load(data_file).get('features')
+    elif features:
+        pass
+    else:
+        raise "upload_geojson() must take file_path OR features"
+
     uploads = []
     for feature in features:
         for asset_type in ['photos']:

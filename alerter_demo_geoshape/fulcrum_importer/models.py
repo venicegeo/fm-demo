@@ -10,14 +10,19 @@ class Asset(models.Model):
 
 
 class Layer(models.Model):
-    layer_name = models.CharField(max_length=100, primary_key=True)
+    layer_name = models.CharField(max_length=100)
+    layer_uid = models.CharField(max_length=100)
     layer_date = models.DateTimeField(default=datetime.now, blank=True)
+
+    class Meta:
+        unique_together = (("layer_name", "layer_uid"),)
 
 
 class Feature(models.Model):
     feature_uid = models.CharField(max_length=100, primary_key=True)
     layer = models.ForeignKey(Layer,on_delete=models.CASCADE,default="")
     feature_data = models.CharField(max_length=10000)
+
 
 class Links(models.Model):
     asset = models.ForeignKey(Asset,on_delete=models.CASCADE,default="")
