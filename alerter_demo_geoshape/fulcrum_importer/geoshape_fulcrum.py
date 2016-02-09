@@ -3,123 +3,154 @@ from django.conf import settings
 from django.core.cache import cache
 import requests
 from .models import Layer
+from dateutil import parser
+
 
 class Fulcrum_Importer():
-
     def __init__(self):
         self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
-        self.lock = None
 
-    def start(self, interval=60):
-        import time
+    def start(self, interval=5):
         from threading import Thread
         if cache.get(settings.FULCRUM_API_KEY):
             return
-        cache.set(settings.FULCRUM_API_KEY, True)
+        else:
+            cache.set(settings.FULCRUM_API_KEY, True)
+            Thread(target=self.run(interval)).start()
+
+    def run(self, interval):
+        import time
+
         while cache.get(settings.FULCRUM_API_KEY):
-            Thread(target=self.update_all_layers())
+            self.update_all_layers()
             time.sleep(interval)
 
     def stop(self):
         cache.set(settings.FULCRUM_API_KEY, False)
 
-    def update_layer_uid(self, form_name):
-        self.conn.forms.find("")
-
     def get_forms(self):
         return self.conn.forms.find('').get('forms')
 
     def ensure_layer(self, layer_name=None, layer_id=None):
-
         layer, created = Layer.objects.get_or_create(layer_name=layer_name, layer_uid=layer_id)
         return layer, created
 
     def update_records(self, form):
         import json
+        import time
+
+        filtered_feature_count = 0
 
         layer = Layer.objects.get(layer_uid=form.get('id'))
         if not layer:
             print("Layer {} doesn't exist.".format(form.get('id')))
 
-
+        temp_features = []
         if layer.layer_date:
-            imported_features = self.conn.records.search(url_params={'form_id': layer.layer_uid,
-                                                                     'client_created_since': layer.layer_date})
+            url_params={'form_id': layer.layer_uid,'updated_since': layer.layer_date+1}
         else:
-            imported_features = self.conn.records.search(url_params={'form_id': layer.layer_uid})
+            url_params={'form_id': layer.layer_uid}
+        imported_features = self.conn.records.search(url_params=url_params)
+        temp_features += imported_features.get('records')
+        while imported_features.get('current_page') < imported_features.get('total_pages'):
+            url_params['page'] = imported_features.get('current_page') + 1
+            imported_features = self.conn.records.search(url_params=url_params)
 
-        imported_geojson = self.convert_to_geojson(imported_features.get('records'), form)
+        imported_geojson = self.convert_to_geojson(temp_features, form)
 
+        pulled_record_count = len(imported_geojson.get('features'))
+
+        # A place holder for filtering to follow.
         filtered_features = imported_geojson
+        latest_time = self.get_latest_time(imported_geojson, layer.layer_date)
 
-        for filter in settings.DATA_FILTERS:
-            filter_results = requests.post(filter, data=json.dumps(filtered_features))
-            print filter_results.text
-            if filter_results.get('failed'):
-                print("Some features failed the {} filter.".format(filter))
-            filtered_features = filter_results.get('passed')
+        if filtered_features.get('features'):
+            for filter in settings.DATA_FILTERS:
+                filter_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+                if filter_results.get('failed'):
+                    print("Some features failed the {} filter.".format(filter))
+                if filter_results.get('passed'):
+                    filtered_features = filter_results.get('passed')
+                    filtered_feature_count = len(filter_results.get('passed'))
+                else:
+                    filtered_features = None
+        else:
+            filtered_features = None
 
-        upload_geojson(features=filtered_features)
+        uploads = []
+
+        if filtered_features:
+            for feature in filtered_features.get('features'):
+                for asset_type in {'photos', 'videos', 'audio'}:
+                    if feature.get('properties').get(asset_type):
+                        for id in feature.get('properties').get(asset_type):
+                            print("Getting asset :{}".format(id))
+                            feature['properties']['{}_url'.format(asset_type)] += [self.get_asset(id, asset_type)]
+                write_feature(feature.get('properties').get('id'), layer, feature)
+                uploads += [feature]
+            if settings.DB_NAME:
+                upload_to_postgis(uploads, settings.DB_USER, settings.DB_NAME, layer.layer_name)
+            layer.layer_date = latest_time
+            layer.save()
+        print("RESULTS\n---------------")
+        print("Total Records Pulled: {}".format(pulled_record_count))
+        print("Total Records Passed Filter: {}".format(filtered_feature_count))
         return
+
+    def get_latest_time(self, new_features, old_layer_time):
+        import time
+
+        layer_time = old_layer_time
+        for new_feature in new_features.get('features'):
+            feature_date = time.mktime(parser.parse(new_feature.get('properties').get('updated_at')).timetuple())
+            if feature_date > layer_time:
+                layer_time = feature_date
+        return layer_time
 
     def update_all_layers(self):
         for form in self.get_forms():
-            layer, created = self.ensure_layer(layer_name=form.get('name'),layer_id=form.get('id'))
+            layer, created = self.ensure_layer(layer_name=form.get('name'), layer_id=form.get('id'))
             if created:
                 print("The layer {}({}) was created.".format(layer.layer_name, layer.layer_uid))
             print("Getting records for {}".format(form.get('name')))
-            self.update_records(form)
+            if form.get('name') == "Test":
+                self.update_records(form)
 
     def convert_to_geojson(self, results, form):
         map = self.get_element_map(form)
         features = []
         for result in results:
-            feature = {"type":"Feature",
-                       "geometry":{"type":"Point",
-                                   "coordinates": [result.get('longitude'),
-                                                   result.get('latitude')]
-                                   }}
+            feature = {"type": "Feature",
+                       "geometry": {"type": "Point",
+                                    "coordinates": [result.get('longitude'),
+                                                    result.get('latitude')]
+                                    }}
             properties = {}
-            id_types = {'video_id': 'videos', 'photo_id': 'photos', 'audio_id': 'audio'}
-            assets = {'videos':[], 'videos_cap':[], 'photos':[], 'photos_cap':[], 'audio':[], 'audio_cap':[]}
-            for asset in assets:
-                properties[asset] = assets[asset]
+            assets = {'videos': [], 'videos_cap': [], 'videos_url': [],
+                      'photos': [], 'photos_cap': [], 'photos_url': [],
+                      'audio': [], 'audio_cap': [], 'audio_url': []}
+            for asset, val in assets.iteritems():
+                properties[asset] = val
             for key in result:
                 if key == 'form_values':
                     for fv_key, fv_val in result['form_values'].iteritems():
                         if map.get(fv_key) in assets:
-                            # if type(fv_val) == list:
                             for asset_prop in fv_val:
                                 for asset_prop_key, asset_prop_val in asset_prop.iteritems():
                                     if 'id' in asset_prop_key:
-                                        asset_key = map.get(fv_key)
-                                        properties[asset_key] += [asset_prop_val]
-                                        print(asset_prop_val)
-                                    elif 'caption' in asset_prop_key:
-                                        caption_key = '{}_cap'.format(map.get(fv_key))
-                                        properties[caption_key] += [asset_prop_val]
+                                        if asset_prop_val:
+                                            properties[map.get(fv_key)] += [asset_prop_val]
+                                            ## This needs to be tested to ensure captions match assets.
+                                            if asset_prop.get('caption'):
+                                                properties['{}_cap'.format(map.get(fv_key))] += [asset_prop_val]
                         else:
                             properties[map.get(fv_key)] = fv_val
-                        # for asset in result['form_values'][fv]:
-                        #     for id_type in id_types:
-                        #         if asset.get(id_type):
-                        #             if asset.get(id_type) == list:
-                        #                 asset_key = id_types.get(id_type)
-                        #                 assets[asset_key] = assets.get(id_type)
-                        #                 caption_key = '{}_cap'.format(id_types.get(id_type))
-                        #                 assets[caption_key] = assets.get('caption')
-                        #         except AttributeError:
-                        #             print("Asset: {}".format(asset))
                 else:
-                    properties[key] = result[key]
-            # for asset in assets:
-            #     properties[asset] = assets[asset]
+                    if result[key]:
+                        properties[key] = result[key]
             feature['properties'] = properties
             features += [feature]
-        geojson = {"type": "FeatureCollection","features": features}
-        print "\n\n\n"
-        print geojson
-        print "\n\n\n"
+        geojson = {"type": "FeatureCollection", "features": features}
         return geojson
 
     def get_element_map(self, form):
@@ -128,6 +159,13 @@ class Fulcrum_Importer():
         for element in elements:
             map[element.get('key')] = element.get('data_name')
         return map
+
+    def get_asset(self, asset_id, asset_type):
+        if asset_id:
+            return write_asset_from_url(asset_id, asset_type)
+        else:
+            print "An asset_id must be provided."
+            return None
 
     def __del__(self):
         cache.set(settings.FULCRUM_API_KEY, False)
@@ -205,21 +243,24 @@ def upload_geojson(file_path=None, features=None):
     from .models import get_type_extension
     import os
 
+    from_file = False
     if file_path and features:
         raise "upload_geojson() must take file_path OR features"
         return False
-    if file_path:
+    elif features:
+        features = features.get('features')
+    elif file_path:
         with open(file_path) as data_file:
             features = json.load(data_file).get('features')
-    elif features:
-        pass
+            from_file = True
     else:
         raise "upload_geojson() must take file_path OR features"
 
     uploads = []
+    print "\n\n FEATURES {} \n\n".format(features)
     for feature in features:
-        for asset_type in ['photos']:
-            if feature.get('properties').get(asset_type):
+        for asset_type in ['photos', 'videos', 'audio']:
+            if(from_file and feature.get('properties').get(asset_type)):
                 urls = []
                 if type(feature.get('properties').get(asset_type)) == list:
                     asset_uids = feature.get('properties').get(asset_type)
@@ -235,7 +276,7 @@ def upload_geojson(file_path=None, features=None):
                     else:
                         urls += ['Import Needed.']
                 feature['properties']['{}_url'.format(asset_type)] = urls
-            else:
+            elif(from_file and not feature.get('properties').get(asset_type)):
                 feature['properties'][asset_type] = None
                 feature['properties']['{}_url'.format(asset_type)] = None
         layer = write_layer(os.path.basename(os.path.dirname(file_path)))
@@ -249,10 +290,10 @@ def upload_geojson(file_path=None, features=None):
 def write_layer(name, date=None):
     from .models import Layer
     from datetime import datetime
+    import time
 
     if not date:
-        date = datetime.now()
-
+        date = time.mktime(datetime.now().timetuple())
     layer, layer_created = Layer.objects.get_or_create(layer_name=name, defaults={'layer_date': date})
     return layer
 
@@ -260,19 +301,18 @@ def write_layer(name, date=None):
 def write_feature(key, app, feature_data):
     from .models import Feature
     import json
-
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
                                                              defaults={'layer': app,
                                                                        'feature_data': json.dumps(feature_data)})
     return feature
 
 
-def write_asset_from_url(asset_uid, asset_type, url):
+def write_asset_from_url(asset_uid, asset_type, url=None):
     from django.core.files import File
     from django.core.files.temp import NamedTemporaryFile
-    import urllib2
+    import requests
     import os
-    from .models import Asset
+    from .models import Asset, get_asset_name, get_type_extension
     from django.conf import settings
 
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
@@ -280,13 +320,20 @@ def write_asset_from_url(asset_uid, asset_type, url):
         if not os.path.exists(settings.MEDIA_ROOT):
             os.mkdir(settings.MEDIA_ROOT)
         with NamedTemporaryFile() as temp:
-            file_ext = {'image': 'jpg'}
-            response = urllib2.urlopen(url)
-            temp.write(response.read())
-            file_type = response.info().maintype
+            if not url:
+                url = 'https://api.fulcrumapp.com/api/v2/{}/{}.{}'.format(asset.asset_type, asset.asset_uid,
+                                                                          get_type_extension(asset_type))
+            response = requests.get(url, headers={'X-ApiToken': settings.FULCRUM_API_KEY})
+            print "{}:{}".format(response.status_code, response.headers.get('Content-Type').split(';')[0].split('/')[1])
+            # response.headers.get('Content-Type').split(';')[0].split('/')[1]
+            for content in response.iter_content(chunk_size=1028):
+                temp.write(content)
             temp.flush()
-            asset.asset_data.save('{}.{}'.format(asset_uid, file_ext.get(file_type)), File(temp))
-    return asset, created
+            asset.asset_data.save(asset.asset_uid, File(temp))
+    else:
+        print "Asset already created."
+        asset = Asset.objects.get(asset_uid=asset_uid)
+    return asset.asset_data.url
 
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
@@ -317,17 +364,20 @@ def upload_to_postgis(feature_data, user, database, table):
 
     for feature in feature_data:
         for property in feature.get('properties'):
+            if not feature.get('properties').get(property):
+                continue
             if type(feature.get('properties').get(property)) == list:
+                print("feature.get('properties').get({}): {}".format(property, feature.get('properties').get(property)))
                 feature['properties'][property] = ','.join(feature['properties'][property])
 
-    for asset_type in ['photos']:
-        for feature in feature_data:
-            if feature.get('properties').get(asset_type):
-                for asset in feature.get('properties').get(asset_type).split(','):
-                    feature['properties'][
-                        asset_type] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
-                    feature['properties'][
-                        asset_type + '_url'] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
+    # for asset_type in ['photos']:
+    #     for feature in feature_data:
+    #         if feature.get('properties').get(asset_type):
+    #             for asset in feature.get('properties').get(asset_type).split(','):
+    #                 feature['properties'][
+    #                     asset_type] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
+    #                 feature['properties'][
+    #                     asset_type + '_url'] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
 
     temp_file = os.path.abspath('./temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
