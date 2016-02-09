@@ -245,7 +245,7 @@
 		var activeLayers = {};
 		
 		// Track layer colors for legend //
-		var activeColors = {};
+		var layerColors = {};
 		
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
@@ -274,20 +274,54 @@
 			url : '/fulcrum_importer/layers',
 			dataType: "json",
 			success : function(result) {
+				console.log("Updating layers");
 				updateLayers(result);
+				console.log("Update layers complete");
 			}
 		});
-		var styler;
 		// Update the layer control with any new layers //
 		function updateLayers(result) {
 			for (var key in result) {
+				console.log("Checking " + key);
 				if(!layers[key]){
+					console.log("Initializing " + key);
+					var styler;
+					if(key in layerColors) {
+						console.log(key + " has a color already");
+						styler = {
+							radius : 4,
+							fillColor : layerColors[key],
+							color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
+						}
+						console.log("Color is " + styler.fillColor);
+					}
+					else {
+						console.log(key + " does not have a color yet");
+						var color = getRandomColor();
+						console.log("Random color is " + color);
+						styler = {
+							radius : 4,
+							fillColor : color,
+							color : "#000000",
+							weight : 1, 
+							opacity : 1,
+							fillOpacity : 1
+						}
+						console.log("Styler color is now " + styler.fillColor);
+						layerColors[key] = color;
+						console.log("Key " + key + "now has saved color of" + layerColors[key]);
+					};
 					layers[key] = result[key] = L.geoJson(false, {
 						onEachFeature: onEachFeature,
 						pointToLayer : function (feature, latlng) {
 							return L.circleMarker(latlng, styler);
 						}
 					});
+					console.log("Created geojson layer with color: " + layerColors[key]);
+					
 				}
 			}
 			layerControl = L.control.layers(baseMaps, layers).addTo(map);
@@ -299,21 +333,17 @@
 		// Find which layer was selected, get its data from URL, add it to the empty layer, and add the layer to the map //
 		function onOverlayAdd(e) {
 			var name = e["name"];
+			console.log("Fetching layer " + name);
 			$.ajax({
 					url : '/fulcrum_importer/geojson?layer=' + name,
 					dataType: "json",
 					success : function (result) {
-						styler = {
-							radius : 4,
-							fillColor : getRandomColor(),
-						 	color : "#000000",
-							weight : 1, 
-							opacity : 1,
-							fillOpacity : 1
-						};
+						console.log("Success");
 						layers[name].addData(result[name]);
+						console.log(name + " in " + layers + " now has the data");
 						activeLayers[name] = null;
-						activeColors[name] = styler.fillColor;
+						console.log(name + " is now in active layers list: " + activeLayers);
+						console.log("This layer should have the color" + layerColors[name]);
 						bounds = fetchBounds(layers[name]);
 						// If no layers/legend currently: add legend, else: delete old version and add new version //
 						if(Object.keys(activeLayers).length == 1) {
@@ -335,7 +365,6 @@
 			var name = e["name"];
 			layers[name].clearLayers();
 			delete activeLayers[name];
-			delete activeColors[name];
 			// Reset bounds then iterate through any active layers to compute new bounds //
 			north = 0.0;
 			east = 0.0;
@@ -357,10 +386,10 @@
 
 		legend.onAdd = function (map) {
 			var div = L.DomUtil.create('div', 'legend');
-			for( var key in activeLayers) {
+			for(var key in activeLayers) {
 				div.innerHTML +=
 					'<div class="subdiv">' +
-					'<i class="circle" style="background: '+ activeColors[key] + '"></i> ' +
+					'<i class="circle" style="background: '+ layerColors[key] + '"></i> ' +
 					'<span class="legend-lable">' + key + '</span><br>'
 					+ '</div>';
 			}
@@ -755,39 +784,15 @@
 						// If layer already exists, remove first, then add new version
 						if(key in layers) {
 							map.removeLayer(layers[key]);
-							layerControl.removeLayer(key);
-						}
-						var value = result[key];
-						
-						// Styles the layer being added to map //
-						var styler = {
-							radius : 4,
-							fillColor : getRandomColor(),
-							color : "#000000",
-							weight : 1, 
-							opacity : 1,
-							fillOpacity : 1
-						};
-						var newlayer = L.geoJson(value, {
-							onEachFeature: onEachFeature,
-							pointToLayer : function (feature, latlng) {
-								return L.circleMarker(latlng, styler);
-							}
-						}).addTo(map);
-						layers[key] = newlayer;
-						bounds = fetchBounds(newlayer);
-						activeLayers[key] = null;
-						activeColors[key] = styler.fillColor;
-						// If no layers/legend currently: add legend, else: delete old version and add new version //
-						if(Object.keys(activeLayers).length == 1) {
-							legend.addTo(map);
-						}
-						else {
-							legend.removeFrom(map);
-							legend.addTo(map);
+							//layerControl.removeLayer(key);
+							delete layers[key];
+							if(key in activeLayers) {
+								delete activeLayers[key];
+							};
 						}
 						layerControl.removeFrom(map);
-						layerControl = L.control.layers(baseMaps, layers).addTo(map);
+						updateLayers(result);
+						
 					};
 					
 				},
@@ -864,33 +869,42 @@
 				e.preventDefault();
 			}
 		});
+	
+		// Gets randomized color for new layer //
+		var approvedColors =[
+			"#003366", //darkblue
+			"#99cc00", //limegreen
+			"#330032", //dark purple
+			"#a6a6a6", //grey
+			"#0099cc", //light neon blue
+			"#00ff00", //bright green
+			"#009999", //cyan
+			"#333300", //vomit
+			"#006600", //darkgreen
+			"#663300", //poopy brown
+			"#ffff00", //bright yellow
+			"#999966", //dark tan
+			"#ffff99", //light yellow
+			"#ff8000", //orange
+			"#990099", //purple
+			"#9999ff", //very light blue
+			"#ffbf80", //creamsicle
+			"#4d4d4d", //dark grey
+			"#ff66cc", //light pink
+			"#666699" //pale-ish purple				
+		];
+		var colorix = 0;
+		function getRandomColor() {
+			if(colorix < approvedColors.length) {
+				return approvedColors[colorix++];
+			}
+			else {
+				colorix = 1;
+				return approvedColors[0];
+			}
+		};
+		
 	});
-	// Gets randomized color for new layer //
-	var approvedColors =[
-					"#003366", //darkblue
-					"#0099cc", //lightblue
-					"#009999", //cyan
-					"#00ff00", //bright green
-					"#006600", //darkgreen
-					"#333300", //vomit
-					"#99cc00", //limegreen
-					"#999966", //
-					"#663300",
-					"#ffff00",
-					"#ff0066",
-					"#990099",
-					"#ff66cc",
-					"#9999ff",
-					"#666699"
-					];
-	function getRandomColor() {
-		var letters = '0123456789ABCDEF'.split('');
-		var color = '#';
-		for (var i = 0; i < 6; i++ ) {
-			color += letters[Math.floor(Math.random() * 16)];
-		}
-		return color;
-	};
 	
 	</script>
 	
