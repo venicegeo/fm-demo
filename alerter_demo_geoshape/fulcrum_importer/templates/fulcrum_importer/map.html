@@ -122,6 +122,37 @@
 			opacity: 0.8;
 			z-index: 3;
 		}
+		.legend {
+			padding: 6px 8px;
+			font: 12px Arial, Helvetica, sans-serif;
+			background: white;
+			background: rgba(255,255,255,0.8);
+			box-shadow: 0 0 15px rgba(0,0,0,0.2);
+			border-radius: 5px;
+		}
+		.subdiv {
+			padding-top: 5px;
+		}
+		.legend i {
+			clear: both;
+			width: 15px;
+			height: 10px;
+			float: left;
+			margin-right: 5px;
+			opacity: 1.0;
+		} 
+		.legend .circle {
+			border-radius: 50%;
+			width: 10px;
+			height: 10px;
+			margin-top: 0px;
+			line-height: 10px;
+			border: 1px solid #000000;
+		}
+		.legend-label {
+			vertical-align: middle;
+			left: 5px;
+		}
 
 	</style>
 	
@@ -213,6 +244,9 @@
 		// Track which layers are in the map //
 		var activeLayers = {};
 		
+		// Track layer colors for legend //
+		var activeColors = {};
+		
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
 		var north = 0.0;
@@ -279,7 +313,16 @@
 						};
 						layers[name].addData(result[name]);
 						activeLayers[name] = null;
+						activeColors[name] = styler.fillColor;
 						bounds = fetchBounds(layers[name]);
+						// If no layers/legend currently: add legend, else: delete old version and add new version //
+						if(Object.keys(activeLayers).length == 1) {
+							legend.addTo(map);
+						}
+						else {
+							legend.removeFrom(map);
+							legend.addTo(map);
+						}
 					}
 				});
 		};
@@ -292,6 +335,8 @@
 			var name = e["name"];
 			layers[name].clearLayers();
 			delete activeLayers[name];
+			delete activeColors[name];
+			// Reset bounds then iterate through any active layers to compute new bounds //
 			north = 0.0;
 			east = 0.0;
 			south = 0.0;
@@ -300,10 +345,27 @@
 			for (var key in activeLayers) {
 				bounds = fetchBounds(layers[key]);
 			}
+			// If removing only layer: remove legend, else: remove and add new version //
+			legend.removeFrom(map);
+			if(Object.keys(activeLayers).length != 0) {
+				legend.addTo(map);
+			};
 		};
-		// Legend is on its way //
-		// http://gis.stackexchange.com/questions/88462/how-to-create-leaflet-legend-for-points //
-		// http://gis.stackexchange.com/questions/68941/how-to-add-remove-legend-with-leaflet-layers-control //
+		
+		// Create legend for active layers //
+		var legend = L.control({position: 'bottomright'});
+
+		legend.onAdd = function (map) {
+			var div = L.DomUtil.create('div', 'legend');
+			for( var key in activeLayers) {
+				div.innerHTML +=
+					'<div class="subdiv">' +
+					'<i class="circle" style="background: '+ activeColors[key] + '"></i> ' +
+					'<span class="legend-lable">' + key + '</span><br>'
+					+ '</div>';
+			}
+			return div;
+		};
 		
 		// Adds a locator map to bottom corner of the main map //
 		var miniMap = new L.Control.MiniMap(mini).addTo(map);
@@ -362,6 +424,26 @@
 					var urlStr = "";
 					for (var url in e.target.feature.properties.photos_url){
 						urlStr += '<p><a href="' + e.target.feature.properties.photos_url[url] + '" target="_blank"><img src="' + e.target.feature.properties.photos_url[url] + '" style="width: 250px; height: 250px;"/></a></p>';
+					};
+					
+					content += urlStr;
+				}
+				
+				// Add alert videos
+				if (e.target.feature.properties.videos_url != null && e.target.feature.properties.videos_url != "") {
+					var urlStr = "";
+					for (var url in e.target.feature.properties.videos_url){
+						urlStr += '<p><video width="250" height="250" controls><source src="' + e.target.feature.properties.videos_url[url] + '" type="video/mp4" target="_blank"></video></p>';
+					};
+					
+					content += urlStr;
+				}
+				
+				// Add alert audio
+				if (e.target.feature.properties.audio_url != null && e.target.feature.properties.audio_url != "") {
+					var urlStr = "";
+					for (var url in e.target.feature.properties.audio_url){
+						urlStr += '<p><audio controls><source src="' + e.target.feature.properties.audio_url[url] + '" type="audio/mp4"></audio></p>';
 					};
 					
 					content += urlStr;
@@ -694,6 +776,16 @@
 						}).addTo(map);
 						layers[key] = newlayer;
 						bounds = fetchBounds(newlayer);
+						activeLayers[key] = null;
+						activeColors[key] = styler.fillColor;
+						// If no layers/legend currently: add legend, else: delete old version and add new version //
+						if(Object.keys(activeLayers).length == 1) {
+							legend.addTo(map);
+						}
+						else {
+							legend.removeFrom(map);
+							legend.addTo(map);
+						}
 						layerControl.removeFrom(map);
 						layerControl = L.control.layers(baseMaps, layers).addTo(map);
 					};
@@ -774,6 +866,23 @@
 		});
 	});
 	// Gets randomized color for new layer //
+	var approvedColors =[
+					"#003366", //darkblue
+					"#0099cc", //lightblue
+					"#009999", //cyan
+					"#00ff00", //bright green
+					"#006600", //darkgreen
+					"#333300", //vomit
+					"#99cc00", //limegreen
+					"#999966", //
+					"#663300",
+					"#ffff00",
+					"#ff0066",
+					"#990099",
+					"#ff66cc",
+					"#9999ff",
+					"#666699"
+					];
 	function getRandomColor() {
 		var letters = '0123456789ABCDEF'.split('');
 		var color = '#';
