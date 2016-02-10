@@ -1,6 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
+
+	<!--Copyright 2016, RadiantBlue Technologies, Inc.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.-->
+	
 	<title>fulcrum-viewer</title>
 	<meta charset="utf-8" />
 
@@ -280,26 +295,15 @@
 			url : '/fulcrum_importer/layers',
 			dataType: "json",
 			success : function(result) {
-				console.log("Updating layers");
 				updateLayers(result);
-				console.log("Update layers complete");
 			}
 		});
 		// Update the layer control with any new layers //
 		function updateLayers(result) {
 			for (var key in result) {
-				console.log("Checking " + key);
 				if(!layers[key]){
-					console.log("Initializing " + key);
-					//var styler;
-					if(key in layerStyles) {
-						console.log(key + " has a color already");
-						//layerStyles[key]
-					}
-					else {
-						console.log(key + " does not have a color yet");
+					if(!(key in layerStyles)) {
 						var color = getRandomColor();
-						console.log("Random color is " + color);
 						layerStyles[key] = {
 							radius : 4,
 							fillColor : color,
@@ -308,7 +312,6 @@
 							opacity : 1,
 							fillOpacity : 1
 						}
-						console.log("Key " + key + "now has saved color of" + layerStyles[key]);
 					};
 					layers[key] = L.geoJson(false, {
 						onEachFeature: onEachFeature,
@@ -317,9 +320,7 @@
 							return L.circleMarker(latlng, layerStyles[key]);
 							
 						}
-					});
-					//console.log("Created geojson layer with color: " + layerStyles[key].fillColor);
-					
+					});					
 				}
 			}
 			layerControl = L.control.layers(baseMaps, layers).addTo(map);
@@ -331,24 +332,19 @@
 		// Find which layer was selected, get its data from URL, add it to the empty layer, and add the layer to the map //
 		function onOverlayAdd(e) {
 			var name = e["name"];
-			console.log("Fetching layer " + name);
 			$.ajax({
 					url : '/fulcrum_importer/geojson?layer=' + name,
 					dataType: "json",
 					success : function(result) {
-						ajaxSuccess(result, name);
+						addSuccess(result, name);
 					}, 
 				});
 		};
 		
-		function ajaxSuccess(result, name) {
-			console.log("Success");
+		function addSuccess(result, name) {
 			var layer = result[name];
 			addLayer(layer, name);
-			console.log(name + " in " + layers + " now has the data");
 			activeLayers[name] = null;
-			console.log(name + " is now in active layers list: " + activeLayers);
-			console.log("This layer should have the color" + layerStyles[name].fillColor);
 			bounds = fetchBounds(layers[name]);
 			// If no layers/legend currently: add legend, else: delete old version and add new version //
 			if(Object.keys(activeLayers).length == 1) {
@@ -358,17 +354,11 @@
 				legend.removeFrom(map);
 				legend.addTo(map);
 			}
-			// If eventSource is supported, start listening for layer updates //
-			//if(!!window.EventSource) {
-			//	var source = new EventSource("/fulcrum_importer/updates");
-			//	layerUpdates[name] = source; -------------------------------------------------------------------------------------------------------------------
-			//	source.addEventListener('message', function(e) {
-			//		var layer = e.data;
-			//	}, false);
-			//}
+			layerRefresher(name);
 		};
 		
 		function addLayer(layer, name) {
+			console.log("Adding layer");
 			layers[name] = L.geoJson(layer, {
 				onEachFeature: onEachFeature,
 				pointToLayer: function(feature, latlng) {
@@ -377,19 +367,35 @@
 			}).addTo(map);
 		};
 		
+		function layerRefresher(key) {
+			layerUpdates[key] = setInterval(function() {
+				console.log("Updating");
+				$.ajax({
+						url : '/fulcrum_importer/geojson?layer=' + key,
+						dataType: "json",
+						success : function(result) {
+							var layer = result[key];
+							layers[key].clearLayers();
+							layers[key] = null;
+							addLayer(layer, key);
+							bounds = fetchBounds(layers[key]);
+						}, 
+					});
+			}, 10000);
+		};
+		
 		// Listens for user deselecting layer from Layer Control //
 		map.on('overlayremove', onOverlayRemove);
 		
 		// Removes layer data from the geojson layer //
 		function onOverlayRemove(e) {
 			var name = e["name"];
+			console.log("Updates stopped");
+			clearInterval(layerUpdates[name]);
+			layerUpdates[name] = null;
 			layers[name].clearLayers();
 			layers[name] = null;
 			delete activeLayers[name];
-			//if(name in layerUpdate) {
-				//layerUpdates[name].close();//
-				//layerUpdate[name] = null;
-			//};
 			// Reset bounds then iterate through any active layers to compute new bounds //
 			north = 0.0;
 			east = 0.0;
