@@ -153,6 +153,9 @@
 			vertical-align: middle;
 			left: 5px;
 		}
+		audio {
+			width: 250px;
+		}
 
 	</style>
 	
@@ -247,6 +250,9 @@
 		// Track layer colors for legend //
 		var layerStyles = {};
 		
+		// Track ServerSide-Event sources for each layer //
+		var layerUpdates = {};
+		
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
 		var north = 0.0;
@@ -302,7 +308,6 @@
 							opacity : 1,
 							fillOpacity : 1
 						}
-						//layerStyles[key] = styler;
 						console.log("Key " + key + "now has saved color of" + layerStyles[key]);
 					};
 					layers[key] = L.geoJson(false, {
@@ -330,29 +335,46 @@
 			$.ajax({
 					url : '/fulcrum_importer/geojson?layer=' + name,
 					dataType: "json",
-					success : function (result) {
-						console.log("Success");
-						layers[name].addData(result[name]);//, {
-							//onEachFeature: onEachFeature,
-							//pointToLayer: function(feature, latlng) {
-							//	return L.circleMarker(latlng, layerStyles[name]);
-							//}
-						//}).addTo(map);
-						console.log(name + " in " + layers + " now has the data");
-						activeLayers[name] = null;
-						console.log(name + " is now in active layers list: " + activeLayers);
-						console.log("This layer should have the color" + layerStyles[name].fillColor);
-						bounds = fetchBounds(layers[name]);
-						// If no layers/legend currently: add legend, else: delete old version and add new version //
-						if(Object.keys(activeLayers).length == 1) {
-							legend.addTo(map);
-						}
-						else {
-							legend.removeFrom(map);
-							legend.addTo(map);
-						}
-					}
+					success : function(result) {
+						ajaxSuccess(result, name);
+					}, 
 				});
+		};
+		
+		function ajaxSuccess(result, name) {
+			console.log("Success");
+			var layer = result[name];
+			addLayer(layer, name);
+			console.log(name + " in " + layers + " now has the data");
+			activeLayers[name] = null;
+			console.log(name + " is now in active layers list: " + activeLayers);
+			console.log("This layer should have the color" + layerStyles[name].fillColor);
+			bounds = fetchBounds(layers[name]);
+			// If no layers/legend currently: add legend, else: delete old version and add new version //
+			if(Object.keys(activeLayers).length == 1) {
+				legend.addTo(map);
+			}
+			else {
+				legend.removeFrom(map);
+				legend.addTo(map);
+			}
+			// If eventSource is supported, start listening for layer updates //
+			//if(!!window.EventSource) {
+			//	var source = new EventSource("/fulcrum_importer/updates");
+			//	layerUpdates[name] = source; -------------------------------------------------------------------------------------------------------------------
+			//	source.addEventListener('message', function(e) {
+			//		var layer = e.data;
+			//	}, false);
+			//}
+		};
+		
+		function addLayer(layer, name) {
+			layers[name] = L.geoJson(layer, {
+				onEachFeature: onEachFeature,
+				pointToLayer: function(feature, latlng) {
+					return L.circleMarker(latlng, layerStyles[name]);
+				}
+			}).addTo(map);
 		};
 		
 		// Listens for user deselecting layer from Layer Control //
@@ -362,7 +384,12 @@
 		function onOverlayRemove(e) {
 			var name = e["name"];
 			layers[name].clearLayers();
+			layers[name] = null;
 			delete activeLayers[name];
+			//if(name in layerUpdate) {
+				//layerUpdates[name].close();//
+				//layerUpdate[name] = null;
+			//};
 			// Reset bounds then iterate through any active layers to compute new bounds //
 			north = 0.0;
 			east = 0.0;
@@ -401,7 +428,6 @@
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
 				var content = "";
-				
 				// Add alert name //
 				if (e.target.feature.properties.name != null && e.target.feature.properties.name != "") {
 					content += '<p><strong>Name: </strong> ' + e.target.feature.properties.name + '</p>';
@@ -480,7 +506,11 @@
 				var coords = [e.target.feature.geometry.coordinates[1],e.target.feature.geometry.coordinates[0]];
 				
 				// Create popup and add to map //
-				var popup = L.popup().setLatLng(coords).setContent(content).openOn(map);
+				var popup = L.popup({
+					maxHeight: 400,
+					closeOnClick: false,
+					keepInView: true
+				}).setLatLng(coords).setContent(content).openOn(map);
 			});
 		}
 		
@@ -871,25 +901,25 @@
 		// Gets randomized color for new layer //
 		var approvedColors =[
 			"#003366", //darkblue
+			"#006600", //darkgreen
+			"#ff8000", //orange
 			"#99cc00", //limegreen
-			"#330032", //dark purple
+			"#990099", //purple
+			"#009999", //cyan
 			"#a6a6a6", //grey
 			"#0099cc", //light neon blue
 			"#00ff00", //bright green
-			"#009999", //cyan
-			"#333300", //vomit
-			"#006600", //darkgreen
+			"#330032", //dark purple
 			"#663300", //poopy brown
 			"#ffff00", //bright yellow
 			"#999966", //dark tan
 			"#ffff99", //light yellow
-			"#ff8000", //orange
-			"#990099", //purple
 			"#9999ff", //very light blue
 			"#ffbf80", //creamsicle
 			"#4d4d4d", //dark grey
 			"#ff66cc", //light pink
-			"#666699" //pale-ish purple				
+			"#666699", //pale-ish purple
+			"#333300" //vomit			
 		];
 		var colorix = 0;
 		function getRandomColor() {
