@@ -1,21 +1,28 @@
 # Copy scripts (for now just create a vagrant shared folder)
 cd ~
 sudo yum install unzip -y
-wget -O demo.zip https://github.com/venicegeo/fm-demo/archive/master.zip
-unzip demo.zip
-sudo mv fm-demo-master/alerter_demo_geoshape /var/lib/demo
+#wget -O demo.zip https://github.com/venicegeo/fm-demo/archive/master.zip
+#unzip demo.zip
+#sudo mv fm-demo-master/alerter_demo_geoshape /var/lib/demo
 
 # Create VirtualEnv
-/var/lib/geonode/bin/pip install virtualenv
-/var/lib/geonode/bin/virtualenv /var/lib/demo/demo_env
-/var/lib/demo/demo_env/bin/pip install kafka-python
-/var/lib/demo/demo_env/bin/pip install django
-/var/lib/demo/demo_env/bin/pip install requests
-/var/lib/demo/demo_env/bin/pip install gsconfig
-/var/lib/demo/demo_env/bin/pip install python-dateutil
-/var/lib/demo/demo_env/bin/pip install fulcrum
+sudo /var/lib/geonode/bin/pip install virtualenv
+sudo /var/lib/geonode/bin/virtualenv /var/lib/demo/demo_env
+sudo /var/lib/demo/demo_env/bin/pip install kafka-python
+sudo /var/lib/demo/demo_env/bin/pip install django
+sudo /var/lib/demo/demo_env/bin/pip install requests
+sudo /var/lib/demo/demo_env/bin/pip install gsconfig
+sudo /var/lib/demo/demo_env/bin/pip install python-dateutil
+sudo /var/lib/demo/demo_env/bin/pip install fulcrum
+#wget -O pyscopg2.tar.gz https://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.6.1.tar.gz#md5=842b44f8c95517ed5b792081a2370da1
+#tar -zxvf pyscopg2.tar.gz
+#cd psycopg2-2.6.1
+#/var/lib/demo/demo_env/bin/python setup.py install --pg-config /usr/pgsql-9.5/bin/pg_config
 
-ln -s /etc/geoshape/local_settings.py /var/lib/demo/demo_app/local_settings.py
+
+
+
+#ln -s /etc/geoshape/local_settings.py /var/lib/demo/demo_app/local_settings.py
 
 # Install Django, Requests, kafka-python
 sudo -u postgres /usr/bin/psql -c "CREATE DATABASE fulcrum WITH OWNER geoshape;"

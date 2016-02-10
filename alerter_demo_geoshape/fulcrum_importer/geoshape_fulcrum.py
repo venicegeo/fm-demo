@@ -69,6 +69,7 @@ class Fulcrum_Importer():
         if filtered_features.get('features'):
             for filter in settings.DATA_FILTERS:
                 filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+
                 if filtered_results.get('failed'):
                     print("Some features failed the {} filter.".format(filter))
                 if filtered_results.get('passed'):
@@ -90,8 +91,8 @@ class Fulcrum_Importer():
                             feature['properties']['{}_url'.format(asset_type)] += [self.get_asset(id, asset_type)]
                 write_feature(feature.get('properties').get('id'), layer, feature)
                 uploads += [feature]
-            if settings.DB_NAME:
-                upload_to_postgis(uploads, settings.DB_USER, settings.DB_NAME, layer.layer_name)
+            if settings.DATABASE_NAME:
+                upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, layer.layer_name)
             layer.layer_date = latest_time
             layer.save()
         print("RESULTS\n---------------")
@@ -112,10 +113,11 @@ class Fulcrum_Importer():
     def update_all_layers(self):
         for form in self.get_forms():
             layer, created = self.ensure_layer(layer_name=form.get('name'), layer_id=form.get('id'))
-            if created:
-                print("The layer {}({}) was created.".format(layer.layer_name, layer.layer_uid))
-            print("Getting records for {}".format(form.get('name')))
-            self.update_records(form)
+            if layer.layer_name == "Test":
+                if created:
+                    print("The layer {}({}) was created.".format(layer.layer_name, layer.layer_uid))
+                print("Getting records for {}".format(form.get('name')))
+                self.update_records(form)
 
     def convert_to_geojson(self, results, form):
         map = self.get_element_map(form)
@@ -284,7 +286,7 @@ def upload_geojson(file_path=None, features=None):
                       layer,
                       feature)
         uploads += [feature]
-    upload_to_postgis(uploads, settings.DB_USER, settings.DB_NAME, os.path.splitext(os.path.basename(file_path))[0])
+    upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
 
 
 def write_layer(name, date=None):
