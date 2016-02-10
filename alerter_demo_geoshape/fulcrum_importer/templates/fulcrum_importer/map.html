@@ -43,9 +43,9 @@
 			left: 0%;
 			z-index: -1;
 		}
-		#timeout, #colortime {
+		#timeout, #colortime, #refresh {
 			position: absolute;
-			left: 60px;
+			left: 25%;
 		}
 		.ui-widget-content {
 			text-align: center;
@@ -192,6 +192,11 @@
 	<form id="colortimeForm" title="Alert Color Controller" visibility="hidden">
 			<label for="colortime" style="display: block;" id="colortimeLabel">Enter seconds for alert color,<br>or enter 0 to disable alert color.</label></br>
 			<input type="text" name="colortime" id="colortime" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
+	</form>
+	
+	<form id="refreshForm" title="Layer Refresh Controller" visibility="hidden">
+			<label for="refresh" style="display: block;" id="refreshLabel">Enter seconds for layer refresh,<br>default is 60.</label></br>
+			<input type="text" name="refresh" id="refresh" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
 	</form>
 	
     <div id="formContainer" title="Upload File"> 
@@ -381,7 +386,7 @@
 							bounds = fetchBounds(layers[key]);
 						}, 
 					});
-			}, 10000);
+			}, (refresh * 1000));
 		};
 		
 		// Listens for user deselecting layer from Layer Control //
@@ -793,7 +798,90 @@
 					}
 				}]
 			}).addTo(map);
-		});		
+		});
+		
+		// Button to set new Refresh rate //
+		if(typeof(Storage) != "undefined") {
+			if (sessionStorage.refresh) {
+				var refresh = parseInt(sessionStorage.refresh);
+			}
+			else {
+				sessionStorage.refresh = "60";
+				refresh = 60;
+			}
+		}
+		else {
+			var refresh = 60;
+		}
+		document.getElementById("refresh").value = refresh;
+		var getRefresh = $(function() {
+		
+			var refreshDialogBox = $("#refreshForm").dialog({
+				autoOpen: false,
+				closeOnEscape: false,
+				open: function(event, ui) {
+					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+					$("#colortimeForm").dialog('close');
+				},
+				height: 250,
+				width: 350,
+				appendTo: "#map",
+				position: {
+					my: "left top",
+					at: "right bottom",
+					of: placeholder
+				},
+				modal: false,
+				buttons: {
+					"Submit": function() {
+						var inNum = parseInt($("#refresh").val());
+						if(isNaN(inNum) || inNum < 0 || inNum == "") {
+							refresh = 60;
+							document.getElementById("refresh").value = refresh;
+							sessionStorage.refresh = refresh;
+						}
+						else {
+							refresh = inNum;
+							sessionStorage.refresh = inNum;
+							
+						}
+						$(this).dialog("close");
+					},
+					"Cancel": function() {
+						$(this).dialog("close");
+					}
+				},
+			
+			});
+			
+			$('#refreshForm').keypress( function(e) {
+				if (e.charCode == 13 || e.keyCode == 13) {
+					var inNum = parseInt($("#refresh").val());
+						if(isNaN(inNum) || inNum < 0 || inNum == "") {
+							refresh = 60;
+							document.getElementById("refresh").value = refresh;
+							sessionStorage.refresh = refresh;
+						}
+						else {
+							refresh = inNum;
+							sessionStorage.refresh = inNum;
+						}
+						$(this).dialog("close");
+					e.preventDefault();
+				}
+			});
+			
+			var refreshButton = L.easyButton({
+				states: [{
+					stateName: 'Set time for layer refresh',
+					icon: 'fa-refresh',	
+					title: 'Set time for layer refresh',
+					onClick: function(btn, map) {
+						refreshDialogBox.dialog("open");
+					}
+				}]
+			}).addTo(map);
+		});
 		
 		// Uploads user data //
 		var uploadForm = (function(){
