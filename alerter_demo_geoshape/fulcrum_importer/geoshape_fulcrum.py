@@ -91,8 +91,10 @@ class Fulcrum_Importer():
                             feature['properties']['{}_url'.format(asset_type)] += [self.get_asset(id, asset_type)]
                 write_feature(feature.get('properties').get('id'), layer, feature)
                 uploads += [feature]
+            print "DATABASE_NAME: {}".format(settings.DATABASE_NAME)
             if settings.DATABASE_NAME:
                 upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, layer.layer_name)
+                publish_layer(layer.layer_name)
             layer.layer_date = latest_time
             layer.save()
         print("RESULTS\n---------------")
@@ -259,7 +261,6 @@ def upload_geojson(file_path=None, features=None):
         raise "upload_geojson() must take file_path OR features"
 
     uploads = []
-    print "\n\n FEATURES {} \n\n".format(features)
     for feature in features:
         for asset_type in ['photos', 'videos', 'audio']:
             if(from_file and feature.get('properties').get(asset_type)):
@@ -358,19 +359,43 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
             return None, False
     return asset, created
 
+def update_geoshape_layers():
+    import subprocess
+    python_bin =  '/var/lib/geonode/bin/python'
+    manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
+    env = {}
+    execute = [python_bin,
+               manage_script,
+               'updatelayers',
+               '--ignore-errors',
+               '--remove-deleted',
+               '--skip-unadvertised']
+    out = subprocess.Popen(execute, env=env)
 
 def upload_to_postgis(feature_data, user, database, table):
     import json
     import subprocess
     import os
-
+    from .models import get_type_extension
+    print "uploading features to postgis."
+    remove_urls = []
     for feature in feature_data:
         for property in feature.get('properties'):
             if not feature.get('properties').get(property):
                 continue
             if type(feature.get('properties').get(property)) == list:
-                print("feature.get('properties').get({}): {}".format(property, feature.get('properties').get(property)))
+                type_ext = get_type_extension(property)
+                if type_ext:
+                    props = []
+                    for prop in feature.get('properties').get(property):
+                        props += ['{}.{}'.format(prop, type_ext)]
+                    feature['properties'][property] = props
                 feature['properties'][property] = ','.join(feature['properties'][property])
+                print "feature.get('properties').get(property) = {}".format(feature.get('properties').get(property))
+            if 'url' in str(property):
+                remove_urls += [property]
+    for prop in remove_urls:
+        feature.get('properties').pop(prop,None)
 
     # for asset_type in ['photos']:
     #     for feature in feature_data:
@@ -398,11 +423,77 @@ def upload_to_postgis(feature_data, user, database, table):
                       temp_file,
                       '-nln', table]
 
-    execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE(fulcrum_id);".format(table)]
+    if feature_data[0].get('properties').get('fulcrum_id'):
+        key_name = 'fulcrum_id'
+    else:
+        key_name = 'id'
+    execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
         out = subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
         out = subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
+        # out = subprocess.Popen(' '.join(execute_append), shell=True)
+        # out = subprocess.Popen(execute_alter)
     except subprocess.CalledProcessError:
         print "Failed to call:\n" + ' '.join(execute_append)
         print out
+
+def publish_layer(layer_name):
+    from geoserver.catalog import Catalog
+
+    url = "http://localhost:8080/geoserver/rest"
+    workspace_name = "geonode"
+    workspace_uri = "http://www.geonode.org/"
+    datastore_name = settings.DATABASE_NAME
+    host = "localhost"
+    port = "5432"
+    database = settings.DATABASE_NAME
+    db_type = "postgis"
+    user = settings.DATABASE_USER
+    srs = "EPSG:4326"
+
+    cat = Catalog(url)
+
+    # Check if local workspace exists and if not create it
+    workspace = cat.get_workspace(workspace_name)
+
+    if workspace is None:
+        current_workspace = cat.create_workspace(workspace_name, workspace_uri)
+        print "Workspace " + workspace_name + " created."
+
+    # Get list of datastores
+    datastores = cat.get_stores()
+
+    datastore = None
+    # Check if remote datastore exists on local system
+    for ds in datastores:
+        if ds.name.lower() == datastore_name.lower():
+            datastore = ds
+
+    if not datastore:
+        datastore = cat.create_datastore(datastore_name, workspace_name)
+        datastore.connection_parameters.update(port=port,
+                                               host=host,
+                                               database=database,
+                                               password=settings.DATABASE_PASSWORD,
+                                               user=user,
+                                               dbtype=db_type)
+
+        cat.save(datastore)
+        print "Datastore " + datastore.name + " created."
+
+    # Check if remote layer already exists on local system
+    layers = cat.get_layers()
+
+    layer = None
+    for lyr in layers:
+        if lyr.resource.name.lower() == layer_name.lower():
+            layer = lyr
+
+    if not layer:
+        # Publish remote layer
+        layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
+        print "Published layer {}.".format(layer_name.lower())
+        from multiprocessing import Process
+        p = Process(target=update_geoshape_layers())
+        p.start()

@@ -27,7 +27,7 @@ urlpatterns = [
     url(r'^map',views.viewer),
     url(r'^viewer',views.viewer),
     url(r'^upload$',views.upload),
-    url(r'^layers$',views.layers),
+    url(r'^layers$',views.layers)
 ]
 
 if settings.DEBUG is True:
