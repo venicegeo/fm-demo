@@ -13,7 +13,7 @@ class FulcrumImporterConfig(AppConfig):
             from geoshape_fulcrum import Fulcrum_Importer
             print("Server loaded.")
             fulcrum = Fulcrum_Importer()
-            # fulcrum.start()
+            fulcrum.start()
         except OperationalError:
             print("Data has not yet been migrated.")
 

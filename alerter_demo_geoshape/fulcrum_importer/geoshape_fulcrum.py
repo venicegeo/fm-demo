@@ -16,7 +16,9 @@ class Fulcrum_Importer():
             return
         else:
             cache.set(settings.FULCRUM_API_KEY, True)
-            Thread(target=self.run(interval)).start()
+            thread = Thread(target=self.run, args=[interval])
+            thread.daemon = True
+            thread.start()
 
     def run(self, interval):
         import time
@@ -66,12 +68,12 @@ class Fulcrum_Importer():
 
         if filtered_features.get('features'):
             for filter in settings.DATA_FILTERS:
-                filter_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-                if filter_results.get('failed'):
+                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+                if filtered_results.get('failed'):
                     print("Some features failed the {} filter.".format(filter))
-                if filter_results.get('passed'):
-                    filtered_features = filter_results.get('passed')
-                    filtered_feature_count = len(filter_results.get('passed'))
+                if filtered_results.get('passed'):
+                    filtered_features = filtered_results.get('passed')
+                    filtered_feature_count = len(filtered_results.get('passed').get('features'))
                 else:
                     filtered_features = None
         else:
@@ -113,8 +115,7 @@ class Fulcrum_Importer():
             if created:
                 print("The layer {}({}) was created.".format(layer.layer_name, layer.layer_uid))
             print("Getting records for {}".format(form.get('name')))
-            if form.get('name') == "Test":
-                self.update_records(form)
+            self.update_records(form)
 
     def convert_to_geojson(self, results, form):
         map = self.get_element_map(form)
@@ -174,7 +175,6 @@ class Fulcrum_Importer():
 def process_fulcrum_data(f):
     from django.conf import settings
     import os
-    import shutil
 
     layers = []
     file_path = os.path.join(settings.FULCRUM_UPLOAD, f.name)
