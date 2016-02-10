@@ -46,6 +46,7 @@
 		#timeout, #colortime, #refresh {
 			position: absolute;
 			left: 25%;
+			z-index: 4;
 		}
 		.ui-widget-content {
 			text-align: center;
@@ -81,22 +82,6 @@
 			width: 100%;
 			z-index: 2;
 		}
-		#files {
-			width: 0.1px;
-			height: 0.1px;
-			opacity: 0;
-			overflow: hidden;
-			position: absolute;
-			z-index: -1;
-		}
-		#submitbutton {
-			width: 0.1px;
-			height: 0.1px;
-			opacity: 0;
-			overflow: hidden;
-			position: absolute;
-			z-index: -1;
-		}
 		#Submit {
 			position: absolute;
 			height: 30px;
@@ -110,19 +95,6 @@
 			width: 200px;
 			top: 35px;
 			left: 50px;
-		}
-		#drop_zone {
-			position: absolute;
-			top: 79px;
-			left: 75px;
-			height: 100px;
-			width: 100px;
-			border: 2px dashed #ffffff;
-			border-radius: 5px;
-			padding: 25px;
-			text-align: center;
-			color: #ffffff;
-			background-color: #cccccc;
 		}
 		#waiting {
 			position: absolute;
@@ -318,14 +290,7 @@
 							fillOpacity : 1
 						}
 					};
-					layers[key] = L.geoJson(false, {
-						onEachFeature: onEachFeature,
-						pointToLayer : function (feature, latlng) {
-							console.log("----------" + layerStyles[key].fillColor);
-							return L.circleMarker(latlng, layerStyles[key]);
-							
-						}
-					});					
+					layers[key] = L.geoJson(false);					
 				}
 			}
 			layerControl = L.control.layers(baseMaps, layers).addTo(map);
@@ -366,8 +331,16 @@
 			console.log("Adding layer");
 			layers[name] = L.geoJson(layer, {
 				onEachFeature: onEachFeature,
+				filter : function(feature) {
+					if (timeout != 0) {
+						return feature.properties.time + (timeout) > Math.floor(Date.now()/1000);
+					}
+					else {
+						return true;
+					}
+				},
 				pointToLayer: function(feature, latlng) {
-					return L.circleMarker(latlng, layerStyles[name]);
+					return L.circleMarker(latlng, Markers(feature, name));
 				}
 			}).addTo(map);
 		};
@@ -449,7 +422,7 @@
 				
 				// Add alert time //
 				if (e.target.feature.properties.time != null && e.target.feature.properties != "") {
-					var time = new Date(e.target.feature.properties.time);
+					var time = new Date(e.target.feature.properties.time * 1000);
 					content += '<p><strong>Date: </strong>'+ time + '</p>';
 				}
 				else {
@@ -526,12 +499,12 @@
 		}
 		
 		// Symbolizes new points in red, old points in grey //
-		function Markers (feature) {
+		function Markers (feature, key) {
 			
 			
-			if (feature.properties.time + (colortime * 1000) > Date.now() && colortime > 0){
+			if (feature.properties.time + (colortime) > Math.round(Date.now()/1000.0) && colortime > 0){
 				return {
-					radius : 4,
+					radius : 5,
 					fillColor : "#e60000",
 					color : "#000000",
 					weight : 1,
@@ -541,14 +514,7 @@
 			}
 			
 			else {
-			    return {
-				  radius : 4,
-				  fillColor : "#737373",
-				  color : "#000000",
-				  weight : 1, 
-				  opacity : 1,
-				  fillOpacity : 1
-				 }
+			    return layerStyles[key];
 			}
 		}
 		
@@ -562,7 +528,7 @@
 					// Does not display old points on the map //
 					filter : function(feature) {
 						if (timeout != 0) {
-							return feature.properties.time + (timeout * 1000) > Date.now();
+							return feature.properties.time + (timeout) > Date.now();
 						}
 						else {
 							return true;
@@ -656,6 +622,7 @@
 				open: function(event, ui) {
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 					$("#colortimeForm").dialog('close');
+					$("#refreshForm").dialog('close');
 				},
 				height: 250,
 				width: 350,
@@ -740,6 +707,7 @@
 				open: function(event, ui) {
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); 
 					$("#timeoutForm").dialog('close');
+					$("#refreshForm").dialog('close');
 				},
 				height: 250,
 				width: 350,
@@ -822,6 +790,7 @@
 				open: function(event, ui) {
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 					$("#colortimeForm").dialog('close');
+					$("#timeoutForm").dialog('close');
 				},
 				height: 250,
 				width: 350,
