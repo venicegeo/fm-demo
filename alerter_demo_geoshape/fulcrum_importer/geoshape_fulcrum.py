@@ -336,8 +336,8 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
     else:
         print "Asset already created."
         asset = Asset.objects.get(asset_uid=asset_uid)
-    return asset.asset_data.url
-
+    if asset.asset_data:
+        return asset.asset_data.url
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
     from django.core.files import File
@@ -390,8 +390,11 @@ def upload_to_postgis(feature_data, user, database, table):
                     for prop in feature.get('properties').get(property):
                         props += ['{}.{}'.format(prop, type_ext)]
                     feature['properties'][property] = props
-                feature['properties'][property] = ','.join(feature['properties'][property])
-                print "feature.get('properties').get(property) = {}".format(feature.get('properties').get(property))
+                try:
+                    feature['properties'][property] = ','.join(feature['properties'][property])
+                except TypeError:
+                    #Null arrays are fine.
+                    continue
             if 'url' in str(property):
                 remove_urls += [property]
     for prop in remove_urls:
@@ -448,6 +451,7 @@ def publish_layer(layer_name):
     host = "localhost"
     port = "5432"
     database = settings.DATABASE_NAME
+    password = settings.DATABASE_PASSWORD
     db_type = "postgis"
     user = settings.DATABASE_USER
     srs = "EPSG:4326"
@@ -475,7 +479,7 @@ def publish_layer(layer_name):
         datastore.connection_parameters.update(port=port,
                                                host=host,
                                                database=database,
-                                               password=settings.DATABASE_PASSWORD,
+                                               password=password,
                                                user=user,
                                                dbtype=db_type)
 
