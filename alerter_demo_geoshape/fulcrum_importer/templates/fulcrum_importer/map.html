@@ -157,12 +157,12 @@
 	<div>
 	
 	<form id="timeoutForm" title="Alert Timeout Controller" visibility="hidden">
-			<label for="timeout" style="display: block;" id="timeoutLabel">Enter seconds for alert timeout,<br>or enter 0 to disable timeout.</label></br>
+			<label for="timeout" style="display: block;" id="timeoutLabel">Enter minutes for alert timeout,<br>or enter 0 to disable timeout.</label></br>
 			<input type="text" name="timeout" id="timeout" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
     </form>
 	
 	<form id="colortimeForm" title="Alert Color Controller" visibility="hidden">
-			<label for="colortime" style="display: block;" id="colortimeLabel">Enter seconds for alert color,<br>or enter 0 to disable alert color.</label></br>
+			<label for="colortime" style="display: block;" id="colortimeLabel">Enter minutes for alert color,<br>or enter 0 to disable alert color.</label></br>
 			<input type="text" name="colortime" id="colortime" value="" style="display: block;" class="text ui-widget-content ui-corner-all"/>
 	</form>
 	
@@ -200,7 +200,7 @@
 	$(document).ready(function () {
 	
 		if (!Date.now) {
-				Date.now = function() { return new Date().getTime() }
+				Date.now = function() { return new Date().getTime() } //Time in milliseconds
 			}
 
 		var OpenStreetMap = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
@@ -247,10 +247,10 @@
 		
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
-		var north = 0.0;
-		var east = 0.0;
-		var south = 0.0;
-		var west = 0.0;
+		var north = -90.0;
+		var east = -180.0;
+		var south = 90.0;
+		var west = 180.0;
 		var bounds = defaultBounds;
 		
 		// Get the bounds of a layer and compare to any other active layers //
@@ -261,7 +261,9 @@
 			south = (south < temp.getSouth() ? south : temp.getSouth());
 			west = (west < temp.getWest() ? west : temp.getWest());
 			var SW = L.latLng(south,west)
+			console.log("SW: " + SW);
 			var NE = L.latLng(north,east);
+			console.log("NE: " + NE);
 			return L.latLngBounds(SW, NE);
 		};
 		
@@ -333,7 +335,7 @@
 				onEachFeature: onEachFeature,
 				filter : function(feature) {
 					if (timeout != 0) {
-						return feature.properties.time + (timeout) > Math.floor(Date.now()/1000);
+						return feature.properties.time + (timeout * 60) > Math.floor(Date.now()/1000);
 					}
 					else {
 						return true;
@@ -356,10 +358,15 @@
 							layers[key].clearLayers();
 							layers[key] = null;
 							addLayer(layer, key);
+							north = -90.0;
+							east = -180.0;
+							south = 90.0;
+							west = 180.0;
+							bounds = defaultBounds;
 							bounds = fetchBounds(layers[key]);
 						}, 
 					});
-			}, (refresh * 1000));
+			}, refresh * 1000);
 		};
 		
 		// Listens for user deselecting layer from Layer Control //
@@ -375,10 +382,10 @@
 			layers[name] = null;
 			delete activeLayers[name];
 			// Reset bounds then iterate through any active layers to compute new bounds //
-			north = 0.0;
-			east = 0.0;
-			south = 0.0;
-			west = 0.0;
+			north = -90.0;
+			east = -180.0;
+			south = 90.0;
+			west = 180.0;
 			bounds = defaultBounds;
 			for (var key in activeLayers) {
 				bounds = fetchBounds(layers[key]);
@@ -502,7 +509,7 @@
 		function Markers (feature, key) {
 			
 			
-			if (feature.properties.time + (colortime) > Math.round(Date.now()/1000.0) && colortime > 0){
+			if (feature.properties.time + (colortime * 60) > Math.round(Date.now()/1000.0) && colortime > 0){
 				return {
 					radius : 5,
 					fillColor : "#e60000",
@@ -519,7 +526,7 @@
 		}
 		
 		// Create main layer for subscribed data stream //
-		var streamLayer;
+		/*var streamLayer;
 
 			function updateMap(geojson){
 
@@ -528,7 +535,7 @@
 					// Does not display old points on the map //
 					filter : function(feature) {
 						if (timeout != 0) {
-							return feature.properties.time + (timeout) > Date.now();
+							return feature.properties.time + (timeout * 60) > Date.now();
 						}
 						else {
 							return true;
@@ -545,7 +552,7 @@
 						return L.circleMarker(latlng, Markers(feature));
 					}
 				}).addTo(map);
-		}
+		} */
 		/*
 		// Get features from geojson file every second //
         setInterval(function () {
@@ -759,7 +766,7 @@
 			var colorTimeButton = L.easyButton({
 				states: [{
 					stateName: 'Set time for new alert color',
-					icon: 'fa-exclamation-circle',	
+					icon: 'fa-eye',	
 					title: 'Set timeout for new alert color',
 					onClick: function(btn, map) {
 						colorDialogBox.dialog("open");
@@ -769,9 +776,10 @@
 		});
 		
 		// Button to set new Refresh rate //
+		var refresh;
 		if(typeof(Storage) != "undefined") {
 			if (sessionStorage.refresh) {
-				var refresh = parseInt(sessionStorage.refresh);
+				refresh = parseInt(sessionStorage.refresh);
 			}
 			else {
 				sessionStorage.refresh = "60";
@@ -779,7 +787,7 @@
 			}
 		}
 		else {
-			var refresh = 60;
+			refresh = 60;
 		}
 		document.getElementById("refresh").value = refresh;
 		var getRefresh = $(function() {
@@ -804,7 +812,7 @@
 				buttons: {
 					"Submit": function() {
 						var inNum = parseInt($("#refresh").val());
-						if(isNaN(inNum) || inNum < 0 || inNum == "") {
+						if(isNaN(inNum) || inNum <= 0 || inNum == "") {
 							refresh = 60;
 							document.getElementById("refresh").value = refresh;
 							sessionStorage.refresh = refresh;
@@ -814,6 +822,12 @@
 							sessionStorage.refresh = inNum;
 							
 						}
+						for(var key in activeLayers) {
+							clearInterval(layerUpdates[key]);
+							layerUpdates[key] = null;
+							layerRefresher(key);
+						}
+							
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
@@ -834,6 +848,11 @@
 						else {
 							refresh = inNum;
 							sessionStorage.refresh = inNum;
+						}
+						for(var key in activeLayers) {
+							clearInterval(layerUpdates[key]);
+							layerUpdates[key] = null;
+							layerRefresher(key);
 						}
 						$(this).dialog("close");
 					e.preventDefault();
