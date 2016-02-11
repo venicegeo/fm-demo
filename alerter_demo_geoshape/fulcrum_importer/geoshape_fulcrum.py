@@ -95,6 +95,7 @@ class Fulcrum_Importer():
             if settings.DATABASE_NAME:
                 upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, layer.layer_name)
                 publish_layer(layer.layer_name)
+                update_geoshape_layers()
             layer.layer_date = latest_time
             layer.save()
         print("RESULTS\n---------------")
@@ -288,7 +289,8 @@ def upload_geojson(file_path=None, features=None):
                       feature)
         uploads += [feature]
     upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
-
+    publish_layer(layer.layer_name)
+    update_geoshape_layers()
 
 def write_layer(name, date=None):
     from .models import Layer
@@ -498,6 +500,6 @@ def publish_layer(layer_name):
         # Publish remote layer
         layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
         print "Published layer {}.".format(layer_name.lower())
-        from multiprocessing import Process
-        p = Process(target=update_geoshape_layers())
-        p.start()
+        # from multiprocessing import Process
+        # p = Process(target=update_geoshape_layers())
+        # p.start()

@@ -30,4 +30,5 @@ class FulcrumImporterConfig(AppConfig):
             fulcrum.start()
         except OperationalError:
             print("Data has not yet been migrated.")
+            exit(0)
 
