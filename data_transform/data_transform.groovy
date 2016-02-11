@@ -6,15 +6,14 @@
 import groovyx.net.http.HTTPBuilder
 import static groovyx.net.http.Method.*
 import static groovyx.net.http.ContentType.*
-import groovy.json.JsonOutput
-
 
 email = ""
 password = ""
 
 // global variables
+data = [] // raw data from Fulcrum
 def form
-records = []
+records = [] // transformed data, i.e. "assembled"
 def userAuthKey
 
 // script start
@@ -22,15 +21,15 @@ getUserAuthKey()
 getFormData()
 getRecords(1)
 assembleData()
+filterData("phoneNumber")
+filterData("geospatial")
 // script end
 
 
 
 // script functions
 def assembleData() {
-	def data = []
-
-	records.each() {
+	data.each() {
 		def record = (it.form_values.collect { 
 			recordKey, recordValue -> 
 			def key = form.elements.find { recordKey == it.key }.data_name
@@ -40,10 +39,10 @@ def assembleData() {
 		}).inject([:]) { result, map -> result + map }
 
 		record += [latitude: it.latitude, longitude: it.longitude]
-		data.push(record)
+		records.push(record)
 
 		//downloadRecordImages(record)
-		downloadRecordVideos(record)
+		//downloadRecordVideos(record)
 	}
 }
 
@@ -89,21 +88,26 @@ def downloadRecordVideos(record) {
 }
 
 def filterData(filter) {
-/*
-	def body
-	def http
-	
 	if (filter == "geospatial") {
-		http = new HTTPBuilder("http://localhost:8080/us-geospatial-filter/filter")
-		body = new File("starbucks.geojson").getText()
+		def http = new HTTPBuilder("http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter")
+		print "Filtering data geospatially... "
 		http.request(POST) { req ->
-			send JSON, body
+			send JSON, records
 			response.success = { resp, reader ->
-				println reader
+				records = reader.passed.features
 			}
 		}
 	}
-*/
+	else if (filter == "phoneNumber") {
+		def http = new HTTPBuilder("http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter")
+		print "Filtering data for US phone numbers... "
+		http.request(POST) { req ->
+			send JSON, records
+			response.success = { resp, reader ->
+				records = reader.passed
+			}       
+		}       
+	}
 }
 
 def getFormData() {
@@ -134,7 +138,7 @@ def getRecords(pageNumber) {
 		]
 
 		response.success = { resp, reader ->
-			records += reader.records
+			data += reader.records
 			print "Done!\n"
 			if (pageNumber < reader.total_pages) {
 				pageNumber++
