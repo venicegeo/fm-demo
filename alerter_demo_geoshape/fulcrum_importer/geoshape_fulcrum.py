@@ -13,7 +13,7 @@ class Fulcrum_Importer():
     def start(self, interval=5):
         from threading import Thread
         if cache.get(settings.FULCRUM_API_KEY):
-            return
+            exit()
         else:
             cache.set(settings.FULCRUM_API_KEY, True)
             thread = Thread(target=self.run, args=[interval])
@@ -39,7 +39,6 @@ class Fulcrum_Importer():
 
     def update_records(self, form):
         import json
-        import time
 
         try:
             DATA_FILTERS = settings.DATA_FILTERS
@@ -421,14 +420,18 @@ def upload_to_postgis(feature_data, user, database, table):
                         props += ['{}.{}'.format(prop, type_ext)]
                     feature['properties'][property] = props
                 try:
-                    feature['properties'][property] = ','.join(feature['properties'][property])
+                    feature['properties'][property] = json.dumps(feature['properties'][property])
                 except TypeError:
                     #Null arrays are fine.
                     continue
             if 'url' in str(property):
                 remove_urls += [property]
-    for prop in remove_urls:
-        feature.get('properties').pop(prop, None)
+        for prop in remove_urls:
+            try:
+                print("Removing property {}".format(prop))
+                del feature['properties'][prop]
+            except KeyError:
+                pass
 
     # for asset_type in ['photos']:
     #     for feature in feature_data:
