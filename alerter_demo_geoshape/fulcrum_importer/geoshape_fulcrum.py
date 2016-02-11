@@ -41,6 +41,12 @@ class Fulcrum_Importer():
         import json
         import time
 
+        try:
+            DATA_FILTERS = settings.DATA_FILTERS
+        except AttributeError:
+            DATA_FILTERS = []
+            pass
+
         filtered_feature_count = 0
 
         layer = Layer.objects.get(layer_uid=form.get('id'))
@@ -67,16 +73,19 @@ class Fulcrum_Importer():
         latest_time = self.get_latest_time(imported_geojson, layer.layer_date)
 
         if filtered_features.get('features'):
-            for filter in settings.DATA_FILTERS:
-                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+            if DATA_FILTERS:
+                for filter in DATA_FILTERS:
+                    filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
 
-                if filtered_results.get('failed'):
-                    print("Some features failed the {} filter.".format(filter))
-                if filtered_results.get('passed'):
-                    filtered_features = filtered_results.get('passed')
-                    filtered_feature_count = len(filtered_results.get('passed').get('features'))
-                else:
-                    filtered_features = None
+                    if filtered_results.get('failed'):
+                        print("Some features failed the {} filter.".format(filter))
+                        # with open('./failed_features.geojson', 'a') as failed_features:
+                        #     failed_features.write(json.dumps(filtered_results.get('failed')))
+                    if filtered_results.get('passed'):
+                        filtered_features = filtered_results.get('passed')
+                        filtered_feature_count = len(filtered_results.get('passed').get('features'))
+                    else:
+                        filtered_features = None
         else:
             filtered_features = None
 
@@ -363,16 +372,35 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
 
 def update_geoshape_layers():
     import subprocess
-    python_bin =  '/var/lib/geonode/bin/python'
-    manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
-    env = {}
-    execute = [python_bin,
-               manage_script,
-               'updatelayers',
-               '--ignore-errors',
-               '--remove-deleted',
-               '--skip-unadvertised']
-    out = subprocess.Popen(execute, env=env)
+    import os
+
+    try:
+        GEOSHAPE_SERVER = settings.GEOSHAPE_SERVER
+        GEOSHAPE_USER = settings.GEOSHAPE_USER
+        GEOSHAPE_PASSWORD = settings.GEOSHAPE_PASSWORD
+    except AttributeError:
+        GEOSHAPE_SERVER = None
+        pass
+    if GEOSHAPE_SERVER:
+        #http://stackoverflow.com/questions/13567507/passing-csrftoken-with-python-requests
+        client = requests.session()
+        URL = 'https://{}/account/login'.format(GEOSHAPE_SERVER)
+        client.get(URL, verify=False)
+        csrftoken = client.cookies['csrftoken']
+        login_data = dict(username=GEOSHAPE_USER, password=GEOSHAPE_PASSWORD, csrfmiddlewaretoken=csrftoken, next='/gs/updatelayers/')
+        client.post(URL, data=login_data, headers=dict(Referer=URL), verify=False)
+    else:
+        python_bin =  '/var/lib/geonode/bin/python'
+        manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
+        env = {}
+        execute = [python_bin,
+                   manage_script,
+                   'updatelayers',
+                   '--ignore-errors',
+                   '--remove-deleted',
+                   '--skip-unadvertised']
+        DEVNULL = open(os.devnull, 'wb')
+        subprocess.Popen(execute, env=env,stdout=DEVNULL, stderr=DEVNULL)
 
 def upload_to_postgis(feature_data, user, database, table):
     import json
@@ -400,7 +428,7 @@ def upload_to_postgis(feature_data, user, database, table):
             if 'url' in str(property):
                 remove_urls += [property]
     for prop in remove_urls:
-        feature.get('properties').pop(prop,None)
+        feature.get('properties').pop(prop, None)
 
     # for asset_type in ['photos']:
     #     for feature in feature_data:
