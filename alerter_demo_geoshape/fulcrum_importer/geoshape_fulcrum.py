@@ -295,7 +295,11 @@ def upload_geojson(file_path=None, features=None):
                 feature['properties'][asset_type] = None
                 feature['properties']['{}_url'.format(asset_type)] = None
         layer = write_layer(os.path.basename(os.path.dirname(file_path)))
-        write_feature(feature.get('properties').get('fulcrum_id'),
+        if feature.get('properties').get('fulcrum_id'):
+            key_name = 'fulcrum_id'
+        else:
+            key_name = 'id'
+        write_feature(feature.get('properties').get(key_name),
                       layer,
                       feature)
         uploads += [feature]
@@ -469,10 +473,11 @@ def upload_to_postgis(feature_data, user, database, table):
     execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
-        out = subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-        out = subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
-        # out = subprocess.Popen(' '.join(execute_append), shell=True)
-        # out = subprocess.Popen(execute_alter)
+        # out = subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
+        # out = subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
+        out = subprocess.Popen(' '.join(execute_append), shell=True)
+        out = subprocess.Popen(' '.join(execute_append), shell=True)
+        out = subprocess.Popen(execute_alter)
     except subprocess.CalledProcessError:
         print "Failed to call:\n" + ' '.join(execute_append)
         print out

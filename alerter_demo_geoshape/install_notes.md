@@ -14,18 +14,10 @@ sudo /var/lib/demo/demo_env/bin/pip install requests
 sudo /var/lib/demo/demo_env/bin/pip install gsconfig
 sudo /var/lib/demo/demo_env/bin/pip install python-dateutil
 sudo /var/lib/demo/demo_env/bin/pip install fulcrum
-ln -s /var/lib/geonode/lib/python2.7/site-packages/celery /var/lib/demo/demo_env/lib/python2.7/site-packages/celery
-ln -s /var/lib/geonode/lib/python2.7/site-packages/kombu /var/lib/demo/demo_env/lib/python2.7/site-packages/kombu
-ln -s /var/lib/geonode/lib/python2.7/site-packages/amqp /var/lib/demo/demo_env/lib/python2.7/site-packages/amqp
-ln -s /var/lib/geonode/lib/python2.7/site-packages/anyjson /var/lib/demo/demo_env/lib/python2.7/site-packages/anyjson
-ln -s /var/lib/geonode/lib/python2.7/site-packages/billiard /var/lib/demo/demo_env/lib/python2.7/site-packages/billiard
-
 #wget -O pyscopg2.tar.gz https://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.6.1.tar.gz#md5=842b44f8c95517ed5b792081a2370da1
 #tar -zxvf pyscopg2.tar.gz
 #cd psycopg2-2.6.1
 #/var/lib/demo/demo_env/bin/python setup.py install --pg-config /usr/pgsql-9.5/bin/pg_config
-
-
 
 
 #ln -s /etc/geoshape/local_settings.py /var/lib/demo/demo_app/local_settings.py
