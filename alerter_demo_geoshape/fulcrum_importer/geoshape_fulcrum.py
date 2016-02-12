@@ -4,22 +4,25 @@ from django.core.cache import cache
 import requests
 from .models import Layer
 from dateutil import parser
-
+# from celery import Celery
 
 class Fulcrum_Importer():
+
     def __init__(self):
         self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
+        # importer = Celery('geoshapse_fulcrum', broker='amqp://guest@localhost//')
 
-    def start(self, interval=5):
+    def start(self, interval=30):
         from threading import Thread
         if cache.get(settings.FULCRUM_API_KEY):
-            exit()
+            return
         else:
             cache.set(settings.FULCRUM_API_KEY, True)
             thread = Thread(target=self.run, args=[interval])
             thread.daemon = True
             thread.start()
 
+    # @importer.task
     def run(self, interval):
         import time
 
