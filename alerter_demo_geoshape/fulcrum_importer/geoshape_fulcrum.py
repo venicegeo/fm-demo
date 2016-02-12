@@ -43,11 +43,7 @@ class Fulcrum_Importer():
     def update_records(self, form):
         import json
 
-        try:
-            DATA_FILTERS = settings.DATA_FILTERS
-        except AttributeError:
-            DATA_FILTERS = []
-            pass
+
 
         filtered_feature_count = 0
 
@@ -70,26 +66,10 @@ class Fulcrum_Importer():
 
         pulled_record_count = len(imported_geojson.get('features'))
 
-        # A place holder for filtering to follow.
-        filtered_features = imported_geojson
+
         latest_time = self.get_latest_time(imported_geojson, layer.layer_date)
 
-        if filtered_features.get('features'):
-            if DATA_FILTERS:
-                for filter in DATA_FILTERS:
-                    filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-
-                    if filtered_results.get('failed'):
-                        print("Some features failed the {} filter.".format(filter))
-                        # with open('./failed_features.geojson', 'a') as failed_features:
-                        #     failed_features.write(json.dumps(filtered_results.get('failed')))
-                    if filtered_results.get('passed'):
-                        filtered_features = filtered_results.get('passed')
-                        filtered_feature_count = len(filtered_results.get('passed').get('features'))
-                    else:
-                        filtered_features = None
-        else:
-            filtered_features = None
+        filtered_features, filtered_feature_count = filter_features(imported_geojson)
 
         uploads = []
 
@@ -205,6 +185,36 @@ def process_fulcrum_data(f):
     return layers
 
 
+def filter_features(features):
+    import json
+
+    try:
+        DATA_FILTERS = settings.DATA_FILTERS
+    except AttributeError:
+        DATA_FILTERS = []
+        pass
+
+    filtered_features = features
+
+    if filtered_features.get('features'):
+        if DATA_FILTERS:
+            for filter in DATA_FILTERS:
+                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+
+                if filtered_results.get('failed'):
+                    print("Some features failed the {} filter.".format(filter))
+                    # with open('./failed_features.geojson', 'a') as failed_features:
+                    #     failed_features.write(json.dumps(filtered_results.get('failed')))
+                if filtered_results.get('passed'):
+                    filtered_features = filtered_results.get('passed')
+                    filtered_feature_count = len(filtered_results.get('passed').get('features'))
+                else:
+                    filtered_features = None
+    else:
+        filtered_features = None
+
+    return filtered_features, filtered_feature_count
+
 def save_file(f, file_path):
     from django.conf import settings
     import os
@@ -253,25 +263,27 @@ def delete_file(file_path):
     os.remove(file_path)
 
 
-def upload_geojson(file_path=None, features=None):
+def upload_geojson(file_path=None, geojson=None):
     import json
     from django.conf import settings
     from .models import get_type_extension
     import os
 
     from_file = False
-    if file_path and features:
+    if file_path and geojson:
         raise "upload_geojson() must take file_path OR features"
         return False
-    elif features:
-        features = features.get('features')
+    elif geojson:
+        geojson = geojson
     elif file_path:
         with open(file_path) as data_file:
-            features = json.load(data_file).get('features')
+            geojson = json.load(data_file)
             from_file = True
     else:
         raise "upload_geojson() must take file_path OR features"
 
+    geojson, filtered_count = filter_features(geojson)
+    features = geojson.get('features')
     uploads = []
     for feature in features:
         for asset_type in ['photos', 'videos', 'audio']:
@@ -413,7 +425,6 @@ def upload_to_postgis(feature_data, user, database, table):
     import subprocess
     import os
     from .models import get_type_extension
-    print "uploading features to postgis."
     remove_urls = []
     for feature in feature_data:
         for property in feature.get('properties'):
@@ -435,19 +446,15 @@ def upload_to_postgis(feature_data, user, database, table):
                 remove_urls += [property]
         for prop in remove_urls:
             try:
-                print("Removing property {}".format(prop))
                 del feature['properties'][prop]
             except KeyError:
                 pass
 
-    # for asset_type in ['photos']:
-    #     for feature in feature_data:
-    #         if feature.get('properties').get(asset_type):
-    #             for asset in feature.get('properties').get(asset_type).split(','):
-    #                 feature['properties'][
-    #                     asset_type] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
-    #                 feature['properties'][
-    #                     asset_type + '_url'] = "http://geoshape.dev:8004/fulcrum_importer/assets/{}.jpg".format(asset)
+
+    if feature.get('properties').get('name'):
+        feature['id'] = feature.get('properties').get('name')
+    elif feature.get('properties').get('title'):
+        feature['id'] = feature.get('properties').get('title')
 
     temp_file = os.path.abspath('./temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
@@ -473,14 +480,11 @@ def upload_to_postgis(feature_data, user, database, table):
     execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
-        # out = subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-        # out = subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
-        out = subprocess.Popen(' '.join(execute_append), shell=True)
-        out = subprocess.Popen(' '.join(execute_append), shell=True)
-        out = subprocess.Popen(execute_alter)
+        out = subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
+        out = subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
+
     except subprocess.CalledProcessError:
-        print "Failed to call:\n" + ' '.join(execute_append)
-        print out
+        pass
 
 def publish_layer(layer_name):
     from geoserver.catalog import Catalog
@@ -520,12 +524,11 @@ def publish_layer(layer_name):
         datastore.connection_parameters.update(port=port,
                                                host=host,
                                                database=database,
-                                               password=password,
+                                               passwd=password,
                                                user=user,
                                                dbtype=db_type)
 
         cat.save(datastore)
-        print "Datastore " + datastore.name + " created."
 
     # Check if remote layer already exists on local system
     layers = cat.get_layers()
@@ -538,7 +541,6 @@ def publish_layer(layer_name):
     if not layer:
         # Publish remote layer
         layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
-        print "Published layer {}.".format(layer_name.lower())
         # from multiprocessing import Process
         # p = Process(target=update_geoshape_layers())
         # p.start()
