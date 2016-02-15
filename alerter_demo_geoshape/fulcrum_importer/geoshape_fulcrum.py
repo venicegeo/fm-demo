@@ -285,6 +285,7 @@ def upload_geojson(file_path=None, geojson=None):
     geojson, filtered_count = filter_features(geojson)
     features = geojson.get('features')
     uploads = []
+    count = 0;
     for feature in features:
         for asset_type in ['photos', 'videos', 'audio']:
             if(from_file and feature.get('properties').get(asset_type)):
@@ -315,9 +316,13 @@ def upload_geojson(file_path=None, geojson=None):
                       layer,
                       feature)
         uploads += [feature]
-    upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
-    publish_layer(layer.layer_name)
-    update_geoshape_layers()
+        count += 1
+    if count > 0:
+        upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
+        publish_layer(layer.layer_name)
+        update_geoshape_layers()
+    else:
+        print("No features to be passed!")
 
 def write_layer(name, date=None):
     from .models import Layer
