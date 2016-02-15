@@ -449,12 +449,11 @@ def upload_to_postgis(feature_data, user, database, table):
                 del feature['properties'][prop]
             except KeyError:
                 pass
-
-
-    if feature.get('properties').get('name'):
-        feature['id'] = feature.get('properties').get('name')
-    elif feature.get('properties').get('title'):
-        feature['id'] = feature.get('properties').get('title')
+        if not feature.get('id'):
+            if feature.get('properties').get('name'):
+                feature['id'] = feature.get('properties').get('name')
+            elif feature.get('properties').get('title'):
+                feature['id'] = feature.get('properties').get('title')
 
     temp_file = os.path.abspath('./temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
