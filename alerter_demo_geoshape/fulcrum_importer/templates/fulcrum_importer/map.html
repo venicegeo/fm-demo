@@ -291,7 +291,7 @@
 		
 		// Gets list of available layers //
 		$.ajax({
-			url : '/fulcrum_importer/layers',
+			url : '/fulcrum_layers',
 			dataType: "json",
 			success : function(result) {
 				updateLayers(result);
@@ -313,7 +313,7 @@
 						}
 					};
 					layers[key] = L.geoJson(false);
-					layerUrls[key] = '/fulcrum_importer/geojson?layer=' + key;
+					layerUrls[key] = '/fulcrum_geojson?layer=' + key;
 					console.log(layerUrls[key]);
 				}
 			}
@@ -912,7 +912,7 @@
 			map.doubleClickZoom.enable();
             var formData = new FormData($('#fileUpload')[0]);
             $.ajax({
-                url: '/fulcrum_importer/upload',  //Server script to process data
+                url: '/fulcrum_upload',  //Server script to process data
                 type: 'POST',
                 xhr: function() {  // Custom XMLHttpRequest
                     var myXhr = $.ajaxSettings.xhr();
@@ -968,8 +968,6 @@
 				}
 			}
 		}
-        
-        /* var uploadFile = $(function() {*/
 		
 		// Upload dialog box //
 		var uploadFileDialogBox = $("#formContainer").dialog({
