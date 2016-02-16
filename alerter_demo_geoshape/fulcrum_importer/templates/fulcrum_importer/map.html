@@ -48,6 +48,11 @@
 			left: 25%;
 			z-index: 4;
 		}
+		#sub {
+			position: absolute;
+			left: 5%;
+			z-index: 4;
+		}
 		.ui-widget-content {
 			text-align: center;
 		}
@@ -143,6 +148,14 @@
 		audio {
 			width: 250px;
 		}
+		.modalOverlay {
+			position: fixed;
+			width: 100%;
+			height: 100%;
+			top: 0px;
+			left: 0px;
+			background-color: rgba(0,0,0,0.3); /* black semi-transparent */
+		}
 
 	</style>
 	
@@ -179,6 +192,11 @@
         </form>
         <progress id='progress' value="0.0" max="1.0"></progress>
     </div>
+	
+	<form id="subscribeForm" title="Subscription Controller" visibility="hidden">
+			<label for="sub" style="display: block;" id="subLabel">Enter URL to subscribe to alert service</label></br>
+			<input type="text" name="sub" id="sub" value="" style="display: block; width: 450px;" class="text ui-widget-content ui-corner-all"/>
+	</form>
 	
 	
 	
@@ -245,6 +263,12 @@
 		// Track ServerSide-Event sources for each layer //
 		var layerUpdates = {};
 		
+		// Track layer sources //
+		var layerUrls = {}
+		
+		// Track which layers are subscription //
+		var subLayers = {}
+		
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
 		var north = -90.0;
@@ -292,7 +316,9 @@
 							fillOpacity : 1
 						}
 					};
-					layers[key] = L.geoJson(false);					
+					layers[key] = L.geoJson(false);
+					layerUrls[key] = '/fulcrum_importer/geojson?layer=' + key;
+					console.log(layerUrls[key]);
 				}
 			}
 			layerControl = L.control.layers(baseMaps, layers).addTo(map);
@@ -304,13 +330,19 @@
 		// Find which layer was selected, get its data from URL, add it to the empty layer, and add the layer to the map //
 		function onOverlayAdd(e) {
 			var name = e["name"];
-			$.ajax({
-					url : '/fulcrum_importer/geojson?layer=' + name,
-					dataType: "json",
-					success : function(result) {
-						addSuccess(result, name);
-					}, 
+			if (name in subLayers) {
+				onSubOverlayAdd(name);
+			}
+			else {
+				console.log("Going to get: " + layerUrls[name]);
+				$.ajax({
+						url : layerUrls[name],
+						dataType: "json",
+						success : function(result) {
+							addSuccess(result, name);
+						}, 
 				});
+			}
 		};
 		
 		function addSuccess(result, name) {
@@ -331,6 +363,7 @@
 		
 		function addLayer(layer, name) {
 			console.log("Adding layer");
+			console.log(layer);
 			layers[name] = L.geoJson(layer, {
 				onEachFeature: onEachFeature,
 				filter : function(feature) {
@@ -351,7 +384,7 @@
 			layerUpdates[key] = setInterval(function() {
 				console.log("Updating");
 				$.ajax({
-						url : '/fulcrum_importer/geojson?layer=' + key,
+						url : layerUrls[key],
 						dataType: "json",
 						success : function(result) {
 							var layer = result[key];
@@ -375,26 +408,31 @@
 		// Removes layer data from the geojson layer //
 		function onOverlayRemove(e) {
 			var name = e["name"];
-			console.log("Updates stopped");
-			clearInterval(layerUpdates[name]);
-			layerUpdates[name] = null;
-			layers[name].clearLayers();
-			layers[name] = null;
-			delete activeLayers[name];
-			// Reset bounds then iterate through any active layers to compute new bounds //
-			north = -90.0;
-			east = -180.0;
-			south = 90.0;
-			west = 180.0;
-			bounds = defaultBounds;
-			for (var key in activeLayers) {
-				bounds = fetchBounds(layers[key]);
+			if(name in subLayers) {
+				onSubOverlayRemove(name);
 			}
-			// If removing only layer: remove legend, else: remove and add new version //
-			legend.removeFrom(map);
-			if(Object.keys(activeLayers).length != 0) {
-				legend.addTo(map);
-			};
+			else {
+				console.log("Updates stopped");
+				clearInterval(layerUpdates[name]);
+				layerUpdates[name] = null;
+				layers[name].clearLayers();
+				layers[name] = null;
+				delete activeLayers[name];
+				// Reset bounds then iterate through any active layers to compute new bounds //
+				north = -90.0;
+				east = -180.0;
+				south = 90.0;
+				west = 180.0;
+				bounds = defaultBounds;
+				for (var key in activeLayers) {
+					bounds = fetchBounds(layers[key]);
+				}
+				// If removing only layer: remove legend, else: remove and add new version //
+				legend.removeFrom(map);
+				if(Object.keys(activeLayers).length != 0) {
+					legend.addTo(map);
+				};
+			}
 		};
 		
 		// Create legend for active layers //
@@ -419,6 +457,7 @@
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
 				var content = "";
+				
 				// Add alert name //
 				if (e.target.feature.properties.name != null && e.target.feature.properties.name != "") {
 					content += '<p><strong>Name: </strong> ' + e.target.feature.properties.name + '</p>';
@@ -525,50 +564,6 @@
 			}
 		}
 		
-		// Create main layer for subscribed data stream //
-		/*var streamLayer;
-
-			function updateMap(geojson){
-
-				streamLayer = L.geoJson(geojson, {
-					
-					// Does not display old points on the map //
-					filter : function(feature) {
-						if (timeout != 0) {
-							return feature.properties.time + (timeout * 60) > Date.now();
-						}
-						else {
-							return true;
-						}
-					},
-
-					style : function (feature) {
-						return feature.properties && feature.properties.style;
-					},
-
-					onEachFeature : onEachFeature,
-
-					pointToLayer : function (feature, latlng) {
-						return L.circleMarker(latlng, Markers(feature));
-					}
-				}).addTo(map);
-		} */
-		/*
-		// Get features from geojson file every second //
-        setInterval(function () {
-			
-			$.ajax({
-					url : "{{geojson_request_url}}",
-					dataType: "json",
-					success : function (result) {
-						if (map.hasLayer(streamLayer)) {
-							map.removeLayer(streamLayer);
-						}
-						updateMap(result);
-					}
-				});
-		}, 1000);
-		*/
 		
 		// Show coordinates of mouse position //
 		L.control.mousePosition().addTo(map);
@@ -653,9 +648,11 @@
 							sessionStorage.timeout = inNum;
 							
 						}
+						map.dragging.enable();
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
+						map.dragging.enable();
 						$(this).dialog("close");
 					}
 				},
@@ -674,6 +671,7 @@
 							timeout = inNum;
 							sessionStorage.timeout = inNum;
 						}
+						map.dragging.enable();
 						$(this).dialog("close");
 					e.preventDefault();
 				}
@@ -685,6 +683,7 @@
 					icon: 'fa-clock-o',	
 					title: 'Set timeout for alerts',
 					onClick: function(btn, map) {
+						map.dragging.disable();
 						TimeDialogBox.dialog("open");
 					}
 				}]
@@ -737,9 +736,11 @@
 							colortime = inNum;
 							sessionStorage.colortime = inNum;
 						}
+						map.dragging.enable();
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
+						map.dragging.enable();
 						$(this).dialog("close");
 					}
 				},
@@ -758,6 +759,7 @@
 							colortime = inNum;
 							sessionStorage.colortime = inNum;
 						}
+						map.dragging.enable();
 						$(this).dialog("close");
 					e.preventDefault();
 				}
@@ -769,6 +771,7 @@
 					icon: 'fa-eye',	
 					title: 'Set timeout for new alert color',
 					onClick: function(btn, map) {
+						map.dragging.disable();
 						colorDialogBox.dialog("open");
 					}
 				}]
@@ -827,10 +830,11 @@
 							layerUpdates[key] = null;
 							layerRefresher(key);
 						}
-							
+						map.dragging.enable();
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
+						map.dragging.enable();
 						$(this).dialog("close");
 					}
 				},
@@ -854,6 +858,7 @@
 							layerUpdates[key] = null;
 							layerRefresher(key);
 						}
+						map.dragging.enable();
 						$(this).dialog("close");
 					e.preventDefault();
 				}
@@ -865,6 +870,7 @@
 					icon: 'fa-refresh',	
 					title: 'Set time for layer refresh',
 					onClick: function(btn, map) {
+						map.dragging.disable();
 						refreshDialogBox.dialog("open");
 					}
 				}]
@@ -873,6 +879,7 @@
 		
 		// Uploads user data //
 		var uploadForm = (function(){
+			map.dragging.enable();
             var formData = new FormData($('#fileUpload')[0]);
             $.ajax({
                 url: '/fulcrum_importer/upload',  //Server script to process data
@@ -891,10 +898,10 @@
                 success: function (result) {
 					document.getElementById('waiting').style.visibility = 'hidden';
 					for(var key in result) {
-						// If layer already exists, remove first, then add new version
+						// If layer already exists, remove first, then add new version //
 						if(key in layers) {
 							map.removeLayer(layers[key]);
-							//layerControl.removeLayer(key);
+							layerControl.removeLayer(key);
 							delete layers[key];
 							if(key in activeLayers) {
 								delete activeLayers[key];
@@ -955,6 +962,7 @@
 			buttons: {
 				"Upload": uploadForm,
 				"Cancel": function() {
+					map.dragging.enable();
 					$(this).dialog("close");
 				}
 			},
@@ -967,6 +975,7 @@
 				icon: 'fa fa-upload',	
 				title: 'Upload File',
 				onClick: function(btn, map) {
+					map.dragging.disable();
 					uploadFileDialogBox.dialog("open");
 				}
 			}]
@@ -976,9 +985,239 @@
         $('#fileUpload').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
 				uploadForm();
+				map.dragging.enable();
 				e.preventDefault();
 			}
 		});
+		
+		// Button to set alert subscription //
+		if(typeof(Storage) != "undefined") {
+			if (sessionStorage.sub) {
+				var sub = sessionStorage.sub;
+			}
+			else {
+				sessionStorage.sub = "";
+				var sub = "";
+			}
+		}
+		else {
+			var sub = "";
+		}
+		document.getElementById("sub").value = sub;
+		var getSubscription = $(function() {
+			var subDialogBox = $("#subscribeForm").dialog({
+				autoOpen: false,
+				closeOnEscape: false,
+				open: function(event, ui) {
+					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+					$("#colortimeForm").dialog('close');
+					$("#timeoutForm").dialog('close');
+					$("#refreshForm").dialog('close');
+				},
+				height: 200,
+				width: 500,
+				appendTo: "#map",
+				position: {
+					my: "left top",
+					at: "right bottom",
+					of: placeholder
+				},
+				modal: false,
+				buttons: {
+					"Submit": function() {
+						var inStr = $("#sub").val();
+						//if(!ValidURL(inStr)) {
+						//	sub = "";
+						//	document.getElementById("sub").value = sub;
+						//	sessionStorage.sub = sub;
+						//}
+						//else {
+							sub = inStr;
+							sessionStorage.sub = inStr;
+							getSub(sub);
+							
+						//}
+						$(this).dialog("close");
+						map.dragging.enable();
+					},
+					"Clear": function() {
+						sessionStorage.sub = "";
+						sub = "";
+						document.getElementById("sub").value = sub;
+					},
+					"Cancel": function() {
+						$(this).dialog("close");
+						map.dragging.enable();
+					}
+				},
+			
+			});
+			
+			$('#subcribeForm').keypress( function(e) {
+				if (e.charCode == 13 || e.keyCode == 13) {
+					var inStr = $("#sub").val();
+					//if(!ValidURL(inStr)) {
+					//	sub = "";
+					//	document.getElementById("sub").value = sub;
+					//	sessionStorage.sub = sub;
+					//}
+					//else {
+						sub = inStr;
+						sessionStorage.sub = inStr;
+						getSub(sub);
+							
+					//}
+					
+					$(this).dialog("close");
+					e.preventDefault();
+					map.dragging.enable();
+				}
+			});
+			
+			var subscribeButton = L.easyButton({
+				states: [{
+					stateName: 'Subscribe to an Alert',
+					icon: 'fa-bell',	
+					title: 'Subscribe to an Alert',
+					onClick: function(btn, map) {
+						map.dragging.disable();
+						subDialogBox.dialog("open");
+					}
+				}]
+			}).addTo(map);
+		});	
+		
+		
+		function getSub(url) {
+			$.ajax({
+				url : url,
+				dataType: "json",
+				success : function(result) {
+						subUpdate(result, url);
+					},
+				error : function() {
+						alert("Unable to get alert service, re-check URL or give up all hope");
+					}
+			});
+		}	
+			
+		function subUpdate(result, url) {
+			//var layerName = result['test'];
+			var layerName = 'test';
+			subLayers[layerName] = null;
+			if(!(layerName in layers)){
+				if(!(layerName in layerStyles)) {
+					var color = getRandomColor();
+					layerStyles[layerName] = {
+						radius : 4,
+						fillColor : color,
+						color : "#000000",
+						weight : 1, 
+						opacity : 1,
+						fillOpacity : 1
+					}
+				};
+				layers[layerName] = L.geoJson(false);
+				layerUrls[layerName] = url;
+			}
+			layerControl.removeFrom(map);
+			layerControl = L.control.layers(baseMaps, layers).addTo(map);
+		}
+		
+		function onSubOverlayAdd(name) {
+			console.log("Going to get: " + layerUrls[name] + " from subbed layers!");
+			$.ajax({
+					url : layerUrls[name],
+					dataType: "json",
+					success : function(result) {
+						addSubSuccess(result, name);
+					}, 
+			});
+		};
+		
+		function addSubSuccess(result, name) {
+			//var layer = result['data'];
+			var layer = result[name];
+			addSubLayer(layer, name);
+			activeLayers[name] = null;
+			bounds = fetchBounds(layers[name]);
+			// If no layers/legend currently: add legend, else: delete old version and add new version //
+			if(Object.keys(activeLayers).length == 1) {
+				legend.addTo(map);
+			}
+			else {
+				legend.removeFrom(map);
+				legend.addTo(map);
+			}
+			layerRefresher(name);
+		};
+		
+		function addSubLayer(layer, name) {
+			console.log("Adding layer");
+			console.log(name);
+			console.log(layer);
+			layers[name] = L.geoJson(layer, {
+				onEachFeature: onEachFeature,
+				//filter : function(feature) {
+				//	if (timeout != 0) {
+				//		return feature.properties.time + (timeout * 60) > Math.floor(Date.now()/1000);
+				//	}
+				//	else {
+				//		return true;
+				//	}
+				//},
+				pointToLayer: function(feature, latlng) {
+					return L.circleMarker(latlng, Markers(feature, name));
+				}
+			}).addTo(map);
+		};
+		
+		function subLayerRefresher(key) {
+			layerUpdates[key] = setInterval(function() {
+				console.log("Updating");
+				$.ajax({
+						url : layerUrls[key],
+						dataType: "json",
+						success : function(result) {
+							//var layer = result['data'];
+							var layer = result;
+							layers[key].clearLayers();
+							layers[key] = null;
+							addLayer(layer, key);
+							north = -90.0;
+							east = -180.0;
+							south = 90.0;
+							west = 180.0;
+							bounds = defaultBounds;
+							bounds = fetchBounds(layers[key]);
+						}, 
+					});
+			}, refresh * 1000);
+		};
+		
+		// Removes layer data from the geojson layer //
+		function onSubOverlayRemove(name) {
+			console.log("Updates stopped");
+			clearInterval(layerUpdates[name]);
+			layerUpdates[name] = null;
+			layers[name].clearLayers();
+			layers[name] = null;
+			delete activeLayers[name];
+			// Reset bounds then iterate through any active layers to compute new bounds //
+			north = -90.0;
+			east = -180.0;
+			south = 90.0;
+			west = 180.0;
+			bounds = defaultBounds;
+			for (var key in activeLayers) {
+				bounds = fetchBounds(layers[key]);
+			}
+			// If removing only layer: remove legend, else: remove and add new version //
+			legend.removeFrom(map);
+			if(Object.keys(activeLayers).length != 0) {
+				legend.addTo(map);
+			};
+		};
 	
 		// Gets randomized color for new layer //
 		var approvedColors =[
