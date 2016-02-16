@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from django.shortcuts import render
-from fulcrum_importer.models import Asset
+from .models import Asset
 from .forms import ListenerForm, UploadFulcrumData
 from django.http import HttpResponse, HttpResponseRedirect
 from django.conf import settings
@@ -39,7 +39,7 @@ def geojson(request):
 
 
 def upload(request):
-    from geoshape_fulcrum import process_fulcrum_data
+    from .fulcrum_importer import process_fulcrum_data
     from mapping import get_geojson
 
     if request.method == 'POST':

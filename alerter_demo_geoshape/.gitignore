@@ -8,3 +8,10 @@ fulcrum/*
 demo_app/*
 fulcrum_importer/migrations/*
 temp.json
+settings.py
+local_settings.py
+celery.log
+celerybeat.pid
+celerybeat-schedule
+test.json
+local_settings.py

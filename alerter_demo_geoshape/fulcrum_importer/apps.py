@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import unicode_literals
+from __future__ import unicode_literals, absolute_import
 
 from django.apps import AppConfig
 
@@ -23,12 +23,14 @@ class FulcrumImporterConfig(AppConfig):
     def ready(self):
         # from django.db.utils import OperationalError
         # try:
-        #     from .models import Layer
-        #     from geoshape_fulcrum import Fulcrum_Importer
-        #     print("Server loaded.")
-        #     fulcrum = Fulcrum_Importer()
-        #     # fulcrum.start()
+        #     from .celery import app as celery_app # noqa
+        # #     from .models import Layer
+        # #     from geoshape_fulcrum import Fulcrum_Importer
+        # #     print("Server loaded.")
+        # #     fulcrum = Fulcrum_Importer()
+        # #     # fulcrum.start()
         # except OperationalError:
         #     print("Data has not yet been migrated.")
         #     return
-        return
+        # return
+        pass
