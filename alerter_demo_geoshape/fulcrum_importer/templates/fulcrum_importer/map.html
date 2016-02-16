@@ -625,6 +625,8 @@
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 					$("#colortimeForm").dialog('close');
 					$("#refreshForm").dialog('close');
+					$("#subscribeForm").dialog('close');
+					$("#formContainer").dialog('close');
 				},
 				height: 250,
 				width: 350,
@@ -649,10 +651,12 @@
 							
 						}
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					}
 				},
@@ -672,6 +676,7 @@
 							sessionStorage.timeout = inNum;
 						}
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					e.preventDefault();
 				}
@@ -684,6 +689,7 @@
 					title: 'Set timeout for alerts',
 					onClick: function(btn, map) {
 						map.dragging.disable();
+						map.doubleClickZoom.disable();
 						TimeDialogBox.dialog("open");
 					}
 				}]
@@ -714,6 +720,8 @@
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); 
 					$("#timeoutForm").dialog('close');
 					$("#refreshForm").dialog('close');
+					$("#subscribeForm").dialog('close');
+					$("#formContainer").dialog('close');
 				},
 				height: 250,
 				width: 350,
@@ -737,10 +745,12 @@
 							sessionStorage.colortime = inNum;
 						}
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					}
 				},
@@ -760,6 +770,7 @@
 							sessionStorage.colortime = inNum;
 						}
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					e.preventDefault();
 				}
@@ -772,6 +783,7 @@
 					title: 'Set timeout for new alert color',
 					onClick: function(btn, map) {
 						map.dragging.disable();
+						map.doubleClickZoom.disable();
 						colorDialogBox.dialog("open");
 					}
 				}]
@@ -800,8 +812,10 @@
 				closeOnEscape: false,
 				open: function(event, ui) {
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-					$("#colortimeForm").dialog('close');
 					$("#timeoutForm").dialog('close');
+					$("#colortimeForm").dialog('close');
+					$("#subscribeForm").dialog('close');
+					$("#formContainer").dialog('close');
 				},
 				height: 250,
 				width: 350,
@@ -831,10 +845,12 @@
 							layerRefresher(key);
 						}
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					},
 					"Cancel": function() {
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					}
 				},
@@ -859,6 +875,7 @@
 							layerRefresher(key);
 						}
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 						$(this).dialog("close");
 					e.preventDefault();
 				}
@@ -871,6 +888,7 @@
 					title: 'Set time for layer refresh',
 					onClick: function(btn, map) {
 						map.dragging.disable();
+						map.doubleClickZoom.disable();
 						refreshDialogBox.dialog("open");
 					}
 				}]
@@ -880,6 +898,7 @@
 		// Uploads user data //
 		var uploadForm = (function(){
 			map.dragging.enable();
+			map.doubleClickZoom.enable();
             var formData = new FormData($('#fileUpload')[0]);
             $.ajax({
                 url: '/fulcrum_importer/upload',  //Server script to process data
@@ -949,6 +968,8 @@
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide(); 
 				$("#timeoutForm").dialog('close');
 				$("#colortimeForm").dialog('close');
+				$("#refreshForm").dialog('close');
+				$("#subscribeForm").dialog('close');
 			},
 			height: 250,
 			width: 500,
@@ -963,6 +984,7 @@
 				"Upload": uploadForm,
 				"Cancel": function() {
 					map.dragging.enable();
+					map.doubleClickZoom.enable();
 					$(this).dialog("close");
 				}
 			},
@@ -976,6 +998,7 @@
 				title: 'Upload File',
 				onClick: function(btn, map) {
 					map.dragging.disable();
+					map.doubleClickZoom.disable();
 					uploadFileDialogBox.dialog("open");
 				}
 			}]
@@ -986,7 +1009,9 @@
 			if (e.charCode == 13 || e.keyCode == 13) {
 				uploadForm();
 				map.dragging.enable();
+				map.doubleClickZoom.enable();
 				e.preventDefault();
+				
 			}
 		});
 		
@@ -1010,9 +1035,10 @@
 				closeOnEscape: false,
 				open: function(event, ui) {
 					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-					$("#colortimeForm").dialog('close');
 					$("#timeoutForm").dialog('close');
+					$("#colortimeForm").dialog('close');
 					$("#refreshForm").dialog('close');
+					$("#formContainer").dialog('close');
 				},
 				height: 200,
 				width: 500,
@@ -1039,6 +1065,7 @@
 						//}
 						$(this).dialog("close");
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 					},
 					"Clear": function() {
 						sessionStorage.sub = "";
@@ -1048,6 +1075,7 @@
 					"Cancel": function() {
 						$(this).dialog("close");
 						map.dragging.enable();
+						map.doubleClickZoom.enable();
 					}
 				},
 			
@@ -1071,6 +1099,7 @@
 					$(this).dialog("close");
 					e.preventDefault();
 					map.dragging.enable();
+					map.doubleClickZoom.enable();
 				}
 			});
 			
@@ -1081,6 +1110,7 @@
 					title: 'Subscribe to an Alert',
 					onClick: function(btn, map) {
 						map.dragging.disable();
+						map.doubleClickZoom.disable();
 						subDialogBox.dialog("open");
 					}
 				}]
