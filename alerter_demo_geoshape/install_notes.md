@@ -12,7 +12,7 @@ sudo /var/lib/demo/demo_env/bin/pip install kafka-python
 sudo /var/lib/demo/demo_env/bin/pip install django
 sudo /var/lib/demo/demo_env/bin/pip install requests
 sudo /var/lib/demo/demo_env/bin/pip install gsconfig
-sudo /var/lib/demo/demo_env/bin/pip install python2-dateutil
+sudo /var/lib/demo/demo_env/bin/pip install python-dateutil
 sudo /var/lib/demo/demo_env/bin/pip install fulcrum
 sudo /var/lib/demo/demo_env/bin/pip install celery
 #wget -O pyscopg2.tar.gz https://pypi.python.org/packages/source/p/psycopg2/psycopg2-2.6.1.tar.gz#md5=842b44f8c95517ed5b792081a2370da1
