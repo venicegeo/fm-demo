@@ -10,6 +10,8 @@ mv -f fm-demo-master/alerter_demo_geoshape/fulcrum_importer /var/lib/geonode/lib
 chown geoshape:geoservice -R /var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer
 rm master.zip
 rm -rf master
+mkdir /var/lib/geonode/fulcrum_data
+chown geoshape:geoservice /var/lib/geonode/fulcrum_data
 
 /var/lib/geonode/bin/pip install fulcrum
 grep -qF "INSTALLED_APPS += ('fulcrum_importer',)" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "INSTALLED_APPS += ('fulcrum_importer',)" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
