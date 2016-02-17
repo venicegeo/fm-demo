@@ -21,13 +21,11 @@ from django.conf.urls.static import static
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
-    url(r'^$', views.index),
-    url(r'^index.html$', views.index),
-    url(r'^geojson$',views.geojson),
-    url(r'^map',views.viewer),
-    url(r'^viewer',views.viewer),
-    url(r'^upload$',views.upload),
-    url(r'^layers$',views.layers)
+    url(r'^fulcrum_geojson$',views.geojson),
+    url(r'^fulcrum_map$',views.viewer),
+    url(r'^fulcrum_viewer$',views.viewer),
+    url(r'^fulcrum_upload$',views.upload),
+    url(r'^fulcrum_layers$',views.layers)
 ]
 
 if settings.DEBUG is True:

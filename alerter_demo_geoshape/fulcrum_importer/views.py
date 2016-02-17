@@ -25,7 +25,7 @@ def index(request):
     return viewer(request)
 
 def geojson(request):
-    from mapping import get_geojson
+    from .mapping import get_geojson
     if request.method=='GET':
         if 'layer' not in request.GET:
             return HttpResponse("No layer exists, or a layer was not specified.",status=400)
@@ -40,7 +40,7 @@ def geojson(request):
 
 def upload(request):
     from .fulcrum_importer import process_fulcrum_data
-    from mapping import get_geojson
+    from .mapping import get_geojson
 
     if request.method == 'POST':
         form = UploadFulcrumData(request.POST, request.FILES)
@@ -60,7 +60,7 @@ def upload(request):
 
 
 def viewer(request):
-    from mapping import get_geojson
+    from .mapping import get_geojson
     if request.method=='GET':
         if 'layer' not in request.GET:
             return render(request, 'fulcrum_importer/map.html', {'geojson_request_url':''})
@@ -76,6 +76,6 @@ def viewer(request):
 
 
 def layers(request):
-    from mapping import get_layer_names
+    from .mapping import get_layer_names
     return HttpResponse(json.dumps(get_layer_names()), content_type="application/json")
 

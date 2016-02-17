@@ -44,8 +44,6 @@ class FulcrumImporter:
     def update_records(self, form):
         import json
 
-
-
         filtered_feature_count = 0
 
         layer = Layer.objects.get(layer_uid=form.get('id'))
@@ -58,10 +56,17 @@ class FulcrumImporter:
         else:
             url_params={'form_id': layer.layer_uid}
         imported_features = self.conn.records.search(url_params=url_params)
+        print("Received {} page {} of {}".format(layer.layer_name,
+                                                imported_features.get('current_page'),
+                                                imported_features.get('total_pages')))
         temp_features += imported_features.get('records')
         while imported_features.get('current_page') < imported_features.get('total_pages'):
             url_params['page'] = imported_features.get('current_page') + 1
             imported_features = self.conn.records.search(url_params=url_params)
+            print("Received {} page {} of {}".format(layer.layer_name,
+                                                imported_features.get('current_page'),
+                                                imported_features.get('total_pages')))
+            temp_features += imported_features.get('records')
 
         imported_geojson = self.convert_to_geojson(temp_features, form)
 
@@ -361,8 +366,6 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
                 url = 'https://api.fulcrumapp.com/api/v2/{}/{}.{}'.format(asset.asset_type, asset.asset_uid,
                                                                           get_type_extension(asset_type))
             response = requests.get(url, headers={'X-ApiToken': settings.FULCRUM_API_KEY})
-            print "{}:{}".format(response.status_code, response.headers.get('Content-Type').split(';')[0].split('/')[1])
-            # response.headers.get('Content-Type').split(';')[0].split('/')[1]
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
@@ -460,7 +463,7 @@ def upload_to_postgis(feature_data, user, database, table):
             elif feature.get('properties').get('title'):
                 feature['id'] = feature.get('properties').get('title')
 
-    temp_file = os.path.abspath('./temp.json')
+    temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
 
     feature_collection = {"type": "FeatureCollection", "features": feature_data}
