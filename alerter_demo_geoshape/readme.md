@@ -15,38 +15,40 @@ https://github.com/venicegeo/kafka-devbox
     
 ## Setup 
 
-From the alerter_demo folder run 
-
+Download the geoshape-vagrant repo.
 ```
-python initialize.py
-```
-
-This will delete any existing sqlite database, and reset any previous data migrations.
-
-Subsequent runs can be started using:
-
-```
-python manage.py runserver 0.0.0.0:8000
+https://github.com/ROGUE-JCTD/geoshape-vagrant
 ```
 
-Which will run a development webserver on port 80.
-
-## Use
-
-The alert register can be accessed at:
+In an elevated session (sudo or "run as administrator),
+change directories to the geoshape-vagrant repo, and install the vagrant hosts updater
 ```
-http://127.0.0.1:8000/alerts
+vagrant plugin install vagrant-hostsupdater
 ```
-
-A geojson of recieved alerts can be viewed at:
+Add an entry to the Vagrantfile
 ```
-http://127.0.0.1:8000/alerts/geojson?topic=<topic_name>
+config.vm.hostname = "geoshape.dev"
 ```
 
-A map can be used to view the data at:
+Bring up the geoshape vm.
 ```
-http://127.0.0.1:8000/alerts/map?topic=<topic_name>
+vagrant up
 ```
+
+SSH into the VM and run the following commands
+```
+cd /tmp
+wget https://raw.githubusercontent.com/venicegeo/fm-demo/master/alerter_demo_geoshape/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
+sudo bash /tmp/geoshape_fulcrum_install.sh
+```
+Add your fulcrum api key to the appropiate entry to the /etc/geoshape/local_settings.py file.
+Add any desired filters to the /etc/geoshape/local_settings.py file.
+Then run the command:
+```
+sudo geoshape-config init "geoshape.dev"
+```
+
 
 ## Bugs
-- in some browsers pressing the enter key when changing the alert properties will cause an error.
+
+Todo
