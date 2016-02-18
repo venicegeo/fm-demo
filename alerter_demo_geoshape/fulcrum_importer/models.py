@@ -15,7 +15,11 @@
 from __future__ import unicode_literals
 
 from django.db import models
+from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 
+
+fs = FileSystemStorage(location=settings.FULCRUM_ASSETS)
 
 def get_asset_name(instance, filename):
     return './{}.{}'.format(instance.asset_uid, get_type_extension(instance.asset_type))
@@ -31,7 +35,7 @@ def get_type_extension(type):
 class Asset(models.Model):
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
-    asset_data = models.FileField(upload_to=get_asset_name)
+    asset_data = models.FileField(storage=fs, upload_to=get_asset_name)
 
 
 class Layer(models.Model):

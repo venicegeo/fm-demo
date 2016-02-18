@@ -13,8 +13,6 @@ rm -rf master
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
 
-sudo -u postgres /usr/bin/psql -c "CREATE DATABASE fulcrum WITH OWNER geoshape;"
-sudo -u postgres /usr/bin/psql -d "fulcrum" -c "CREATE EXTENSION postgis;"
 
 /var/lib/geonode/bin/pip install fulcrum
 grep -qF "INSTALLED_APPS += ('fulcrum_importer',)" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "INSTALLED_APPS += ('fulcrum_importer',)" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
@@ -40,8 +38,10 @@ printf "CELERYBEAT_SCHEDULE = {\n\
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 
 grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_UPLOAD.*/FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_API_KEY=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^FULCRUM_ASSETS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_ASSETS="/var/lib/geoserver_data/file-service-store"" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
 grep -qF 'from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls' /var/lib/geonode/rogue_geonode/geoshape/urls.py || 
