@@ -41,7 +41,7 @@ grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings
 grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_API_KEY=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^FULCRUM_ASSETS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_ASSETS="/var/lib/geoserver_data/file-service-store"" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^FULCRUM_ASSETS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_ASSETS='/var/lib/geoserver_data/file-service-store'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
 grep -qF 'from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls' /var/lib/geonode/rogue_geonode/geoshape/urls.py || 

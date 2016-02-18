@@ -268,6 +268,7 @@ def delete_file(file_path):
 def upload_geojson(file_path=None, geojson=None):
     import json
     from django.conf import settings
+    from.models import get_type_extension
     import os
 
     from_file = False
@@ -303,7 +304,10 @@ def upload_geojson(file_path=None, geojson=None):
                                                            os.path.dirname(file_path))
                     if asset:
                         if asset.asset_data:
-                            urls += [asset.asset_data.url]
+                            if settings.GEOSHAPE_MEDIA_URL:
+                                urls += ['{}.{}'.format(asset_uid,get_type_extension(asset_type))]
+                            else:
+                                urls += [asset.asset_data.url]
                     else:
                         urls += ['Import Needed.']
                 feature['properties']['{}_url'.format(asset_type)] = urls
@@ -369,7 +373,10 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
         print "Asset already created."
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
-        return asset.asset_data.url
+        if settings.GEOSHAPE_MEDIA_URL:
+            return'{}.{}'.format(asset_uid,get_type_extension(asset_type))
+        else:
+            return asset.asset_data.url
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
     from django.core.files import File
