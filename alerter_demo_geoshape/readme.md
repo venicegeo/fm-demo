@@ -4,15 +4,8 @@ This is a django application which allows the user to connect to a kafka server 
 
 ## Requirements
 
- - Python > 2.7
+ - Geoshape-Vagrant 
  
-Python Dependencies (installable via pip)
-    - django
-    - kafka-python 
-    
-Additionally to Receive Kakfa alerts you need the kafka-devbox
-https://github.com/venicegeo/kafka-devbox
-    
 ## Setup 
 
 Download the geoshape-vagrant repo.
