@@ -24,8 +24,7 @@ grep -q '^CELERYBEAT_USER' /var/lib/geonode/rogue_geonode/geoshape/settings.py &
 grep -q '^CELERYBEAT_GROUP' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_GROUP.*/CELERYBEAT_GROUP='geoservice'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_GROUP='geoservice'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_SCHEDULER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_SCHEDULER.*/CELERYBEAT_SCHEDULER='djcelery\.schedulers\.DatabaseScheduler'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_SCHEDULER='djcelery.schedulers.DatabaseScheduler'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERY_TIMEZONE' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_TIMEZONE.*/CELERY_TIMEZONE='UTC'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_TIMEZONE='UTC'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
-grep -q '^CELERY_ROUTES' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_ROUTES.*/CELERY_ROUTES=\{'fulcrum_importer\.tasks\.task_update_layers'\: \{'queue'\: 'fulcrum_importer'\}\}/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_ROUTES = {'fulcrum_importer.tasks.task_update_layers': {'queue': 'fulcrum_importer'}}
-" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+grep -q '^CELERY_ROUTES' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_ROUTES.*/CELERY_ROUTES=\{'fulcrum_importer\.tasks\.task_update_layers'\: \{'queue'\: 'fulcrum_importer'\}\}/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_ROUTES = {'fulcrum_importer.tasks.task_update_layers': {'queue': 'fulcrum_importer'}}" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "from datetime import timedelta" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "from datetime import timedelta" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "^CELERYBEAT_SCHEDULE =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
 printf "CELERYBEAT_SCHEDULE = {\n\
@@ -33,7 +32,7 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'task': 'fulcrum_importer.tasks.task_update_layers',\n\
         'schedule': timedelta(seconds=30),\n\
         'args': None\n\
-    },\n}" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+    },\n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 
@@ -60,12 +59,12 @@ command =   /var/lib/geonode/bin/celery worker\n\
             --queue=fulcrum_importer,celery\n\
             --loglevel=info\n\
             --workdir=/var/lib/geonode/rogue_geonode\n\
-stdout_logfile=/var/log/celery/celery-beat-stdout.log\n\
-stderr_logfile=/var/log/celery/celery-beat-stderr.log\n\
+stdout_logfile=/var/log/celery/celery-w6-stdout.log\n\
+stderr_logfile=/var/log/celery/celery-w6-stderr.log\n\
 autostart=true\n\
 autorestart=true\n\
 startsecs=10\n\
-stopwaitsecs=600" >> /etc/supervisord.conf
+stopwaitsecs=600\n" >> /etc/supervisord.conf
 
 grep -qF '[program:celery-beat]' /etc/supervisord.conf ||
 printf "[program:celery-beat]\n\
@@ -79,4 +78,4 @@ stderr_logfile=/var/log/celery/celery-beat-stderr.log\n\
 autostart=true\n\
 autorestart=true\n\
 startsecs=10\n\
-stopwaitsecs=600" >> /etc/supervisord.conf
+stopwaitsecs=600\n" >> /etc/supervisord.conf
