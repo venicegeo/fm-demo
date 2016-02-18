@@ -305,7 +305,7 @@ def upload_geojson(file_path=None, geojson=None):
                     if asset:
                         if asset.asset_data:
                             if settings.GEOSHAPE_MEDIA_URL:
-                                urls += ['{}.{}'.format(asset_uid,get_type_extension(asset_type))]
+                                urls += ['{}/{}.{}'.format(settings.GEOSHAPE_MEDIA_URL,asset_uid,get_type_extension(asset_type))]
                             else:
                                 urls += [asset.asset_data.url]
                     else:
@@ -374,7 +374,7 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
         if settings.GEOSHAPE_MEDIA_URL:
-            return'{}.{}'.format(asset_uid,get_type_extension(asset_type))
+            return'{}/{}.{}'.format(settings.GEOSHAPE_MEDIA_URL,asset_uid,get_type_extension(asset_type))
         else:
             return asset.asset_data.url
 
