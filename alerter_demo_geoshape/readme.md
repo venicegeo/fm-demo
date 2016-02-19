@@ -36,7 +36,7 @@ sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
 Add your fulcrum api key to the appropiate entry to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
  file (sudo required).
-Add any desired filters to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file.
+Add any desired filters to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file. (US geospatial and phone number filters are added by default.)
 Then run the command:
 ```
 sudo geoshape-config init "geoshape.dev"
