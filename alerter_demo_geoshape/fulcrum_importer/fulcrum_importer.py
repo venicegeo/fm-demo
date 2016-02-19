@@ -51,7 +51,10 @@ class FulcrumImporter:
         else:
             url_params={'form_id': layer.layer_uid}
         imported_features = self.conn.records.search(url_params=url_params)
-        print("Received {} page {} of {}".format(layer.layer_name,
+        if imported_features.get('current_page') > imported_features.get('total_pages'):
+            print("Received {} page 0 of 0".format(layer.layer_name))
+        else:
+            print("Received {} page {} of {}".format(layer.layer_name,
                                                 imported_features.get('current_page'),
                                                 imported_features.get('total_pages')))
         temp_features += imported_features.get('records')
@@ -200,8 +203,10 @@ def filter_features(features):
         return filtered_features, 0
     if filtered_features.get('features'):
         for filter in DATA_FILTERS:
-            filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-
+            try:
+                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+            except ValueError:
+                print("Failed to decode json")
             if filtered_results.get('failed'):
                 print("Some features failed the {} filter.".format(filter))
                 # with open('./failed_features.geojson', 'a') as failed_features:
@@ -436,6 +441,8 @@ def upload_to_postgis(feature_data, user, database, table):
     import os
     from .models import get_type_extension
     remove_urls = []
+    if not feature_data:
+        return
     for feature in feature_data:
         for property in feature.get('properties'):
             if not feature.get('properties').get(property):
