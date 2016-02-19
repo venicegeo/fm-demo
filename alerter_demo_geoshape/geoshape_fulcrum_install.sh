@@ -82,3 +82,7 @@ autostart=true\n\
 autorestart=true\n\
 startsecs=10\n\
 stopwaitsecs=600\n" >> /etc/supervisord.conf
+
+
+# add to /var/lib/geonode/lib/python2.7/site-packages/geonode/layers/models.py
+sed -i "224i \ \ \ \ \ \ \ \ unique_together = ('store', 'name')" /var/lib/geonode/lib/python2.7/site-packages/geonode/layers/models.py
