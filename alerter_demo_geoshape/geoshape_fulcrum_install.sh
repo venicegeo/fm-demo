@@ -49,10 +49,8 @@ function getFulcrumApiKey() {
 	read -s password
 
 	echo "Getting Fulcrum API Key..."
-	apiToken=`curl -sL --user "$username:$password" https://api.fulcrumapp.com/api/v2/users.json  \  ## get json
-                | grep -o '"api_token":"[^"]*"' \  ## find api token key/value
-                | sed -e 's/"//g' \  ## delete quotes
-                | sed -e 's/api_token://g'` ## delete the key
+	## get json, find api token key/value, delete the quotes and then delete the key
+	apiToken=`curl -sL --user "$username:$password" https://api.fulcrumapp.com/api/v2/users.json | grep -o '"api_token":"[^"]*"' | sed -e 's/"//g' | sed -e 's/api_token://g'`
 
         if [ "$apiToken" != "" ]; then
 		echo "Success!!!"
