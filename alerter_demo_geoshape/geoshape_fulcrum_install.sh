@@ -65,7 +65,7 @@ function getFulcrumApiKey() {
 
 	sleep 2  ## to give the user enough time to read whether it was a success or not
 }
-grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_API_KEY=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
 
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
