@@ -60,8 +60,6 @@ function getFulcrumApiKey() {
 
 	## if the token isn't found, it will just print blanks anyway
 	echo "FULCRUM_API_KEY='$apiToken'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-
-	sleep 2  ## to give the user enough time to read whether it was a success or not
 }
 grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
 
