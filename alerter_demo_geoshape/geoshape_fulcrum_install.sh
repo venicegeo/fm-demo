@@ -38,7 +38,7 @@ printf "CELERYBEAT_SCHEDULE = {\n\
 
 grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_UPLOAD.*/FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']"
+grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^FULCRUM_ASSETS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_ASSETS='/var/lib/geoserver_data/file-service-store'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^GEOSHAPE_MEDIA_URL' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "GEOSHAPE_MEDIA_URL='api/fileservice/view/'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 
