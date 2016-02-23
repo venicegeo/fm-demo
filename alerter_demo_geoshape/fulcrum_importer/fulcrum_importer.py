@@ -11,7 +11,6 @@ class FulcrumImporter:
 
     def __init__(self):
         self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
-        # importer = Celery('geoshapse_fulcrum', broker='amqp://guest@localhost//')
 
     def start(self, interval=30):
         from threading import Thread
@@ -23,7 +22,6 @@ class FulcrumImporter:
             thread.daemon = True
             thread.start()
 
-    # @importer.task
     def run(self, interval):
         import time
 
@@ -42,9 +40,6 @@ class FulcrumImporter:
         return layer, created
 
     def update_records(self, form):
-        import json
-
-        filtered_feature_count = 0
 
         layer = Layer.objects.get(layer_uid=form.get('id'))
         if not layer:
@@ -56,7 +51,10 @@ class FulcrumImporter:
         else:
             url_params={'form_id': layer.layer_uid}
         imported_features = self.conn.records.search(url_params=url_params)
-        print("Received {} page {} of {}".format(layer.layer_name,
+        if imported_features.get('current_page') > imported_features.get('total_pages'):
+            print("Received {} page 0 of 0".format(layer.layer_name))
+        else:
+            print("Received {} page {} of {}".format(layer.layer_name,
                                                 imported_features.get('current_page'),
                                                 imported_features.get('total_pages')))
         temp_features += imported_features.get('records')
@@ -88,9 +86,9 @@ class FulcrumImporter:
                             feature['properties']['{}_url'.format(asset_type)] += [self.get_asset(id, asset_type)]
                 write_feature(feature.get('properties').get('id'), layer, feature)
                 uploads += [feature]
-            print "DATABASE_NAME: {}".format(settings.DATABASE_NAME)
-            if settings.DATABASE_NAME:
-                upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, layer.layer_name)
+            print "FULCRUM_DATABASE_NAME: {}".format(settings.FULCRUM_DATABASE_NAME)
+            if settings.FULCRUM_DATABASE_NAME:
+                upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, layer.layer_name)
                 publish_layer(layer.layer_name)
                 update_geoshape_layers()
             layer.layer_date = latest_time
@@ -205,8 +203,10 @@ def filter_features(features):
         return filtered_features, 0
     if filtered_features.get('features'):
         for filter in DATA_FILTERS:
-            filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-
+            try:
+                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+            except ValueError:
+                print("Failed to decode json")
             if filtered_results.get('failed'):
                 print("Some features failed the {} filter.".format(filter))
                 # with open('./failed_features.geojson', 'a') as failed_features:
@@ -273,6 +273,7 @@ def delete_file(file_path):
 def upload_geojson(file_path=None, geojson=None):
     import json
     from django.conf import settings
+    from.models import get_type_extension
     import os
 
     from_file = False
@@ -308,7 +309,10 @@ def upload_geojson(file_path=None, geojson=None):
                                                            os.path.dirname(file_path))
                     if asset:
                         if asset.asset_data:
-                            urls += [asset.asset_data.url]
+                            if settings.GEOSHAPE_MEDIA_URL:
+                                urls += ['{}{}.{}'.format(settings.GEOSHAPE_MEDIA_URL,asset_uid,get_type_extension(asset_type))]
+                            else:
+                                urls += [asset.asset_data.url]
                     else:
                         urls += ['Import Needed.']
                 feature['properties']['{}_url'.format(asset_type)] = urls
@@ -325,7 +329,7 @@ def upload_geojson(file_path=None, geojson=None):
                       feature)
         uploads += [feature]
         count += 1
-    upload_to_postgis(uploads, settings.DATABASE_USER, settings.DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
+    upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
     publish_layer(layer.layer_name)
     update_geoshape_layers()
 
@@ -354,7 +358,7 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
     from django.core.files.temp import NamedTemporaryFile
     import requests
     import os
-    from .models import Asset, get_asset_name, get_type_extension
+    from .models import Asset, get_type_extension
     from django.conf import settings
 
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
@@ -374,7 +378,10 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
         print "Asset already created."
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
-        return asset.asset_data.url
+        if settings.GEOSHAPE_MEDIA_URL:
+            return'{}{}.{}'.format(settings.GEOSHAPE_MEDIA_URL,asset_uid,get_type_extension(asset_type))
+        else:
+            return asset.asset_data.url
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
     from django.core.files import File
@@ -434,6 +441,8 @@ def upload_to_postgis(feature_data, user, database, table):
     import os
     from .models import get_type_extension
     remove_urls = []
+    if not feature_data:
+        return
     for feature in feature_data:
         for property in feature.get('properties'):
             if not feature.get('properties').get(property):
@@ -470,7 +479,6 @@ def upload_to_postgis(feature_data, user, database, table):
 
     with open(temp_file, 'w') as open_file:
         open_file.write(json.dumps(feature_collection))
-    out = ""
     conn_string = "dbname={} user={}".format(database, user)
     execute_append = ['ogr2ogr',
                       '-f', 'PostgreSQL',
@@ -499,10 +507,10 @@ def publish_layer(layer_name):
     url = "http://localhost:8080/geoserver/rest"
     workspace_name = "geonode"
     workspace_uri = "http://www.geonode.org/"
-    datastore_name = settings.DATABASE_NAME
+    datastore_name = "{}_data".format(settings.FULCRUM_DATABASE_NAME)
     host = "localhost"
     port = "5432"
-    database = settings.DATABASE_NAME
+    database = settings.FULCRUM_DATABASE_NAME
     password = settings.DATABASE_PASSWORD
     db_type = "postgis"
     user = settings.DATABASE_USER

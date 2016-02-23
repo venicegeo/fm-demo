@@ -13,6 +13,7 @@ rm -rf master
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
 
+
 /var/lib/geonode/bin/pip install fulcrum
 grep -qF "INSTALLED_APPS += ('fulcrum_importer',)" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "INSTALLED_APPS += ('fulcrum_importer',)" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
@@ -23,7 +24,7 @@ grep -q '^CELERY_SEND_EVENTS' /var/lib/geonode/rogue_geonode/geoshape/settings.p
 grep -q '^CELERYBEAT_USER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_USER.*/CELERYBEAT_USER='geoshape'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_USER='geoshape'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_GROUP' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_GROUP.*/CELERYBEAT_GROUP='geoservice'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_GROUP='geoservice'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_SCHEDULER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_SCHEDULER.*/CELERYBEAT_SCHEDULER='djcelery\.schedulers\.DatabaseScheduler'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_SCHEDULER='djcelery.schedulers.DatabaseScheduler'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
-grep -q '^CELERY_TIMEZONE' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_TIMEZONE.*/CELERY_TIMEZONE='UTC'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_TIMEZONE='UTC'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+grep -q '^CELERY_ROUTES' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_ROUTES.*/CELERY_ROUTES=\{'fulcrum_importer\.tasks\.task_update_layers'\: \{'queue'\: 'fulcrum_importer'\}\}/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_ROUTES = {'fulcrum_importer.tasks.task_update_layers': {'queue': 'fulcrum_importer'}}" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "from datetime import timedelta" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "from datetime import timedelta" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "^CELERYBEAT_SCHEDULE =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
 printf "CELERYBEAT_SCHEDULE = {\n\
@@ -31,13 +32,37 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'task': 'fulcrum_importer.tasks.task_update_layers',\n\
         'schedule': timedelta(seconds=30),\n\
         'args': None\n\
-    },\n}" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+    },\n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 
 grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_UPLOAD.*/FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_API_KEY=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^FULCRUM_ASSETS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_ASSETS='/var/lib/geoserver_data/file-service-store'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^GEOSHAPE_MEDIA_URL' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "GEOSHAPE_MEDIA_URL='api/fileservice/view/'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+
+function getFulcrumApiKey() {
+	echo "Enter Fulcrum Username:"
+	read username
+	echo "Enter Fulcrum Password:"
+	read -s password
+
+	echo "Getting Fulcrum API Key..."
+	## get json, find api token key/value, delete the quotes and then delete the key
+	apiToken=`curl -sL --user "$username:$password" https://api.fulcrumapp.com/api/v2/users.json | grep -o '"api_token":"[^"]*"' | sed -e 's/"//g' | sed -e 's/api_token://g'`
+
+        if [ "$apiToken" != "" ]; then
+		echo "Success!!!"
+        else
+                echo "Sorry, your Fulcrum API Key wasn't found. :("
+        fi
+
+	## if the token isn't found, it will just print blanks anyway
+	echo "FULCRUM_API_KEY='$apiToken'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+}
+grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
+
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
 grep -qF 'from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls' /var/lib/geonode/rogue_geonode/geoshape/urls.py || 
@@ -48,7 +73,23 @@ grep -qF 'from django.conf import settings' /var/lib/geonode/rogue_geonode/geosh
 grep -qF 'app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)' /var/lib/geonode/rogue_geonode/geoshape/celery_app.py || echo "app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)" >> /var/lib/geonode/rogue_geonode/geoshape/celery_app.py
 
 #add to /etc/supervisord.conf:
-grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5' /etc/supervisord.conf && sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat/" /etc/supervisord.conf
+grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat/" /etc/supervisord.conf
+
+grep -qF '[program:celery-worker6]' /etc/supervisord.conf ||
+printf "[program:celery-worker6]\n\
+command =   /var/lib/geonode/bin/celery worker\n\
+            --app=geoshape.celery_app\n\
+            --uid geoshape\n\
+            --queue=fulcrum_importer,celery\n\
+            --loglevel=info\n\
+            --workdir=/var/lib/geonode/rogue_geonode\n\
+stdout_logfile=/var/log/celery/celery-w6-stdout.log\n\
+stderr_logfile=/var/log/celery/celery-w6-stderr.log\n\
+autostart=true\n\
+autorestart=true\n\
+startsecs=10\n\
+stopwaitsecs=600\n" >> /etc/supervisord.conf
+
 grep -qF '[program:celery-beat]' /etc/supervisord.conf ||
 printf "[program:celery-beat]\n\
 command =   /var/lib/geonode/bin/celery beat\n\
@@ -61,4 +102,8 @@ stderr_logfile=/var/log/celery/celery-beat-stderr.log\n\
 autostart=true\n\
 autorestart=true\n\
 startsecs=10\n\
-stopwaitsecs=600" >> /etc/supervisord.conf
+stopwaitsecs=600\n" >> /etc/supervisord.conf
+
+
+# add to /var/lib/geonode/lib/python2.7/site-packages/geonode/layers/models.py
+sed -i "224i \ \ \ \ \ \ \ \ unique_together = ('store', 'name')" /var/lib/geonode/lib/python2.7/site-packages/geonode/layers/models.py

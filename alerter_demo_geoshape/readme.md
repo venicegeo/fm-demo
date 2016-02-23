@@ -34,8 +34,9 @@ cd /tmp
 wget https://raw.githubusercontent.com/venicegeo/fm-demo/master/alerter_demo_geoshape/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
 sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
-Add your fulcrum api key to the appropiate entry to the /etc/geoshape/local_settings.py file.
-Add any desired filters to the /etc/geoshape/local_settings.py file.
+You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+ file (sudo required).
+Add any desired filters to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file. (US geospatial and phone number filters are added by default.)
 Then run the command:
 ```
 sudo geoshape-config init "geoshape.dev"
