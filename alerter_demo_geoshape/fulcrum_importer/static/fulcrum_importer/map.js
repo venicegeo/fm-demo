@@ -42,16 +42,15 @@
 			"OpenStreetMap": OpenStreetMap
 		};
 		
-		// Empty layer list for any user uploaded layers //
-		var layers = {};
-		
-		// Empty layer list for any pz Events //
-		var events = {}; 
-		
-		// Create divisions in the layer control //
-		var overlays = {
-			"Fulcrum Layers": layers,
-			"Events": events
+		var myGeo = {
+			"type": "Feature",
+			"properties": {
+				"name": "A place"
+			},
+			"geometry": {
+				"type": "Point",
+				"coordinates": [91.99404, 62.75621]
+			}, 
 		};
 		
 		// Track which layers are in the map //
@@ -71,6 +70,35 @@
 		
 		// Track triggers posted by user //
 		var pzTriggers= {};
+		
+		var mycolor = "#3d3d3d";
+		layerStyles["E55"] = {
+			radius : 4,
+			fillColor : mycolor,
+			color : "#000000",
+			weight : 1, 
+			opacity : 1,
+			fillOpacity : 1
+		}
+		
+		var myLayer = L.geoJson(myGeo, {
+			pointToLayer: function(feature, latlng) {
+					return L.circleMarker(latlng, Markers(feature, "E55"));
+				}
+		});
+		
+		// Empty layer list for any user uploaded layers //
+		var layers = {};
+		
+		// Empty layer list for any pz Events //
+		var events = {}; 
+		events["E55"] = myLayer;
+		
+		// Create divisions in the layer control //
+		var overlays = {
+			"Fulcrum Layers": layers,
+			"Events": events
+		};
 		
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
@@ -134,6 +162,9 @@
 			// If its a subscribed layer, handle the process differently //
 			if (name in subLayers) {
 				onSubOverlayAdd(name);
+			}
+			else if (name in events) {
+				onEventAdd(name);
 			}
 			else {
 				console.log("Going to get: " + layerUrls[name]);
@@ -214,6 +245,9 @@
 			if(name in subLayers) {
 				onSubOverlayRemove(name);
 			}
+			else if(name in events) {
+				onEventRemove(name);
+			}
 			else {
 				console.log("Updates stopped");
 				clearInterval(layerUpdates[name]);
@@ -228,7 +262,12 @@
 				west = 180.0;
 				bounds = defaultBounds;
 				for (var key in activeLayers) {
-					bounds = fetchBounds(layers[key]);
+					if (key in layers) {
+						bounds = fetchBounds(layers[key]);
+					}
+					if (key in events) {
+						bounds = fetchBounds(events[key]);
+					}
 				}
 				// If removing only layer: remove legend, else: remove and add new version //
 				legend.removeFrom(map);
@@ -876,7 +915,7 @@
 					$("#alertContainer").dialog('close');
 				},
 				height: 250,
-				width: 300,
+				width: 350,
 				appendTo: "#map",
 				position: {
 					my: "left top",
@@ -891,10 +930,15 @@
 						$(this).dialog("close");
 						pzHandler(pzType, pzAction);
 					},
+					
 					"Cancel": function() {
 						$(this).dialog("close");
 						map.dragging.enable();
 						map.doubleClickZoom.enable();
+					},
+					"Manage Events" : function () {
+						$(this).dialog("close");
+						$('#eventManager').dialog("open");
 					}
 				},
 			});
@@ -908,6 +952,61 @@
 					e.preventDefault();	
 				}
 			});
+			
+			var eventManager = $('#eventManager').dialog({
+				autoOpen: false,
+				maxWidth: 300,
+				maxHeight: 600,
+				height: 'auto',
+				appendTo: '#map',
+				modal: false,
+				position: {
+					my: "left top",
+					at: "right bottom",
+					of: placeholder
+				},
+				open: function () {
+					var contentStr = "";
+					var i = 0;
+					for(var key in events) {
+						contentStr += '<input type="radio" id="' + i + '" name="eventChoice" value="' + key + '"/><label for="' + i + '">'+ key + '</label><br/>';
+						i++;
+					}
+					$(this).html(contentStr);
+				},
+				buttons: {
+					"Delete": function() {
+						deleteEvent();
+						$(this).dialog("close");
+					},
+					"Cancel": function () {
+						$(this).dialog("close");
+						map.dragging.enable();
+						map.doubleClickZoom.enable();
+					}
+				}
+			}); //end confirm dialog
+			
+			function deleteEvent() {
+				//Delete something //
+				var choice = $('input[name="eventChoice"]:checked').val();
+				console.log(choice);
+				console.log(events);
+				if (choice in activeLayers) {
+					console.log("Event is active, removing from the map");
+					map.removeLayer(events[choice]);
+					//delete activeLayers[choice];
+				}
+				console.log("Deleting layer. . .");
+				events[choice] = null;
+				delete events[choice];
+				console.log("Layer deleted")
+				layerControl.removeFrom(map);
+				layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
+				console.log(events);
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+			};
 			
 			function pzHandler(type, action) {
 				if(action == 'get_all') {
@@ -972,18 +1071,31 @@
 				else if (pzAction == 'get_all') {
 					console.log(result);
 					$('<div></div>').dialog({
-						modal: true,
+						autoOpen: true,
+						maxWidth: 300,
+						maxHeight: 600,
+						modal: false,
+						appendTo: '#map',
+						position: {
+							my: "left top",
+							at: "right bottom",
+							of: placeholder
+						},
 						title: "List of all {0}s".format(pzType),
 						open: function () {
+							map.dragging.disable();
+							map.doubleClickZoom.disable();
 							var contentStr = "";
-							for (var item in result) {
-								content += (item['id'] + '<br/>');
-							}
-							$(this).html(content);
+							$.each(result, function (index, value) {
+								contentStr += '<p>' + JSON.stringify(value, undefined, '\t') + '</p>';
+							});
+							$(this).html(contentStr);
 						},
 						buttons: {
 							Ok: function () {
 								$(this).dialog("close");
+								map.dragging.enable();
+								map.doubleClickZoom.enable();
 							}
 						}
 					}); //end confirm dialog
@@ -995,6 +1107,7 @@
 					else {
 						if(pzType == 'trigger') {
 							pzTriggers['id'] = result['id'];
+							console.log(pzTriggers);
 						}
 					}
 				}
@@ -1197,6 +1310,41 @@
 				}]
 			}).addTo(map);
 		});
+		function onEventAdd(name) {
+			console.log("Adding");
+			activeLayers[name] = null;
+			bounds = fetchBounds(events[name]);
+			if(Object.keys(activeLayers).length == 1) {
+				legend.addTo(map);
+			}
+			else {
+				legend.removeFrom(map);
+				legend.addTo(map);
+			}
+		};
+		function onEventRemove(name) {
+			console.log("Removing");
+			delete activeLayers[name];
+			// Reset bounds then iterate through any active layers to compute new bounds //
+			north = -90.0;
+			east = -180.0;
+			south = 90.0;
+			west = 180.0;
+			bounds = defaultBounds;
+			for (var key in activeLayers) {
+				if (key in layers) {
+					bounds = fetchBounds(layers[key]);
+				}
+				if (key in events) {
+					bounds = fetchBounds(events[key]);
+				}
+			}
+			// If removing only layer: remove legend, else: remove and add new version //
+			legend.removeFrom(map);
+			if(Object.keys(activeLayers).length != 0) {
+				legend.addTo(map);
+			};
+		};
 		
 		// Button to set alert subscription //
 		if(typeof(Storage) != "undefined") {
@@ -1478,5 +1626,6 @@
 			}
 			return formatted;
 		};
+		
 		
 	});
