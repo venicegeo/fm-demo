@@ -42,8 +42,6 @@ def pull_S3_data():
         S3_GPG = None
         pass
 
-    with open(settings.S3_CFG,'r') as settings_file:
-        settings_file.readline()
     cfg = Config(configfile=settings.S3_CFG, access_key=S3_KEY, secret_key=S3_SECRET)
     if S3_GPG:
         cfg.gpg_passphrase = S3_GPG
@@ -75,10 +73,12 @@ def is_loaded(file_name):
 
 
 def s3_download(s3, uri, file_name, file_size):
+    start_pos = 0
     if os.path.exists(os.path.join(settings.FULCRUM_UPLOAD, file_name)):
-        if os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name))==file_size:
+        start_pos = os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name))
+        if start_pos==file_size:
             return
     print("Downloading from S3: {}".format(file_name))
     with open(os.path.join(settings.FULCRUM_UPLOAD, file_name), 'wb') as download:
-        s3.object_get(uri, download, file_name)
+        s3.object_get(uri, download, file_name, start_position = start_pos)
     return
