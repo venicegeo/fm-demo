@@ -176,7 +176,11 @@ def process_fulcrum_data(f):
     import os
 
     layers = []
-    file_path = os.path.join(settings.FULCRUM_UPLOAD, f.name)
+    try:
+        archive_name = f.name
+    except AttributeError:
+        archive_name = f
+    file_path = os.path.join(settings.FULCRUM_UPLOAD, archive_name)
     if save_file(f, file_path):
         unzip_file(file_path)
         for folder, subs, files in os.walk(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])):
@@ -227,6 +231,8 @@ def save_file(f, file_path):
     import os
     if os.path.splitext(file_path)[1] != '.zip':
         return False
+    if os.path.exists(file_path):
+        return True
     try:
         if not os.path.exists(settings.FULCRUM_UPLOAD):
             os.mkdir(settings.FULCRUM_UPLOAD)
@@ -332,6 +338,7 @@ def upload_geojson(file_path=None, geojson=None):
     upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
     publish_layer(layer.layer_name)
     update_geoshape_layers()
+
 
 def write_layer(name, date=None):
     from .models import Layer

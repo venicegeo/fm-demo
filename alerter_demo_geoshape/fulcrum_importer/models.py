@@ -58,3 +58,5 @@ class Links(models.Model):
     feature = models.ForeignKey(Feature,on_delete=models.CASCADE,default="")
 
 
+class S3Sync(models.Model):
+    s3_filename = models.CharField(max_length=500, primary_key=True)
