@@ -79,3 +79,28 @@ def layers(request):
     from .mapping import get_layer_names
     return HttpResponse(json.dumps(get_layer_names()), content_type="application/json")
 
+def pzworkflow(request):
+    from .fetch_workflow import PzWorkflow
+    if request.method=='POST':
+        json_data = request.body
+        print "Data passed in: " + json_data
+        pz = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
+        print "Pz health check returned: " + str(pz.status())
+        if pz.status() == 200:
+            response = pz.request(json_data)
+            if response:
+                user_request = json.loads(json_data)
+                if(user_request.get('action') == 'get'):
+                    return HttpResponse(json.dumps(response), content_type="application/json")
+                elif(user_request.get('action') == 'post'):
+                    return HttpResponse(json.dumps(response.json()), content_type="application/json")
+                elif(user_request.get('action') == 'get_all'):
+                    return HttpResponse(json.dumps(response.json()), content_type="application/json")
+                elif(user_request.get('action') == 'delete'):
+                    return HttpResponse(json.dumps(response.json()), content_type="application/json")
+                else:
+                    return HttpResponse("What one earth happened", status=400)
+            else:
+                return HttpResponse("Error with your request.", status=400)
+        else:
+            return HttpResponse("Pz-Workflow does not appear to be running", status=400)

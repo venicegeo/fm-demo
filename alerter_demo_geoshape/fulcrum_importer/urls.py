@@ -25,7 +25,8 @@ urlpatterns = [
     url(r'^fulcrum_map$',views.viewer),
     url(r'^fulcrum_viewer$',views.viewer),
     url(r'^fulcrum_upload$',views.upload),
-    url(r'^fulcrum_layers$',views.layers)
+    url(r'^fulcrum_layers$',views.layers),
+    url(r'^fulcrum_pzworkflow$', views.pzworkflow)
 ]
 
 if settings.DEBUG is True:

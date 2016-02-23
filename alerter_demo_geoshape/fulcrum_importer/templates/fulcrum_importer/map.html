@@ -34,6 +34,7 @@
 	<link rel="stylesheet" href="{% static "fulcrum_importer/Leaflet.ZoomBox/L.Control.ZoomBox.css" %}"/>
 	<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
 	<link rel="stylesheet" href="{% static "fulcrum_importer/map.css" %}"/>
+	<link rel="stylesheet" href="{% static "fulcrum_importer/Leaflet.groupedlayercontrol/src/leaflet.groupedlayercontrol.css" %}"/>
 
 </head>
 <body>
@@ -74,6 +75,108 @@
 			<label for="sub" style="display: block;" id="subLabel">Enter URL to subscribe to alert service</label></br>
 			<input type="text" name="sub" id="sub" value="" style="display: block; width: 450px;" class="text ui-widget-content ui-corner-all"/>
 	</form>
+	
+	<form id="pzContainer" title="Piazza Workflow" visibility="hidden">
+		<fieldset>
+			<label for="pzType">Pz-Type</label>
+			<br/>
+			<!--<input type="text" id="alertType" class="text ui-widget-content ui-corner-all"/>
+			-->
+			<select name="Type" id="pzType">
+				<option>Trigger</option>
+				<option>Event</option>
+				<option>Alert</option>
+			</select>
+			<br/>
+			<br/>
+			<label for="Action">Pz-Action</label>
+			<br/>
+			<!--<input type="text" id="alertAction" class="text ui-widget-content ui-corner-all"/>-->
+			<select name="pzAction" id="pzAction">
+				<option>GET</option>
+				<option>POST</option>
+				<option>DELETE</option>
+				<option>GET_ALL</option>
+			</select>
+		</fieldset>
+	</form>
+	
+	<form id="triggerContainer" title="Trigger Data" visibility="hidden">
+		<fieldset>
+			<label for="triggerId">ID<br/>(For Get or Delete commands)</label>
+			<br/>
+			<input type="text" id="triggerId" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="triggerTitle">Title</label>
+			<br/>
+			<input type="text" id="triggerTitle" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="triggerType">Type</label>
+			<br/>
+			<input type="text" id="triggerType" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="triggerQuery">Query</label>
+			<br/>
+			<input type="text" id="triggerQuery" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="triggerTask">Task</label>
+			<br/>
+			<input type="text" id="triggerTask" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+		</fieldset>
+	</form>
+	
+	<form id="eventContainer" title="Event Data" visibility="hidden">
+		<fieldset>
+			<label for="eventId">ID<br/>(For Get or Delete commands)</label>
+			<br/>
+			<input type="text" id="eventId" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="eventType">Type</label>
+			<br/>
+			<input type="text" id="eventType" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="eventDate">Date</label>
+			<br/>
+			<input type="text" id="eventDate" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="eventData">Data</label>
+			<br/>
+			<input type="text" id="eventData" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+		</fieldset>
+	</form>
+	
+	<form id="alertContainer" title="Alert Data" visibility="hidden">
+		<fieldset>
+			<label for="alertId">ID<br/>(For Get or Delete commands)</label>
+			<br/>
+			<input type="text" id="alertId" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="alertTriggerId">Trigger ID</label>
+			<br/>
+			<input type="text" id="alertTriggerId" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+			<label for="alertEventId">Event ID</label>
+			<br/>
+			<input type="text" id="alertEventId" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
+		</fieldset>
+	</form>
+				
+		
 
 	<script src="{% static "fulcrum_importer/leaflet/leaflet.js" %}"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
@@ -86,6 +189,7 @@
 	<script src="{% static "fulcrum_importer/Leaflet.ZoomBox/L.Control.ZoomBox.min.js" %}"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 	<script src="{% static "fulcrum_importer/map.js" %}"></script>
+	<script src="{% static "fulcrum_importer/Leaflet.groupedlayercontrol/src/leaflet.groupedlayercontrol.js" %}"></script>
 
 </body>
 </html>
