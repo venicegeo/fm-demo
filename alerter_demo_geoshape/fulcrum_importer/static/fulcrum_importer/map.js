@@ -53,6 +53,17 @@
 			}, 
 		};
 		
+		var myGeo2 = {
+			"type": "Feature",
+			"properties": {
+				"name": "A place"
+			},
+			"geometry": {
+				"type": "Point",
+				"coordinates": [89.99404, 60.75621]
+			}, 
+		};
+		
 		// Track which layers are in the map //
 		var activeLayers = {};
 		
@@ -74,7 +85,16 @@
 		var mycolor = "#3d3d3d";
 		layerStyles["E55"] = {
 			radius : 4,
-			fillColor : mycolor,
+			fillColor : "#cc3300",
+			color : "#000000",
+			weight : 1, 
+			opacity : 1,
+			fillOpacity : 1
+		}
+		var mycolor2 = "#009999";
+		layerStyles["E44"] = {
+			radius : 4,
+			fillColor : "#009999",
 			color : "#000000",
 			weight : 1, 
 			opacity : 1,
@@ -83,7 +103,12 @@
 		
 		var myLayer = L.geoJson(myGeo, {
 			pointToLayer: function(feature, latlng) {
-					return L.circleMarker(latlng, Markers(feature, "E55"));
+					return L.circleMarker(latlng, layerStyles["E55"]);
+				}
+		});
+		var myLayer2 = L.geoJson(myGeo2, {
+			pointToLayer: function(feature, latlng) {
+					return L.circleMarker(latlng, layerStyles["E44"]);
 				}
 		});
 		
@@ -93,6 +118,7 @@
 		// Empty layer list for any pz Events //
 		var events = {}; 
 		events["E55"] = myLayer;
+		events["E44"] = myLayer2;
 		
 		// Create divisions in the layer control //
 		var overlays = {
@@ -899,272 +925,268 @@
 		var alertTriggerId;
 		var alertEventId;
 		
-		var getPzAction = $(function() {
-			var pzDialogBox = $("#pzContainer").dialog({
-				autoOpen: false,
-				closeOnEscape: false,
-				open: function(event, ui) {
-					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-					$("#timeoutForm").dialog('close');
-					$("#colortimeForm").dialog('close');
-					$("#refreshForm").dialog('close');
-					$("#formContainer").dialog('close');
-					$("#subscribeForm").dialog('close');
-					$("#triggerContainer").dialog('close');
-					$("#eventContainer").dialog('close');
-					$("#alertContainer").dialog('close');
-				},
-				height: 250,
-				width: 350,
-				appendTo: "#map",
-				position: {
-					my: "left top",
-					at: "right bottom",
-					of: placeholder
-				},
-				modal: false,
-				buttons: {
-					"Submit": function() {
-						pzType = $("#pzType").val().toLowerCase();
-						pzAction = $("#pzAction").val().toLowerCase();
-						$(this).dialog("close");
-						pzHandler(pzType, pzAction);
-					},
-					
-					"Cancel": function() {
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
-					},
-					"Manage Events" : function () {
-						$(this).dialog("close");
-						$('#eventManager').dialog("open");
-					}
-				},
-			});
-			
-			$('#pzContainer').keypress( function(e) {
-				if (e.charCode == 13 || e.keyCode == 13) {
+		//var getPzAction = $(function() {
+		var pzDialogBox = $("#pzContainer").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+				$("#timeoutForm").dialog('close');
+				$("#colortimeForm").dialog('close');
+				$("#refreshForm").dialog('close');
+				$("#formContainer").dialog('close');
+				$("#subscribeForm").dialog('close');
+				$("#triggerContainer").dialog('close');
+				$("#eventContainer").dialog('close');
+				$("#alertContainer").dialog('close');
+			},
+			height: 250,
+			width: 350,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
 					pzType = $("#pzType").val().toLowerCase();
 					pzAction = $("#pzAction").val().toLowerCase();
 					$(this).dialog("close");
 					pzHandler(pzType, pzAction);
-					e.preventDefault();	
+				},
+				
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				},
+				"Manage Events" : function () {
+					$(this).dialog("close");
+					$('#eventManager').dialog("open");
+				}
+			},
+		});
+		
+		$('#pzContainer').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				pzType = $("#pzType").val().toLowerCase();
+				pzAction = $("#pzAction").val().toLowerCase();
+				$(this).dialog("close");
+				pzHandler(pzType, pzAction);
+				e.preventDefault();	
+			}
+		});
+		
+		var eventManager = $('#eventManager').dialog({
+			autoOpen: false,
+			maxWidth: 300,
+			maxHeight: 600,
+			height: 'auto',
+			appendTo: '#map',
+			modal: false,
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			open: function () {
+				var contentStr = "";
+				var i = 0;
+				for(var key in events) {
+					contentStr += '<input type="radio" id="' + i + '" name="eventChoice" value="' + key + '"/><label for="' + i + '">'+ key + '</label><br/>';
+					i++;
+				}
+				$(this).html(contentStr);
+			},
+			buttons: {
+				"Delete": function() {
+					deleteEvent();
+					$(this).dialog("close");
+				},
+				"Cancel": function () {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				}
+			}
+		}); //end confirm dialog
+		
+		function deleteEvent() {
+			var choice = $('input[name="eventChoice"]:checked').val();
+			console.log(choice);
+			console.log(events);
+			if (choice in activeLayers) {
+				console.log("Event is active, removing from the map");
+				map.removeLayer(events[choice]);
+				//delete activeLayers[choice];
+			}
+			console.log("Deleting layer. . .");
+			events[choice] = null;
+			delete events[choice];
+			console.log("Layer deleted")
+			layerControl.removeFrom(map);
+			layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
+			console.log(events);
+			map.dragging.enable();
+			map.doubleClickZoom.enable();
+		};
+		
+		function pzHandler(type, action) {
+			if(action == 'get_all') {
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				var request = {"type": type, "data": {}, "action": action};
+				pzSender(request);
+			}
+			else if(type == 'trigger') {
+				if(action == 'get' || action == 'delete') {
+					$("#triggerContainerID").dialog("open");
+				}
+				else {
+					$("#triggerContainer").dialog("open");
+				}
+			}
+			else if(type == 'event') {
+				if(action == 'get' || action == 'delete') {
+					$("#eventContainerID").dialog("open");
+				}
+				else {
+					$("#eventContainer").dialog("open");
+				}
+			}
+			else if(type == 'alert') {
+				if(action == 'get' || action == 'delete') {
+					$("#alertContainerID").dialog("open");
+				}
+				else {
+					$("#alertContainer").dialog("open");
+				}
+			}
+			else {
+				alert("Wait how did you get here?");
+			}
+		};
+		
+		function pzSender(pzrequest) {
+			var requestStr = JSON.stringify(pzrequest);
+			$.ajax({
+				url: '/fulcrum_importer/fulcrum_pzworkflow',
+				type: "POST",
+				data: requestStr,
+				contentType: "application/json",
+				processData: false,
+				dataType: "json",
+				success: function(result) {
+					console.log("Success");
+					pzResponse(result);
+				},
+				error: function(result) {
+					console.log("Error");
+					pzError(result);
 				}
 			});
-			
-			var eventManager = $('#eventManager').dialog({
-				autoOpen: false,
-				maxWidth: 300,
+		};
+		
+		function pzResponse(result) {
+			if (pzAction == 'delete') {
+				if(result == null) {
+					console.log("Delete was successful");
+				}
+				else {
+					console.log(result);
+				}
+			}
+			else if (pzAction == 'get') {
+				console.log(result);
+				if (pzType == 'event') {
+					createEventLayer(result);
+				}
+				else if(pzType = 'trigger') {
+					pzTriggers[result['id']] = result['id'];
+					console.log(pzTriggers);
+				}
+				
+			}
+			else if (pzAction == 'get_all') {
+				getDialog(result)
+			}
+			else if (pzAction == 'post') {
+				if(result == null) {
+					console.log("Not created");
+				}
+				else {
+					if(pzType == 'trigger') {
+						pzTriggers[result['id']] = result['id'];
+						console.log(pzTriggers);
+					}
+				}
+			}
+		}
+		
+		function getDialog(result) {
+			console.log(result);
+			$('<div></div>').dialog({
+				autoOpen: true,
+				//maxWidth: 450,
 				maxHeight: 600,
-				height: 'auto',
-				appendTo: '#map',
+				width: 400,
 				modal: false,
+				appendTo: '#map',
 				position: {
 					my: "left top",
 					at: "right bottom",
 					of: placeholder
 				},
+				title: "{0}s".format(pzType),
 				open: function () {
+					map.dragging.disable();
+					map.doubleClickZoom.disable();
 					var contentStr = "";
-					var i = 0;
-					for(var key in events) {
-						contentStr += '<input type="radio" id="' + i + '" name="eventChoice" value="' + key + '"/><label for="' + i + '">'+ key + '</label><br/>';
-						i++;
-					}
+					$.each(result, function (index, value) {
+						contentStr += '<pre style="text-align: left;">' + JSON.stringify(value, undefined, 2) + '</pre><br/>';
+					});
 					$(this).html(contentStr);
 				},
 				buttons: {
-					"Delete": function() {
-						deleteEvent();
-						$(this).dialog("close");
-					},
-					"Cancel": function () {
+					Close: function () {
 						$(this).dialog("close");
 						map.dragging.enable();
 						map.doubleClickZoom.enable();
 					}
 				}
 			}); //end confirm dialog
-			
-			function deleteEvent() {
-				//Delete something //
-				var choice = $('input[name="eventChoice"]:checked').val();
-				console.log(choice);
-				console.log(events);
-				if (choice in activeLayers) {
-					console.log("Event is active, removing from the map");
-					map.removeLayer(events[choice]);
-					//delete activeLayers[choice];
-				}
-				console.log("Deleting layer. . .");
-				events[choice] = null;
-				delete events[choice];
-				console.log("Layer deleted")
-				layerControl.removeFrom(map);
-				layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
-				console.log(events);
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
-			};
-			
-			function pzHandler(type, action) {
-				if(action == 'get_all') {
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
-					var request = {"type": type, "data": {}, "action": action};
-					pzSender(request);
-				}
-				else if(type == 'trigger') {
-					$("#triggerContainer").dialog("open");
-				}
-				else if(type == 'event') {
-					$("#eventContainer").dialog("open");
-				}
-				else if(type == 'alert') {
-					$("#alertContainer").dialog("open");
-				}
-				else {
-					alert("Wait how did you get here?");
-				}
-			};
-			
-			function pzSender(pzrequest) {
-				var requestStr = JSON.stringify(pzrequest);
-				$.ajax({
-					url: '/fulcrum_importer/fulcrum_pzworkflow',
-					type: "POST",
-					data: requestStr,
-					contentType: "application/json",
-					processData: false,
-					dataType: "json",
-					success: function(result) {
-						console.log("Success");
-						pzResponse(result);
-					},
-					error: function(result) {
-						console.log("Error");
-						pzError(result);
-					}
-				});
-			};
-			
-			function pzResponse(result) {
-				if (pzAction == 'delete') {
-					if(result == null) {
-						console.log("Delete was successful");
-					}
-					else {
-						console.log(result);
-					}
-				}
-				else if (pzAction == 'get') {
-					console.log(result);
-					if (pzType == 'event') {
-						for (var pzevent in events) {
-							if (pzevent['data'] != null) {
-								L.geoJson(pzevent['data']).addTo(map);
-							}
-						} 
-					}
-				}
-				else if (pzAction == 'get_all') {
-					console.log(result);
-					$('<div></div>').dialog({
-						autoOpen: true,
-						maxWidth: 300,
-						maxHeight: 600,
-						modal: false,
-						appendTo: '#map',
-						position: {
-							my: "left top",
-							at: "right bottom",
-							of: placeholder
-						},
-						title: "List of all {0}s".format(pzType),
-						open: function () {
-							map.dragging.disable();
-							map.doubleClickZoom.disable();
-							var contentStr = "";
-							$.each(result, function (index, value) {
-								contentStr += '<p>' + JSON.stringify(value, undefined, '\t') + '</p>';
-							});
-							$(this).html(contentStr);
-						},
-						buttons: {
-							Ok: function () {
-								$(this).dialog("close");
-								map.dragging.enable();
-								map.doubleClickZoom.enable();
-							}
-						}
-					}); //end confirm dialog
-				}
-				else if (pzAction == 'post') {
-					if(result == null) {
-						console.log("Not created");
-					}
-					else {
-						if(pzType == 'trigger') {
-							pzTriggers['id'] = result['id'];
-							console.log(pzTriggers);
-						}
-					}
-				}
+		}
+		
+		function pzError(result) {
+			if (pzAction == 'delete') {
+				console.log("Oh crap it failed");
 			}
-			function pzError(result) {
-				if (pzAction == 'delete') {
-					console.log("Oh crap it failed");
-				}
-			}
-			
-			var triggerDialogBox = $("#triggerContainer").dialog({
-				autoOpen: false,
-				closeOnEscape: false,
-				open: function(event, ui) {
-					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-				},
-				height: 450,
-				width: 300,
-				appendTo: "#map",
-				position: {
-					my: "left top",
-					at: "right bottom",
-					of: placeholder
-				},
-				modal: false,
-				buttons: {
-					"Submit": function() {
-						triggerId = $("#triggerId").val();
-						triggerTitle = $("#triggerTitle").val()
-						triggerType = $("#triggerType").val();
-						triggerQuery = $("#triggerQuery").val();
-						triggerTask = $("#triggerTask").val();
-						var triggerData = {"id": triggerId, "title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
-						var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
-						pzTrigger["data"] = triggerData;
-						console.log(pzTrigger);
-						console.log(triggerData);
-						pzSender(pzTrigger);
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
-					},
-					"Cancel": function() {
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
-					}
-				},
-			});
-			$('triggerContainer').keypress( function(e) {
-				if (e.charCode == 13 || e.keyCode == 13) {
-					triggerId = $("#triggerId").val();
+		}
+		
+		var triggerDialogBox = $("#triggerContainer").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 400,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
 					triggerTitle = $("#triggerTitle").val()
 					triggerType = $("#triggerType").val();
 					triggerQuery = $("#triggerQuery").val();
 					triggerTask = $("#triggerTask").val();
-					var triggerData = {"id": triggerId, "title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+					var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
 					var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
 					pzTrigger["data"] = triggerData;
 					console.log(pzTrigger);
@@ -1173,55 +1195,116 @@
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
-					e.preventDefault();	
+				},
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
 				}
-			});
-			
-			var eventDialogBox = $("#eventContainer").dialog({
-				autoOpen: false,
-				closeOnEscape: false,
-				open: function(event, ui) {
-					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-				},
-				height: 400,
-				width: 300,
-				appendTo: "#map",
-				position: {
-					my: "left top",
-					at: "right bottom",
-					of: placeholder
-				},
-				modal: false,
-				buttons: {
-					"Submit": function() {
-						eventId = $("#eventId").val();
-						eventType = $("#eventType").val();
-						eventDate = $("#eventDate").val();
-						if ($("#eventData").val() != "") {
-							eventData = JSON.parse($("#eventData").val());
-						}
-						else {
-							eventData = {};
-						}
-						var pzData = {"id": eventId, "type": eventType, "date": eventDate, "data": eventData}
-						var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-						console.log(pzEvent);
-						console.log(pzData);
-						pzSender(pzEvent);
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
-					},
-					"Cancel": function() {
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
+			},
+		});
+		$('triggerContainer').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				triggerTitle = $("#triggerTitle").val()
+				triggerType = $("#triggerType").val();
+				triggerQuery = $("#triggerQuery").val();
+				triggerTask = $("#triggerTask").val();
+				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+				var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
+				pzTrigger["data"] = triggerData;
+				console.log(pzTrigger);
+				console.log(triggerData);
+				pzSender(pzTrigger);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var triggerIdDialogBox = $("#triggerContainerID").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 450,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
+					triggerTitle = $("#triggerTitleID").val();
+					triggerType = $("#triggerTypeID").val();
+					triggerQuery = $("#triggerQueryID").val();
+					triggerTask = $("#triggerTaskID").val();
+					var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+					if($("#triggerIdID").val() != "") {
+						triggerId = $("#triggerIdID").val();
+						triggerData["id"] = $("#triggerIdID").val();
 					}
+					var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
+					pzTrigger["data"] = triggerData;
+					console.log(pzTrigger);
+					console.log(triggerData);
+					pzSender(pzTrigger);
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
 				},
-			});
-			$('eventContainer').keypress( function(e) {
-				if (e.charCode == 13 || e.keyCode == 13) {
-					eventId = $("#eventId").val();
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				}
+			},
+		});
+		$('triggerContainerID').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				triggerTitle = $("#triggerTitleID").val();
+				triggerType = $("#triggerTypeID").val();
+				triggerQuery = $("#triggerQueryID").val();
+				triggerTask = $("#triggerTaskID").val();
+				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+				if($("#triggerIdID").val() != "") {
+					triggerId = $("#triggerIdID").val();
+					triggerData["id"] = $("#triggerIdID").val();
+				}
+				var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
+				pzTrigger["data"] = triggerData;
+				console.log(pzTrigger);
+				console.log(triggerData);
+				pzSender(pzTrigger);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var eventDialogBox = $("#eventContainer").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 350,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
+					//eventId = $("#eventId").val();
 					eventType = $("#eventType").val();
 					eventDate = $("#eventDate").val();
 					if ($("#eventData").val() != "") {
@@ -1230,7 +1313,7 @@
 					else {
 						eventData = {};
 					}
-					var pzData = {"id": eventId, "type": eventType, "date": eventDate, "data": eventData}
+					var pzData = {"type": eventType, "date": eventDate, "data": eventData}
 					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
 					console.log(pzEvent);
 					console.log(pzData);
@@ -1238,49 +1321,125 @@
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
-					e.preventDefault();	
+				},
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
 				}
-			});
-			
-			var alertDialogBox = $("#alertContainer").dialog({
-				autoOpen: false,
-				closeOnEscape: false,
-				open: function(event, ui) {
-					$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-				},
-				height: 400,
-				width: 300,
-				appendTo: "#map",
-				position: {
-					my: "left top",
-					at: "right bottom",
-					of: placeholder
-				},
-				modal: false,
-				buttons: {
-					"Submit": function() {
-						alertId = $("#alertId").val();
-						alertTriggerId = $("#alertTriggerId").val();
-						alertEventId = $("#alertEventId").val();
-						var alertData = {"id": alertId, "trigger_id": alertTriggerId, "event_id": alertEventId}
-						var pzAlert = {"type": pzType, "data": {}, "action": pzAction};
-						pzAlert["data"] = alertData;
-						console.log(pzAlert);
-						console.log(alertData);
-						pzSender(pzAlert);
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
-					},
-					"Cancel": function() {
-						$(this).dialog("close");
-						map.dragging.enable();
-						map.doubleClickZoom.enable();
+			},
+		});
+		$('eventContainer').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				//eventId = $("#eventId").val();
+				eventType = $("#eventType").val();
+				eventDate = $("#eventDate").val();
+				if ($("#eventData").val() != "") {
+					eventData = JSON.parse($("#eventData").val());
+				}
+				else {
+					eventData = {};
+				}
+				var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+				console.log(pzEvent);
+				console.log(pzData);
+				pzSender(pzEvent);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var eventIdDialogBox = $("#eventContainerID").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 400,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
+					eventType = $("#eventTypeID").val();
+					eventDate = $("#eventDateID").val();
+					if ($("#eventDataID").val() != "") {
+						eventData = JSON.parse($("#eventDataID").val());
 					}
+					else {
+						eventData = {};
+					}
+					var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+					if ($("#eventIdID").val() != "") {
+						eventId = $("#eventIdID").val();
+						pzData["id"] = eventId;
+					}
+					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+					console.log(pzEvent);
+					console.log(pzData);
+					pzSender(pzEvent);
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
 				},
-			});
-			$('alertContainer').keypress( function(e) {
-				if (e.charCode == 13 || e.keyCode == 13) {
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				}
+			},
+		});
+		$('eventContainerID').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				eventType = $("#eventTypeID").val();
+				eventDate = $("#eventDateID").val();
+				if ($("#eventDataID").val() != "") {
+					eventData = JSON.parse($("#eventDataID").val());
+				}
+				else {
+					eventData = {};
+				}
+				var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+				if ($("#eventIdID").val() != "") {
+					eventId = $("#eventIdID").val();
+					pzData["id"] = eventId;
+				}
+				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+				console.log(pzEvent);
+				console.log(pzData);
+				pzSender(pzEvent);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var alertDialogBox = $("#alertContainer").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 300,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
 					alertId = $("#alertId").val();
 					alertTriggerId = $("#alertTriggerId").val();
 					alertEventId = $("#alertEventId").val();
@@ -1293,23 +1452,107 @@
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
-					e.preventDefault();	
+				},
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
 				}
-			});
-			
-			var pzButton = L.easyButton({
-				states: [{
-					stateName: 'Pz-Workflow controller',
-					icon: 'fa-cogs',	
-					title: 'Pz-Workflow controller',
-					onClick: function(btn, map) {
-						map.dragging.disable();
-						map.doubleClickZoom.disable();
-						pzDialogBox.dialog("open");
-					}
-				}]
-			}).addTo(map);
+			},
 		});
+		$('alertContainer').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				//alertId = $("#alertId").val();
+				alertTriggerId = $("#alertTriggerId").val();
+				alertEventId = $("#alertEventId").val();
+				var alertData = {"trigger_id": alertTriggerId, "event_id": alertEventId}
+				var pzAlert = {"type": pzType, "data": {}, "action": pzAction};
+				pzAlert["data"] = alertData;
+				console.log(pzAlert);
+				console.log(alertData);
+				pzSender(pzAlert);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var alertIdDialogBox = $("#alertContainerID").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 350,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
+					alertTriggerId = $("#alertTriggerIdID").val();
+					alertEventId = $("#alertEventIdID").val();
+					var alertData = {"trigger_id": alertTriggerId, "event_id": alertEventId}
+					if ($("#alertIdID").val() != "") {
+						alertId = $("#alertIdID").val();
+						alertData["id"] = alertId;
+					}
+					var pzAlert = {"type": pzType, "data": {}, "action": pzAction};
+					pzAlert["data"] = alertData;
+					console.log(pzAlert);
+					console.log(alertData);
+					pzSender(pzAlert);
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				},
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				}
+			},
+		});
+		$('alertContainerID').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				alertTriggerId = $("#alertTriggerIdID").val();
+				alertEventId = $("#alertEventIdID").val();
+				var alertData = {"trigger_id": alertTriggerId, "event_id": alertEventId}
+				if ($("#alertIdID").val() != "") {
+					alertId = $("#alertIdID").val();
+					alertData["id"] = alertId;
+				}
+				var pzAlert = {"type": pzType, "data": {}, "action": pzAction};
+				pzAlert["data"] = alertData;
+				console.log(pzAlert);
+				console.log(alertData);
+				pzSender(pzAlert);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var pzButton = L.easyButton({
+			states: [{
+				stateName: 'Pz-Workflow controller',
+				icon: 'fa-cogs',	
+				title: 'Pz-Workflow controller',
+				onClick: function(btn, map) {
+					map.dragging.disable();
+					map.doubleClickZoom.disable();
+					pzDialogBox.dialog("open");
+				}
+			}]
+		}).addTo(map);
+
+		//});
 		function onEventAdd(name) {
 			console.log("Adding");
 			activeLayers[name] = null;
@@ -1344,6 +1587,114 @@
 			if(Object.keys(activeLayers).length != 0) {
 				legend.addTo(map);
 			};
+		};
+		setInterval(function(pzrequest) {
+			if(Object.keys(pzTriggers).length != 0) {
+				console.log("Getting alerts");
+				pzrequest = {"action": "get_all", "data": {}, "type": "alert"};
+				pzChecker(pzrequest);
+			}
+			else {
+				console.log("No triggers in list");
+			}
+		}, 30000);
+		
+		function pzChecker(pzrequest) {
+			var requestStr = JSON.stringify(pzrequest);
+			$.ajax({
+				url: '/fulcrum_importer/fulcrum_pzworkflow',
+				type: "POST",
+				data: requestStr,
+				contentType: "application/json",
+				processData: false,
+				dataType: "json",
+				success: function(result) {
+					console.log("Alert request successful");
+					findEvents(result);
+				},
+				error: function(result) {
+					console.log("Error with alert request");
+					return result;
+				}
+			});
+		};
+		function findEvents(result) {
+			if (Object.keys(result).length != 0) {
+				console.log("Finding triggers in alerts");
+				$.each(result, function (index, value) {
+					console.log(value["trigger_id"]);
+					if(value["trigger_id"] in pzTriggers) {
+						console.log(value["trigger_id"] + " is a listed Trigger, checking against events");
+						if (value["event_id"] in events) {
+							console.log("Event already in the map, moving on");
+						}
+						else {
+							console.log("Event not in map, going to get event");
+							addEvent(value["event_id"]);
+						}
+					}
+				});
+			}
+			else {
+				console.log("No alerts to iterate through");
+			}
+		}
+		
+		function addEvent(id) {
+			var requestStr = JSON.stringify({"type": "event", "data": {"id": id}, "action": "get"});
+			$.ajax({
+				url: '/fulcrum_importer/fulcrum_pzworkflow',
+				type: "POST",
+				data: requestStr,
+				contentType: "application/json",
+				processData: false,
+				dataType: "json",
+				success: function(result) {
+					console.log("Event request successful");
+					createEventLayer(result);
+				},
+				error: function(result) {
+					console.log("Error getting event");
+					console.log(result);
+				}
+			});
+		};
+		
+		function createEventLayer(result) {
+			if (Object.keys(result['data']).length != 0) {
+				if(!(result['id'] in events)) {
+					console.log("Adding event to layer control");
+					console.log(result['data']);
+					var color = getRandomColor();
+					layerStyles[result['id']] = {
+						radius : 4,
+						fillColor : color,
+						color : "#000000",
+						weight : 1, 
+						opacity : 1,
+						fillOpacity : 1
+					}
+					events[result['id']] = null;
+					try {
+						events[result['id']] = L.geoJson(result['data'], {
+							pointToLayer: function(feature, latlng) {
+								return L.circleMarker(latlng, layerStyles[result['id']]);
+							}
+						});
+						layerControl.removeFrom(map);
+						layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
+					}
+					catch(err) {
+						console.log("Invalid geoJson object");
+					}
+				}
+				else {
+					console.log("This event already has a layer");
+				}
+			}
+			else {
+				console.log("Event has no data");
+			}
 		};
 		
 		// Button to set alert subscription //
@@ -1626,6 +1977,7 @@
 			}
 			return formatted;
 		};
+		
 		
 		
 	});
