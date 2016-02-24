@@ -962,9 +962,9 @@
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
 				},
-				"Manage Events" : function () {
+				"Manager" : function () {
 					$(this).dialog("close");
-					$('#eventManager').dialog("open");
+					$('#Manager').dialog("open");
 				}
 			},
 		});
@@ -979,7 +979,7 @@
 			}
 		});
 		
-		var eventManager = $('#eventManager').dialog({
+		var eventManager = $('#Manager').dialog({
 			autoOpen: false,
 			maxWidth: 300,
 			maxHeight: 600,
@@ -995,14 +995,18 @@
 				var contentStr = "";
 				var i = 0;
 				for(var key in events) {
-					contentStr += '<input type="radio" id="' + i + '" name="eventChoice" value="' + key + '"/><label for="' + i + '">'+ key + '</label><br/>';
+					contentStr += '<input type="radio" id="' + i + '" name="choice" value="' + key + '" style="float: left; margin-left: 30%;"/><label for="' + i + '" style="float: left;">Event: '+ key + '</label><br/>';
+					i++;
+				}
+				for (var key in pzTriggers) {
+					contentStr += '<input type="radio" id="' + i + '" name="choice" value="' + key + '" style="float: left; margin-left: 30%;"/><label for="' + i + '" style="float: left;">Trigger: '+ key + '</label><br/>';
 					i++;
 				}
 				$(this).html(contentStr);
 			},
 			buttons: {
 				"Delete": function() {
-					deleteEvent();
+					deleteManager();
 					$(this).dialog("close");
 				},
 				"Cancel": function () {
@@ -1013,8 +1017,17 @@
 			}
 		}); //end confirm dialog
 		
-		function deleteEvent() {
-			var choice = $('input[name="eventChoice"]:checked').val();
+		function deleteManager() {
+			var choice = $('input[name="choice"]:checked').val();
+			if (choice in events) {
+				deleteEvent(choice);
+			}
+			if (choice in pzTriggers) {
+				deleteTrigger(choice);
+			}
+		}
+		
+		function deleteEvent(choice) {
 			console.log(choice);
 			console.log(events);
 			if (choice in activeLayers) {
@@ -1032,6 +1045,14 @@
 			map.dragging.enable();
 			map.doubleClickZoom.enable();
 		};
+		
+		function deleteTrigger(choice) {
+			console.log(choice);
+			console.log(pzTriggers);
+			pzTriggers[choice] = null;
+			delete pzTriggers[choice];
+			console.log(pzTriggers);
+		}
 		
 		function pzHandler(type, action) {
 			if(action == 'get_all') {
