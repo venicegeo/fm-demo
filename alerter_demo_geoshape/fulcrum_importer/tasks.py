@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from celery import shared_task
+from celery import shared_task, task
 from S3.Exceptions import *
 from S3.S3 import S3
 from S3.Config import Config
@@ -12,15 +12,14 @@ from .fulcrum_importer import FulcrumImporter, process_fulcrum_data
 from django.conf import settings
 from django.core.cache import cache
 import requests
-
-
-@shared_task(name="fulcrum_importer.tasks.print_test")
-def print_test(data):
-    print("Test success: {}.".format(data))
+from hashlib import md5
 
 
 @shared_task(name="fulcrum_importer.tasks.task_update_layers", queue="fulcrum_importer")
 def task_update_layers():
+    #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
+    LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
+
     fulcrum_importer = FulcrumImporter()
     fulcrum_importer.update_all_layers()
 
@@ -30,8 +29,7 @@ def pull_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
 
-    LOCK_EXPIRE = 60 * 30
-
+    LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE SHOULD IS IN SECONDS
 
     try:
         S3_KEY = settings.S3_KEY
@@ -51,8 +49,9 @@ def pull_s3_data():
         cfg.gpg_passphrase = S3_GPG
     s3 = S3(cfg)
     for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
-        lock_id = '{0}-s3-download-lock'.format(file_name)
-        acquire_lock = lambda: cache.add(lock_id, True, LOCK_EXPIRE)
+        file_name_hexdigest = md5(file_name).hexdigest()
+        lock_id = '{0}-lock-{1}'.format(file_name, file_name_hexdigest)
+        acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
         release_lock = lambda: cache.delete(lock_id)
         if acquire_lock():
             try:
