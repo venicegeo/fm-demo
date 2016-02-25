@@ -12,9 +12,11 @@ rm master.zip
 rm -rf master
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
+yum install memcached
 
 
 /var/lib/geonode/bin/pip install fulcrum
+/var/lib/geonode/bin/pip install python-memcached
 grep -qF "INSTALLED_APPS += ('fulcrum_importer',)" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "INSTALLED_APPS += ('fulcrum_importer',)" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
 grep -q '^CELERY_ACCEPT_CONTENT' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_ACCEPT_CONTENT.*/CELERY_ACCEPT_CONTENT=['json']/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_ACCEPT_CONTENT=['json']" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
@@ -81,22 +83,7 @@ grep -qF 'from django.conf import settings' /var/lib/geonode/rogue_geonode/geosh
 grep -qF 'app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)' /var/lib/geonode/rogue_geonode/geoshape/celery_app.py || echo "app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)" >> /var/lib/geonode/rogue_geonode/geoshape/celery_app.py
 
 #add to /etc/supervisord.conf:
-grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat/" /etc/supervisord.conf
-
-grep -qF '[program:celery-worker6]' /etc/supervisord.conf ||
-printf "[program:celery-worker6]\n\
-command =   /var/lib/geonode/bin/celery worker\n\
-            --app=geoshape.celery_app\n\
-            --uid geoshape\n\
-            --queue=fulcrum_importer,celery\n\
-            --loglevel=info\n\
-            --workdir=/var/lib/geonode/rogue_geonode\n\
-stdout_logfile=/var/log/celery/celery-w6-stdout.log\n\
-stderr_logfile=/var/log/celery/celery-w6-stderr.log\n\
-autostart=true\n\
-autorestart=true\n\
-startsecs=10\n\
-stopwaitsecs=600\n" >> /etc/supervisord.conf
+grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat/" /etc/supervisord.conf
 
 grep -qF '[program:celery-beat]' /etc/supervisord.conf ||
 printf "[program:celery-beat]\n\
