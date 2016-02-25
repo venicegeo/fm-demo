@@ -40,7 +40,7 @@ class FulcrumImporter:
         return layer, created
 
     def update_records(self, form):
-
+        from .tasks import update_tiles
         layer = Layer.objects.get(layer_uid=form.get('id'))
         if not layer:
             print("Layer {} doesn't exist.".format(form.get('id')))
@@ -91,6 +91,7 @@ class FulcrumImporter:
                 upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, layer.layer_name)
                 publish_layer(layer.layer_name)
                 update_geoshape_layers()
+                update_tiles(filtered_features, layer.layer_name)
             layer.layer_date = latest_time
             layer.save()
         print("RESULTS\n---------------")

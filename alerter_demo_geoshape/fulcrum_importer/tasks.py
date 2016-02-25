@@ -101,9 +101,17 @@ def handle_file(s3, file_name, file_size):
     process_fulcrum_data(file_name)
     S3Sync.objects.create(s3_filename=file_name)
 
+def update_tiles(filtered_features, layer_name):
+    for feature in filtered_features.get('features'):
+        if feature.get('geometry').get('type').lower() == 'point':
+            x = feature.get('geometry').get('coordinates')[0]
+            y = feature.get('geometry').get('coordinates')[1]
+            bounds = [str(x - 0.01),str(y - 0.01), str(x + 0.01),str(y + 0.01)]
+            truncate_tiles(bounds=bounds, layer_name=layer_name, srs=4326)
+
 
 @shared_task(name="fulcrum_importer.tasks.truncate_tiles")
-def truncate_tiles(bounds, layer_name=None, srs=900913, **kwargs):
+def truncate_tiles(bounds, layer_name=None, srs=4326, **kwargs):
     """
     Truncates a GWC cache.
 
@@ -126,7 +134,7 @@ def truncate_tiles(bounds, layer_name=None, srs=900913, **kwargs):
 
     payload = json.dumps({'seedRequest': params})
 
-    url = '{0}/gwc/rest/seed/{1}.json'.format(settings.GEOSERVER_BASE_URL, layer_name)
+    url = 'https://geoshape.dev/geoservers/gwc/rest/seed/{0}.json'.format(layer_name)
     print('Truncating cached tiles in extent: {0}'.format(bounds))
     print('GWC Payload: {0}'.format(payload))
     print('GWC URL: {0}'.format(url))
@@ -136,4 +144,5 @@ def truncate_tiles(bounds, layer_name=None, srs=900913, **kwargs):
                         getattr(settings, 'GEOSERVER_PASSWORD', 'geoserver'),
                         ),
                   headers={'content-type': 'application/json'},
-                  data=payload)
+                  data=payload,
+                  verify=False)
