@@ -14,52 +14,56 @@ from django.core.cache import cache
 import requests
 from hashlib import md5
 
+LOCK_EXPIRE = 60 * 5 # LOCK_EXPIRE SHOULD IS IN SECONDS
 
 @shared_task(name="fulcrum_importer.tasks.task_update_layers", queue="fulcrum_importer")
 def task_update_layers():
+    name = "fulcrum_importer.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
-    LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
-
-    fulcrum_importer = FulcrumImporter()
-    fulcrum_importer.update_all_layers()
-
-
-@shared_task(name="fulcrum_importer.tasks.pull_s3_data", queue="fulcrum_importer")
-def pull_s3_data():
-    #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
-    #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
-
-    LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE SHOULD IS IN SECONDS
-
-    try:
-        S3_KEY = settings.S3_KEY
-        S3_SECRET = settings.S3_SECRET
-    except AttributeError:
-        S3_KEY = None
-        S3_SECRET = None
+    file_name_hexdigest = md5(name).hexdigest()
+    lock_id = '{0}-lock-{1}'.format(name, file_name_hexdigest)
+    acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
+    release_lock = lambda: cache.delete(lock_id)
+    if acquire_lock():
+        try:
+            fulcrum_importer = FulcrumImporter()
+            fulcrum_importer.update_all_layers()
+        finally:
+            release_lock()
 
 
-    try:
-        S3_GPG = settings.S3_GPG
-    except AttributeError:
-        S3_GPG = None
 
-    cfg = Config(configfile=settings.S3_CFG, access_key=S3_KEY, secret_key=S3_SECRET)
-    if S3_GPG:
-        cfg.gpg_passphrase = S3_GPG
-    s3 = S3(cfg)
-    for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
-        file_name_hexdigest = md5(file_name).hexdigest()
-        lock_id = '{0}-lock-{1}'.format(file_name, file_name_hexdigest)
-        acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
-        release_lock = lambda: cache.delete(lock_id)
-        if acquire_lock():
-            try:
-                print("Obtained lock_id:{}".format(lock_id))
-                handle_file(s3, file_name, file_size)
-            finally:
-                release_lock()
-                print("Released lock_id:{}".format(lock_id))
+# @shared_task(name="fulcrum_importer.tasks.pull_s3_data", queue="fulcrum_importer")
+# def pull_s3_data():
+#     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
+#     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
+#
+#     try:
+#         S3_KEY = settings.S3_KEY
+#         S3_SECRET = settings.S3_SECRET
+#     except AttributeError:
+#         S3_KEY = None
+#         S3_SECRET = None
+#
+#     try:
+#         S3_GPG = settings.S3_GPG
+#     except AttributeError:
+#         S3_GPG = None
+#
+#     cfg = Config(configfile=settings.S3_CFG, access_key=S3_KEY, secret_key=S3_SECRET)
+#     if S3_GPG:
+#         cfg.gpg_passphrase = S3_GPG
+#     s3 = S3(cfg)
+#     for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
+#         file_name_hexdigest = md5(file_name).hexdigest()
+#         lock_id = '{0}-lock-{1}'.format(file_name, file_name_hexdigest)
+#         acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
+#         release_lock = lambda: cache.delete(lock_id)
+#         if acquire_lock():
+#             try:
+#                 handle_file(s3, file_name, file_size)
+#             finally:
+#                 release_lock()
 
 
 def list_bucket_files(s3, bucket):
@@ -91,8 +95,8 @@ def s3_download(s3, uri, file_name, file_size):
 
 
 def handle_file(s3, file_name, file_size):
-    if 'N-Z' not in file_name:
-        return
+    # if 'N-Z' not in file_name:
+    #     return
     if is_loaded(file_name):
         return
     print(str(s3_download(s3, S3Uri("s3://{}/{}".format(settings.S3_BUCKET,file_name)), file_name, file_size)))
@@ -106,7 +110,7 @@ def update_tiles(filtered_features, layer_name):
             x = feature.get('geometry').get('coordinates')[0]
             y = feature.get('geometry').get('coordinates')[1]
             bounds = [str(x - 0.01),str(y - 0.01), str(x + 0.01),str(y + 0.01)]
-            truncate_tiles(bounds=bounds, layer_name=layer_name, srs=4326)
+            truncate_tiles.delay(bounds=bounds, layer_name=layer_name, srs=4326)
 
 
 @shared_task(name="fulcrum_importer.tasks.truncate_tiles")
