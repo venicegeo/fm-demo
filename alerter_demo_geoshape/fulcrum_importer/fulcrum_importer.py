@@ -297,11 +297,14 @@ def upload_geojson(file_path=None, geojson=None):
     else:
         raise "upload_geojson() must take file_path OR features"
 
+    print geojson
     geojson, filtered_count = filter_features(geojson)
-    features = geojson.get('features')
-    uploads = []
-    if not features:
+    if geojson.get('features'):
+        features = geojson.get('features')
+    else:
         return
+
+    uploads = []
     count = 0
     for feature in features:
         for asset_type in ['photos', 'videos', 'audio']:
