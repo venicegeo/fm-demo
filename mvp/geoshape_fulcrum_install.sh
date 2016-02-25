@@ -44,6 +44,17 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'args': None\n\
     },\n\
 \n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+grep -q '^USE_TZ' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^USE_TZ.*/USE_TZ = False/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "USE_TZ = False" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+grep -q '^TIME_ZONE' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^TIME_ZONE.*/TIME_ZONE = None/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "TIME_ZONE = None" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+grep -q "^CACHES =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
+printf "CACHES = {\n\
+     'default': {\n\
+         'BACKEND':\n\
+         'django.core.cache.backends.memcached.MemcachedCache',\n\
+         'LOCATION': '127.0.0.1:11211',\n\
+     }\n\
+}\n\" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 

@@ -5,4 +5,5 @@ sudo -u geoshape psql -d geoshape -c "drop table fulcrum_importer_links_id_seq c
 sudo -u geoshape psql -d geoshape -c "drop table fulcrum_importer_asset cascade"
 sudo -u geoshape psql -d geoshape -c "drop table fulcrum_importer_feature cascade"
 sudo -u geoshape psql -d geoshape -c "drop table fulcrum_importer_s3 cascade"
+sudo -u geoshape psql -d geoshape -c "drop table fulcrum_importer_s3sync cascade"
 /var/lib/geonode/bin/python /var/lib/geonode/rogue_geonode/manage.py syncdb
