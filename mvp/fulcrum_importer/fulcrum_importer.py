@@ -522,7 +522,7 @@ def publish_layer(layer_name):
     url = "http://localhost:8080/geoserver/rest"
     workspace_name = "geonode"
     workspace_uri = "http://www.geonode.org/"
-    datastore_name = "{}_data".format(settings.FULCRUM_DATABASE_NAME)
+    datastore_name = "{}".format(settings.FULCRUM_DATABASE_NAME)
     host = "localhost"
     port = "5432"
     database = settings.FULCRUM_DATABASE_NAME
