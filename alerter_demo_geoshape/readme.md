@@ -42,6 +42,14 @@ Then run the command:
 sudo geoshape-config init "geoshape.dev"
 ```
 
+##Known Issues
+
+- Downloading from S3 doesn't work, celery threads need to be properly managed.
+- Images are dumped into the fileserver folder, however they may be better presented in mediaroot.
+- Sometimes duplicate points are allowed in the same layer.
+- Tiles need to be dumped from GeoWebCache based on feature location.  Testing was done to ensure this is NOT a browser issue but rather a server issue.
+- Unit tests need to be done.
+- An installer should be created and versioned.
 
 ## Bugs
 
