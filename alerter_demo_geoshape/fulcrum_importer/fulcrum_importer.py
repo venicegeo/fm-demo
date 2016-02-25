@@ -226,6 +226,7 @@ def filter_features(features):
 
     return filtered_features, filtered_feature_count
 
+
 def save_file(f, file_path):
     from django.conf import settings
     import os
@@ -252,6 +253,7 @@ def unzip_file(file_path):
     import zipfile
     # http://stackoverflow.com/questions/12886768/how-to-unzip-file-in-python-on-all-oses
 
+    print("Unzipping the file: {}".format(file_path))
     with zipfile.ZipFile(file_path) as zf:
         for member in zf.infolist():
             # Path traversal defense copied from
@@ -442,6 +444,7 @@ def update_geoshape_layers():
         DEVNULL = open(os.devnull, 'wb')
         subprocess.Popen(execute, env=env,stdout=DEVNULL, stderr=DEVNULL)
 
+
 def upload_to_postgis(feature_data, user, database, table):
     import json
     import subprocess
@@ -507,6 +510,7 @@ def upload_to_postgis(feature_data, user, database, table):
 
     except subprocess.CalledProcessError:
         pass
+
 
 def publish_layer(layer_name):
     from geoserver.catalog import Catalog

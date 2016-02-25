@@ -24,7 +24,9 @@ grep -q '^CELERY_SEND_EVENTS' /var/lib/geonode/rogue_geonode/geoshape/settings.p
 grep -q '^CELERYBEAT_USER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_USER.*/CELERYBEAT_USER='geoshape'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_USER='geoshape'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_GROUP' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_GROUP.*/CELERYBEAT_GROUP='geoservice'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_GROUP='geoservice'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_SCHEDULER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_SCHEDULER.*/CELERYBEAT_SCHEDULER='djcelery\.schedulers\.DatabaseScheduler'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_SCHEDULER='djcelery.schedulers.DatabaseScheduler'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
-grep -q '^CELERY_ROUTES' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_ROUTES.*/CELERY_ROUTES=\{'fulcrum_importer\.tasks\.task_update_layers'\: \{'queue'\: 'fulcrum_importer'\}\}/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_ROUTES = {'fulcrum_importer.tasks.task_update_layers': {'queue': 'fulcrum_importer'}}" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+grep -q '^CELERY_ROUTES' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERY_ROUTES.*/CELERY_ROUTES = \{'fulcrum_importer\.tasks\.pull_s3_data'\: \{'queue'\: 'fulcrum_importer'\}, 'fulcrum_importer\.tasks\.task_update_layers'\: \{'queue'\: 'fulcrum_importer'\}\}
+/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERY_ROUTES = {'fulcrum_importer.tasks.pull_s3_data': {'queue': 'fulcrum_importer'}, 'fulcrum_importer.tasks.task_update_layers': {'queue': 'fulcrum_importer'}}
+" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "from datetime import timedelta" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "from datetime import timedelta" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "^CELERYBEAT_SCHEDULE =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
 printf "CELERYBEAT_SCHEDULE = {\n\
@@ -32,7 +34,13 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'task': 'fulcrum_importer.tasks.task_update_layers',\n\
         'schedule': timedelta(seconds=30),\n\
         'args': None\n\
-    },\n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+    },\n\
+	'pull_s3_data_60_secs': {\n\
+        'task': 'fulcrum_importer.tasks.pull_s3_data',\n\
+        'schedule': timedelta(seconds=60),\n\
+        'args': None\n\
+    },\n\
+\n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 
