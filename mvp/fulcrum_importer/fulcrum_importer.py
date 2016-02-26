@@ -4,7 +4,7 @@ from django.core.cache import cache
 import requests
 from .models import Layer
 from dateutil import parser
-# from celery import Celery
+from celery.execute import send_task
 
 
 class FulcrumImporter:
@@ -91,7 +91,7 @@ class FulcrumImporter:
                 upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, layer.layer_name)
                 publish_layer(layer.layer_name)
                 update_geoshape_layers()
-                update_tiles(filtered_features, layer.layer_name)
+                send_task('fulcrum_importer.tasks.task_update_tiles',(filtered_features, layer.layer_name))
             layer.layer_date = latest_time
             layer.save()
         print("RESULTS\n---------------")
@@ -187,6 +187,7 @@ def process_fulcrum_data(f):
         for folder, subs, files in os.walk(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])):
             for filename in files:
                 if '.geojson' in filename:
+                    print("Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename))))
                     upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)))
                     layers += [os.path.splitext(filename)[0]]
         delete_folder(os.path.splitext(file_path)[0])
@@ -252,23 +253,10 @@ def unzip_file(file_path):
     from django.conf import settings
     import os
     import zipfile
-    # http://stackoverflow.com/questions/12886768/how-to-unzip-file-in-python-on-all-oses
 
     print("Unzipping the file: {}".format(file_path))
     with zipfile.ZipFile(file_path) as zf:
         zf.extractall(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0]))
-        # for member in zf.infolist():
-        #     # Path traversal defense copied from
-        #     # http://hg.python.org/cpython/file/tip/Lib/http/server.py#l789
-        #     words = member.filename.split('/')
-        #     path = os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])
-        #     for word in words[:-1]:
-        #         drive, word = os.path.splitdrive(word)
-        #         head, word = os.path.split(word)
-        #         if word in (os.curdir, os.pardir, ''): continue
-        #         path = os.path.join(path, word)
-        #     zf.extract(member, path)
-
 
 def delete_folder(file_path):
     import shutil
@@ -296,7 +284,6 @@ def upload_geojson(file_path=None, geojson=None):
         with open(file_path) as data_file:
             geojson = json.load(data_file)
             from_file = True
-            print("Uploading geojson from file:{}".format(file_path))
     else:
         raise "upload_geojson() must take file_path OR features"
 
@@ -398,8 +385,8 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
         print "Asset already created."
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
-        if settings.GEOSHAPE_MEDIA_URL:
-            return'{}{}.{}'.format(settings.GEOSHAPE_MEDIA_URL,asset_uid,get_type_extension(asset_type))
+        if settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"):
+            return'{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),asset_uid,get_type_extension(asset_type))
         else:
             return asset.asset_data.url
 
@@ -420,7 +407,7 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
                 asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
                                       File(open_file))
         else:
-            print("The file {} was not included in the archive.".format(file_path))
+            print("The file {} was not found, and is most likely missing from the archive.".format(file_path))
             return None, False
     return asset, created
 

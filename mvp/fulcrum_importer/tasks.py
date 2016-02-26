@@ -16,20 +16,20 @@ from hashlib import md5
 
 LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE SHOULD IS IN SECONDS
 
-# @shared_task(name="fulcrum_importer.tasks.task_update_layers", queue="fulcrum_importer")
-# def task_update_layers():
-#     name = "fulcrum_importer.tasks.task_update_layers"
-#     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
-#     file_name_hexdigest = md5(name).hexdigest()
-#     lock_id = '{0}-lock-{1}'.format(name, file_name_hexdigest)
-#     acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
-#     release_lock = lambda: cache.delete(lock_id)
-#     if acquire_lock():
-#         try:
-#             fulcrum_importer = FulcrumImporter()
-#             fulcrum_importer.update_all_layers()
-#         finally:
-#             release_lock()
+@shared_task(name="fulcrum_importer.tasks.task_update_layers", queue="fulcrum_importer")
+def task_update_layers():
+    name = "fulcrum_importer.tasks.task_update_layers"
+    #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
+    file_name_hexdigest = md5(name).hexdigest()
+    lock_id = '{0}-lock-{1}'.format(name, file_name_hexdigest)
+    acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
+    release_lock = lambda: cache.delete(lock_id)
+    if acquire_lock():
+        try:
+            fulcrum_importer = FulcrumImporter()
+            fulcrum_importer.update_all_layers()
+        finally:
+            release_lock()
 
 
 
@@ -106,14 +106,14 @@ def handle_file(s3, file_name, file_size):
     S3Sync.objects.create(s3_filename=file_name)
 
 
-@shared_task(name="fulcrum_importer.tasks.update_tiles")
+@shared_task(name="fulcrum_importer.tasks.task_update_tiles")
 def update_tiles(filtered_features, layer_name):
     for feature in filtered_features.get('features'):
         if feature.get('geometry').get('type').lower() == 'point':
             x = feature.get('geometry').get('coordinates')[0]
             y = feature.get('geometry').get('coordinates')[1]
             bounds = [str(x - 0.01),str(y - 0.01), str(x + 0.01),str(y + 0.01)]
-            truncate_tiles.delay(bounds=bounds, layer_name=layer_name, srs=4326)
+            truncate_tiles(bounds=bounds, layer_name=layer_name, srs=4326)
 
 
 def truncate_tiles(bounds, layer_name=None, srs=4326, **kwargs):
