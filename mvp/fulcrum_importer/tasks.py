@@ -38,6 +38,7 @@ def pull_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
 
+    name = "fulcrum_importer.tasks.pull_s3_data"
     try:
         S3_KEY = settings.S3_KEY
         S3_SECRET = settings.S3_SECRET
@@ -54,8 +55,8 @@ def pull_s3_data():
     if S3_GPG:
         cfg.gpg_passphrase = S3_GPG
     s3 = S3(cfg)
-    file_name_hexdigest = md5(file_name).hexdigest()
-    lock_id = '{0}-lock-{1}'.format(file_name, file_name_hexdigest)
+    file_name_hexdigest = md5(name).hexdigest()
+    lock_id = '{0}-lock-{1}'.format(name, file_name_hexdigest)
     acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
     release_lock = lambda: cache.delete(lock_id)
     if acquire_lock():
@@ -104,6 +105,8 @@ def handle_file(s3, file_name, file_size):
     process_fulcrum_data(file_name)
     S3Sync.objects.create(s3_filename=file_name)
 
+
+@shared_task(name="fulcrum_importer.tasks.update_tiles")
 def update_tiles(filtered_features, layer_name):
     for feature in filtered_features.get('features'):
         if feature.get('geometry').get('type').lower() == 'point':
@@ -113,7 +116,6 @@ def update_tiles(filtered_features, layer_name):
             truncate_tiles.delay(bounds=bounds, layer_name=layer_name, srs=4326)
 
 
-@shared_task(name="fulcrum_importer.tasks.truncate_tiles")
 def truncate_tiles(bounds, layer_name=None, srs=4326, **kwargs):
     """
     Truncates a GWC cache.

@@ -300,6 +300,8 @@ def upload_geojson(file_path=None, geojson=None):
 
     print geojson
     geojson, filtered_count = filter_features(geojson)
+    if not geojson:
+        return
     if geojson.get('features'):
         features = geojson.get('features')
     else:
@@ -321,8 +323,10 @@ def upload_geojson(file_path=None, geojson=None):
                                                            os.path.dirname(file_path))
                     if asset:
                         if asset.asset_data:
-                            if settings.GEOSHAPE_MEDIA_URL:
-                                urls += ['{}{}.{}'.format(settings.GEOSHAPE_MEDIA_URL,asset_uid,get_type_extension(asset_type))]
+                            if settings.FILESERVICE_CONFIG.get('url_template'):
+                                urls += ['{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),
+                                                          asset_uid,
+                                                          get_type_extension(asset_type))]
                             else:
                                 urls += [asset.asset_data.url]
                     else:

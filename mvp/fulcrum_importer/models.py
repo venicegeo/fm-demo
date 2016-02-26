@@ -19,7 +19,8 @@ from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
 
-fs = FileSystemStorage(location=settings.FULCRUM_ASSETS)
+fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
+
 
 def get_asset_name(instance, filename):
     return './{}.{}'.format(instance.asset_uid, get_type_extension(instance.asset_type))
