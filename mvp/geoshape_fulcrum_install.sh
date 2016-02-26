@@ -43,7 +43,7 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'schedule': timedelta(seconds=60),\n\
         'args': None\n\
     },\n\
-\n}\n " >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+\n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^USE_TZ' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^USE_TZ.*/USE_TZ = False/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "USE_TZ = False" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^TIME_ZONE' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^TIME_ZONE.*/TIME_ZONE = None/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "TIME_ZONE = None" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "^CACHES =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
@@ -73,7 +73,7 @@ grep -qF 'from django.conf import settings' /var/lib/geonode/rogue_geonode/geosh
 grep -qF 'app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)' /var/lib/geonode/rogue_geonode/geoshape/celery_app.py || echo "app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)" >> /var/lib/geonode/rogue_geonode/geoshape/celery_app.py
 
 #add to /etc/supervisord.conf:
-grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat/" /etc/supervisord.conf
+grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat/" /etc/supervisord.conf
 
 grep -qF '[program:celery-beat]' /etc/supervisord.conf ||
 printf "[program:celery-beat]\n\
