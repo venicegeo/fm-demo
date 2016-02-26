@@ -43,7 +43,7 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'schedule': timedelta(seconds=60),\n\
         'args': None\n\
     },\n\
-\n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+\n}\n " >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^USE_TZ' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^USE_TZ.*/USE_TZ = False/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "USE_TZ = False" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^TIME_ZONE' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^TIME_ZONE.*/TIME_ZONE = None/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "TIME_ZONE = None" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "^CACHES =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
