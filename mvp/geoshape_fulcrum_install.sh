@@ -4,9 +4,9 @@
 #add to /var/lib/geonode/rogue_geonode/geoshape/settings.py: 
 cd ~
 yum install unzip -y
-wget https://github.com/venicegeo/fm-demo/archive/master.zip
+wget https://github.com/venicegeo/fm-mvp/archive/master.zip
 unzip master.zip
-mv -f fm-demo-master/alerter_demo_geoshape/fulcrum_importer /var/lib/geonode/lib/python2.7/site-packages/
+mv -f fm-mvp-master/mvp/fulcrum_importer /var/lib/geonode/lib/python2.7/site-packages/
 chown geoshape:geoservice -R /var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer
 rm master.zip
 rm -rf master
