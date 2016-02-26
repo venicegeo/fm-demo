@@ -13,6 +13,7 @@ rm -rf master
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
 yum install memcached -y
+service memcached start
 chkconfig memcached on
 
 
