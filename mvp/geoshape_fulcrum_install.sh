@@ -4,15 +4,15 @@
 #add to /var/lib/geonode/rogue_geonode/geoshape/settings.py: 
 cd ~
 yum install unzip -y
-wget https://github.com/venicegeo/fm-demo/archive/master.zip
+wget https://github.com/venicegeo/fm-mvp/archive/master.zip
 unzip master.zip
-mv -f fm-demo-master/alerter_demo_geoshape/fulcrum_importer /var/lib/geonode/lib/python2.7/site-packages/
+mv -f fm-mvp-master/mvp/fulcrum_importer /var/lib/geonode/lib/python2.7/site-packages/
 chown geoshape:geoservice -R /var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer
 rm master.zip
 rm -rf master
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
-yum install memcached
+yum install memcached -y
 chkconfig memcached on
 
 
@@ -61,30 +61,6 @@ printf "CACHES = {\n\
 grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_UPLOAD.*/FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^FULCRUM_ASSETS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_ASSETS='/var/lib/geoserver_data/file-service-store'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^GEOSHAPE_MEDIA_URL' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "GEOSHAPE_MEDIA_URL='api/fileservice/view/'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-
-function getFulcrumApiKey() {
-	echo "Enter Fulcrum Username:"
-	read username
-	echo "Enter Fulcrum Password:"
-	read -s password
-
-	echo "Getting Fulcrum API Key..."
-	## get json, find api token key/value, delete the quotes and then delete the key
-	apiToken=`curl -sL --user "$username:$password" https://api.fulcrumapp.com/api/v2/users.json | grep -o '"api_token":"[^"]*"' | sed -e 's/"//g' | sed -e 's/api_token://g'`
-
-        if [ "$apiToken" != "" ]; then
-		echo "Success!!!"
-        else
-                echo "Sorry, your Fulcrum API Key wasn't found. :("
-        fi
-
-	## if the token isn't found, it will just print blanks anyway
-	echo "FULCRUM_API_KEY='$apiToken'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-}
-grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
-
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
 grep -qF 'from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls' /var/lib/geonode/rogue_geonode/geoshape/urls.py || 
@@ -95,7 +71,7 @@ grep -qF 'from django.conf import settings' /var/lib/geonode/rogue_geonode/geosh
 grep -qF 'app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)' /var/lib/geonode/rogue_geonode/geoshape/celery_app.py || echo "app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)" >> /var/lib/geonode/rogue_geonode/geoshape/celery_app.py
 
 #add to /etc/supervisord.conf:
-grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-worker6,celery-beat/" /etc/supervisord.conf
+grep -qF 'programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat' /etc/supervisord.conf || sed -i "s/^programs.*/programs=uwsgi,celery-worker1,celery-worker2,celery-worker3,celery-worker4,celery-worker5,celery-beat/" /etc/supervisord.conf
 
 grep -qF '[program:celery-beat]' /etc/supervisord.conf ||
 printf "[program:celery-beat]\n\
