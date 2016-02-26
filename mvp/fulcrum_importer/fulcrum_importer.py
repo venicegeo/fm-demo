@@ -256,17 +256,18 @@ def unzip_file(file_path):
 
     print("Unzipping the file: {}".format(file_path))
     with zipfile.ZipFile(file_path) as zf:
-        for member in zf.infolist():
-            # Path traversal defense copied from
-            # http://hg.python.org/cpython/file/tip/Lib/http/server.py#l789
-            words = member.filename.split('/')
-            path = os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])
-            for word in words[:-1]:
-                drive, word = os.path.splitdrive(word)
-                head, word = os.path.split(word)
-                if word in (os.curdir, os.pardir, ''): continue
-                path = os.path.join(path, word)
-            zf.extract(member, path)
+        zf.extractall(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0]))
+        # for member in zf.infolist():
+        #     # Path traversal defense copied from
+        #     # http://hg.python.org/cpython/file/tip/Lib/http/server.py#l789
+        #     words = member.filename.split('/')
+        #     path = os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])
+        #     for word in words[:-1]:
+        #         drive, word = os.path.splitdrive(word)
+        #         head, word = os.path.split(word)
+        #         if word in (os.curdir, os.pardir, ''): continue
+        #         path = os.path.join(path, word)
+        #     zf.extract(member, path)
 
 
 def delete_folder(file_path):
@@ -295,6 +296,7 @@ def upload_geojson(file_path=None, geojson=None):
         with open(file_path) as data_file:
             geojson = json.load(data_file)
             from_file = True
+            print("Uploading geojson from file:{}".format(file_path))
     else:
         raise "upload_geojson() must take file_path OR features"
 
@@ -311,7 +313,7 @@ def upload_geojson(file_path=None, geojson=None):
     count = 0
     for feature in features:
         for asset_type in ['photos', 'videos', 'audio']:
-            if(from_file and feature.get('properties').get(asset_type)):
+            if from_file and feature.get('properties').get(asset_type):
                 urls = []
                 if type(feature.get('properties').get(asset_type)) == list:
                     asset_uids = feature.get('properties').get(asset_type)
@@ -324,6 +326,7 @@ def upload_geojson(file_path=None, geojson=None):
                     if asset:
                         if asset.asset_data:
                             if settings.FILESERVICE_CONFIG.get('url_template'):
+                                print asset.asset_data.path
                                 urls += ['{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),
                                                           asset_uid,
                                                           get_type_extension(asset_type))]
@@ -332,7 +335,7 @@ def upload_geojson(file_path=None, geojson=None):
                     else:
                         urls += ['Import Needed.']
                 feature['properties']['{}_url'.format(asset_type)] = urls
-            elif(from_file and not feature.get('properties').get(asset_type)):
+            elif from_file and not feature.get('properties').get(asset_type):
                 feature['properties'][asset_type] = None
                 feature['properties']['{}_url'.format(asset_type)] = None
         layer = write_layer(os.path.basename(os.path.dirname(file_path)))
@@ -400,6 +403,7 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
         else:
             return asset.asset_data.url
 
+
 def write_asset_from_file(asset_uid, asset_type, file_dir):
     from django.core.files import File
     import os
@@ -411,12 +415,12 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
     if created:
         if not os.path.exists(settings.MEDIA_ROOT):
             os.mkdir(settings.MEDIA_ROOT)
-        if os.path.exists(file_path):
+        if os.path.isfile(file_path):
             with open(file_path) as open_file:
                 asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
                                       File(open_file))
         else:
-            print("The file {}.{} was not included in the archive.".format(asset_uid, get_type_extension(asset_type)))
+            print("The file {} was not included in the archive.".format(file_path))
             return None, False
     return asset, created
 
