@@ -62,6 +62,27 @@ grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings
 grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 
+function getFulcrumApiKey() {
+	echo "Enter Fulcrum Username:"
+	read username
+	echo "Enter Fulcrum Password:"
+	read -s password
+
+	echo "Getting Fulcrum API Key..."
+	## get json, find api token key/value, delete the quotes and then delete the key
+	apiToken=`curl -sL --user "$username:$password" https://api.fulcrumapp.com/api/v2/users.json | grep -o '"api_token":"[^"]*"' | sed -e 's/"//g' | sed -e 's/api_token://g'`
+
+        if [ "$apiToken" != "" ]; then
+		echo "Success!!!"
+        else
+                echo "Sorry, your Fulcrum API Key wasn't found. :("
+        fi
+
+	## if the token isn't found, it will just print blanks anyway
+	echo "FULCRUM_API_KEY='$apiToken'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+}
+#grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
+
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
 grep -qF 'from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls' /var/lib/geonode/rogue_geonode/geoshape/urls.py || 
 printf "from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls\nurlpatterns += fulcrum_importer_urls" >> /var/lib/geonode/rogue_geonode/geoshape/urls.py
