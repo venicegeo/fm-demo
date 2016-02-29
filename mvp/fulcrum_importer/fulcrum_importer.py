@@ -1,10 +1,19 @@
 from fulcrum import Fulcrum
-from django.conf import settings
 from django.core.cache import cache
-import requests
-from .models import Layer
 from dateutil import parser
 from celery.execute import send_task
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
+import requests
+from .models import Asset, get_type_extension
+import json
+from django.conf import settings
+import os
+from .models import Layer
+from datetime import datetime
+import time
+from geoserver.catalog import Catalog
+import subprocess
 
 
 class FulcrumImporter:
@@ -23,13 +32,13 @@ class FulcrumImporter:
             thread.start()
 
     def run(self, interval):
-        import time
 
         while cache.get(settings.FULCRUM_API_KEY):
             self.update_all_layers()
             time.sleep(interval)
 
     def stop(self):
+
         cache.set(settings.FULCRUM_API_KEY, False)
 
     def get_forms(self):
@@ -40,7 +49,6 @@ class FulcrumImporter:
         return layer, created
 
     def update_records(self, form):
-        from .tasks import update_tiles
         layer = Layer.objects.get(layer_uid=form.get('id'))
         if not layer:
             print("Layer {} doesn't exist.".format(form.get('id')))
@@ -51,19 +59,17 @@ class FulcrumImporter:
         else:
             url_params={'form_id': layer.layer_uid}
         imported_features = self.conn.records.search(url_params=url_params)
-        if imported_features.get('current_page') > imported_features.get('total_pages'):
-            print("Received {} page 0 of 0".format(layer.layer_name))
-        else:
+        if imported_features.get('current_page') <= imported_features.get('total_pages'):
             print("Received {} page {} of {}".format(layer.layer_name,
-                                                imported_features.get('current_page'),
-                                                imported_features.get('total_pages')))
+                                                     imported_features.get('current_page'),
+                                                     imported_features.get('total_pages')))
         temp_features += imported_features.get('records')
         while imported_features.get('current_page') < imported_features.get('total_pages'):
             url_params['page'] = imported_features.get('current_page') + 1
             imported_features = self.conn.records.search(url_params=url_params)
             print("Received {} page {} of {}".format(layer.layer_name,
-                                                imported_features.get('current_page'),
-                                                imported_features.get('total_pages')))
+                                                     imported_features.get('current_page'),
+                                                     imported_features.get('total_pages')))
             temp_features += imported_features.get('records')
 
         imported_geojson = self.convert_to_geojson(temp_features, form)
@@ -78,6 +84,7 @@ class FulcrumImporter:
         uploads = []
 
         if filtered_features:
+            media_keys = find_media_keys(filtered_features.get('features')[0])
             for feature in filtered_features.get('features'):
                 for asset_type in {'photos', 'videos', 'audio'}:
                     if feature.get('properties').get(asset_type):
@@ -88,20 +95,19 @@ class FulcrumImporter:
                 uploads += [feature]
             print "FULCRUM_DATABASE_NAME: {}".format(settings.FULCRUM_DATABASE_NAME)
             if settings.FULCRUM_DATABASE_NAME:
-                upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, layer.layer_name)
+                upload_to_postgis(uploads, layer.layer_name, media_keys)
                 publish_layer(layer.layer_name)
                 update_geoshape_layers()
                 send_task('fulcrum_importer.tasks.task_update_tiles',(filtered_features, layer.layer_name))
             layer.layer_date = latest_time
             layer.save()
-        print("RESULTS\n---------------")
-        print("Total Records Pulled: {}".format(pulled_record_count))
-        print("Total Records Passed Filter: {}".format(filtered_feature_count))
+        if pulled_record_count > 0:
+            print("RESULTS\n---------------")
+            print("Total Records Pulled: {}".format(pulled_record_count))
+            print("Total Records Passed Filter: {}".format(filtered_feature_count))
         return
 
     def get_latest_time(self, new_features, old_layer_time):
-        import time
-
         layer_time = old_layer_time
         for new_feature in new_features.get('features'):
             feature_date = time.mktime(parser.parse(new_feature.get('properties').get('updated_at')).timetuple())
@@ -173,8 +179,6 @@ class FulcrumImporter:
 
 
 def process_fulcrum_data(f):
-    from django.conf import settings
-    import os
 
     layers = []
     try:
@@ -187,6 +191,10 @@ def process_fulcrum_data(f):
         for folder, subs, files in os.walk(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])):
             for filename in files:
                 if '.geojson' in filename:
+                    if 'changesets' in filename:
+                        # Changesets aren't implemented here, they need to be either handled with this file, and/or
+                        # handled implicitly with geogig.
+                        continue
                     print("Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename))))
                     upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename)))
                     layers += [os.path.splitext(filename)[0]]
@@ -195,8 +203,6 @@ def process_fulcrum_data(f):
 
 
 def filter_features(features):
-    import json
-
     try:
         DATA_FILTERS = settings.DATA_FILTERS
     except AttributeError:
@@ -230,33 +236,40 @@ def filter_features(features):
 
 
 def save_file(f, file_path):
-    from django.conf import settings
-    import os
+    """
+
+    Args:
+        f: A url file object.
+        file_path:
+
+    Returns:
+
+    """
+
     if os.path.splitext(file_path)[1] != '.zip':
         return False
     if os.path.exists(file_path):
         return True
-    try:
-        if not os.path.exists(settings.FULCRUM_UPLOAD):
-            os.mkdir(settings.FULCRUM_UPLOAD)
-        with open(file_path, 'wb+') as destination:
-            for chunk in f.chunks():
-                destination.write(chunk)
-    except:
-        print "Failed to save the file: {}".format(f.name)
-        return False
-    print "Saved the file: {}".format(f.name)
+    # try:
+    if not os.path.exists(settings.FULCRUM_UPLOAD):
+        os.mkdir(settings.FULCRUM_UPLOAD)
+        # with open(file_path, 'wb+') as destination:
+        #     for chunk in f.chunks():
+        #         destination.write(chunk)
+    # except:
+    #     print "Failed to save the file: {}".format(f.name)
+    #     return False
+    # print "Saved the file: {}".format(f.name)
     return True
 
 
 def unzip_file(file_path):
-    from django.conf import settings
-    import os
     import zipfile
 
     print("Unzipping the file: {}".format(file_path))
     with zipfile.ZipFile(file_path) as zf:
         zf.extractall(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0]))
+
 
 def delete_folder(file_path):
     import shutil
@@ -264,15 +277,10 @@ def delete_folder(file_path):
 
 
 def delete_file(file_path):
-    import os
     os.remove(file_path)
 
 
 def upload_geojson(file_path=None, geojson=None):
-    import json
-    from django.conf import settings
-    from.models import get_type_extension
-    import os
 
     from_file = False
     if file_path and geojson:
@@ -287,7 +295,6 @@ def upload_geojson(file_path=None, geojson=None):
     else:
         raise "upload_geojson() must take file_path OR features"
 
-    print geojson
     geojson, filtered_count = filter_features(geojson)
     if not geojson:
         return
@@ -298,34 +305,35 @@ def upload_geojson(file_path=None, geojson=None):
 
     uploads = []
     count = 0
+    media_keys = find_media_keys(features[0])
+    file_basename = os.path.splitext(os.path.basename(file_path))[0]
     for feature in features:
-        for asset_type in ['photos', 'videos', 'audio']:
-            if from_file and feature.get('properties').get(asset_type):
+        for media_key in media_keys:
+            if from_file and feature.get('properties').get(media_key):
                 urls = []
-                if type(feature.get('properties').get(asset_type)) == list:
-                    asset_uids = feature.get('properties').get(asset_type)
+                if type(feature.get('properties').get(media_key)) == list:
+                    asset_uids = feature.get('properties').get(media_key)
                 else:
-                    asset_uids = feature.get('properties').get(asset_type).split(',')
+                    asset_uids = feature.get('properties').get(media_key).split(',')
                 for asset_uid in asset_uids:
                     asset, created = write_asset_from_file(asset_uid,
-                                                           asset_type,
+                                                           media_keys[media_key],
                                                            os.path.dirname(file_path))
                     if asset:
                         if asset.asset_data:
                             if settings.FILESERVICE_CONFIG.get('url_template'):
-                                print asset.asset_data.path
                                 urls += ['{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),
                                                           asset_uid,
-                                                          get_type_extension(asset_type))]
+                                                          get_type_extension(media_keys[media_key]))]
                             else:
                                 urls += [asset.asset_data.url]
                     else:
                         urls += ['Import Needed.']
-                feature['properties']['{}_url'.format(asset_type)] = urls
-            elif from_file and not feature.get('properties').get(asset_type):
-                feature['properties'][asset_type] = None
-                feature['properties']['{}_url'.format(asset_type)] = None
-        layer = write_layer(os.path.basename(os.path.dirname(file_path)))
+                feature['properties']['{}_url'.format(media_key)] = urls
+            elif from_file and not feature.get('properties').get(media_key):
+                feature['properties'][media_key] = None
+                feature['properties']['{}_url'.format(media_key)] = None
+        layer = write_layer(file_basename)
         if feature.get('properties').get('fulcrum_id'):
             key_name = 'fulcrum_id'
         else:
@@ -335,16 +343,38 @@ def upload_geojson(file_path=None, geojson=None):
                       feature)
         uploads += [feature]
         count += 1
-    upload_to_postgis(uploads, settings.DATABASE_USER, settings.FULCRUM_DATABASE_NAME, os.path.splitext(os.path.basename(file_path))[0])
-    publish_layer(layer.layer_name)
-    update_geoshape_layers()
+    if upload_to_postgis(uploads, layer.layer_name, media_keys):
+        publish_layer(layer.layer_name)
+        update_geoshape_layers()
+
+
+def find_media_keys(feature):
+    """
+    Args:
+        feature: A single geojson feature as a dict object.
+
+    Returns:
+        A value of keys and types for media fields.
+    """
+    key_map = {}
+    asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
+    for prop_key, prop_val in feature.get('properties').iteritems():
+        for asset_key in asset_types:
+            if ('_url' in prop_key) and (asset_key in prop_val):
+                media_key = prop_key.rstrip("_url")
+                key_map[media_key] = asset_key
+    return key_map
 
 
 def write_layer(name, date=None):
-    from .models import Layer
-    from datetime import datetime
-    import time
+    """
+    Args:
+        name: An SQL compatible string.
+        date: An integer representing the date
 
+    Returns:
+        The layer model object.
+    """
     if not date:
         date = time.mktime(datetime.now().timetuple())
     layer, layer_created = Layer.objects.get_or_create(layer_name=name, defaults={'layer_date': date})
@@ -352,6 +382,16 @@ def write_layer(name, date=None):
 
 
 def write_feature(key, app, feature_data):
+    """
+
+    Args:
+        key: A unique key, presumably the Fulcrum UID.
+        app: The name of the Fulcrum App (AKA the layer).
+        feature_data: The actual feature data as a dict, mapped like a geojson.
+
+    Returns:
+        The feature model object.
+    """
     from .models import Feature
     import json
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
@@ -361,12 +401,17 @@ def write_feature(key, app, feature_data):
 
 
 def write_asset_from_url(asset_uid, asset_type, url=None):
-    from django.core.files import File
-    from django.core.files.temp import NamedTemporaryFile
-    import requests
-    import os
-    from .models import Asset, get_type_extension
-    from django.conf import settings
+    """
+
+    Args:
+        asset_uid: The assigned ID from Fulcrum.
+        asset_type: A string of 'Photos', 'Videos', or 'Audio'.
+        url: A Url where the asset can be downloaded, if blank it tries to download
+        from the fulcrum site based on the UID and type.
+
+    Returns:
+        The new url (provided by the django model FileField) for the asset.
+    """
 
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
     if created:
@@ -382,7 +427,6 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             temp.flush()
             asset.asset_data.save(asset.asset_uid, File(temp))
     else:
-        print "Asset already created."
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
         if settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"):
@@ -392,6 +436,17 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
 
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
+    """
+
+    Args:
+        asset_uid: The assigned ID from Fulcrum.
+        asset_type: A string of 'Photos', 'Videos', or 'Audio'.
+        url: A Url where the asset can be downloaded, if blank it tries to download
+        from the fulcrum site based on the UID and type.
+
+    Returns:
+        A tuple of the asset model object, and a boolean representing 'was created'.
+    """
     from django.core.files import File
     import os
     from .models import Asset, get_type_extension
@@ -411,10 +466,14 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
             return None, False
     return asset, created
 
-def update_geoshape_layers():
-    import subprocess
-    import os
 
+def update_geoshape_layers():
+    """
+        Makes a subprocess call to tell geoshape to make available any new postgis layers.
+
+    Returns:
+        None
+    """
     try:
         GEOSHAPE_SERVER = settings.GEOSHAPE_SERVER
         GEOSHAPE_USER = settings.GEOSHAPE_USER
@@ -444,14 +503,29 @@ def update_geoshape_layers():
         subprocess.Popen(execute, env=env,stdout=DEVNULL, stderr=DEVNULL)
 
 
-def upload_to_postgis(feature_data, user, database, table):
-    import json
-    import subprocess
-    import os
-    from .models import get_type_extension
+def upload_to_postgis(feature_data, table, media_keys):
+    """
+
+    Args:
+        feature_data: A dict mapped as a geojson.
+        table: The name of the layer being added. If exists it will data will be appended,
+            else a new table will be created.
+        media_keys: A dict where the key is the name of a properties field containing
+            a media file, and the value is the type (i.e. {'bldg_pic': 'photos'})
+    Returns:
+        True, if no errors occurred.
+    """
+    datastore_name = "{}".format(settings.FULCRUM_DATABASE_NAME)
+    host = settings.DATABASE_HOST
+    port = settings.DATABASE_PORT
+    database = settings.FULCRUM_DATABASE_NAME
+    password = settings.DATABASE_PASSWORD
+    user = settings.DATABASE_USER
+
     remove_urls = []
     if not feature_data:
-        return
+        return False
+    print("Media keys for layer {}:{}".format(table, media_keys))
     for feature in feature_data:
         for property in feature.get('properties'):
             if not feature.get('properties').get(property):
@@ -475,11 +549,10 @@ def upload_to_postgis(feature_data, user, database, table):
                 del feature['properties'][prop]
             except KeyError:
                 pass
-        if not feature.get('id'):
-            if feature.get('properties').get('name'):
-                feature['id'] = feature.get('properties').get('name')
-            elif feature.get('properties').get('title'):
-                feature['id'] = feature.get('properties').get('title')
+        for media_key, media_val in media_keys.iteritems():
+            if media_val != media_key:
+                new_key = '{}_{}'.format(media_key, media_val)
+                feature['properties'][new_key] = feature.get('properties').get(media_key)
 
     temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
@@ -488,7 +561,11 @@ def upload_to_postgis(feature_data, user, database, table):
 
     with open(temp_file, 'w') as open_file:
         open_file.write(json.dumps(feature_collection))
-    conn_string = "dbname={} user={}".format(database, user)
+    conn_string = "host={} port={} dbname={} user={} password={}".format(host,
+                                                                         port,
+                                                                         database,
+                                                                         user,
+                                                                         password)
     execute_append = ['ogr2ogr',
                       '-f', 'PostgreSQL',
                       '-append',
@@ -504,22 +581,29 @@ def upload_to_postgis(feature_data, user, database, table):
     execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
-        out = subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-        out = subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
-
+        subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
+        subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
+        return True
     except subprocess.CalledProcessError:
-        pass
+        return False
 
 
 def publish_layer(layer_name):
-    from geoserver.catalog import Catalog
+    """
+    Args:
+        layer_name: The name of the table that already exists in postgis,
+         to be published as a layer in geoserver.
+
+    Returns:
+        None
+    """
 
     url = "http://localhost:8080/geoserver/rest"
     workspace_name = "geonode"
     workspace_uri = "http://www.geonode.org/"
     datastore_name = "{}".format(settings.FULCRUM_DATABASE_NAME)
-    host = "localhost"
-    port = "5432"
+    host = settings.DATABASE_HOST
+    port = settings.DATABASE_PORT
     database = settings.FULCRUM_DATABASE_NAME
     password = settings.DATABASE_PASSWORD
     db_type = "postgis"
@@ -555,7 +639,6 @@ def publish_layer(layer_name):
                                                passwd=password,
                                                user=user,
                                                dbtype=db_type)
-
         cat.save(datastore)
 
     # Check if remote layer already exists on local system
@@ -569,6 +652,3 @@ def publish_layer(layer_name):
     if not layer:
         # Publish remote layer
         layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
-        # from multiprocessing import Process
-        # p = Process(target=update_geoshape_layers())
-        # p.start()

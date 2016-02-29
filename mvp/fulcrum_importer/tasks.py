@@ -32,7 +32,6 @@ def task_update_layers():
             release_lock()
 
 
-
 @shared_task(name="fulcrum_importer.tasks.pull_s3_data", queue="fulcrum_importer")
 def pull_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
@@ -90,7 +89,7 @@ def s3_download(s3, uri, file_name, file_size):
             return
     print("Downloading from S3: {}".format(file_name))
     with open(os.path.join(settings.FULCRUM_UPLOAD, file_name), 'wb') as download:
-        response = s3.object_get(uri, download, file_name, start_position = start_pos)
+        response = s3.object_get(uri, download, file_name, start_position = start_pos-8)
     print("Download returned with filesize: {}".format(int(os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name)))))
     return response
 
