@@ -380,7 +380,11 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
-            asset.asset_data.save(asset.asset_uid, File(temp))
+            if is_valid_photo(File(temp)):
+                asset.asset_data.save(asset.asset_uid, File(temp))
+            else:
+                asset.delete()
+                return None
     else:
         print "Asset already created."
         asset = Asset.objects.get(asset_uid=asset_uid)
@@ -410,6 +414,87 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
             print("The file {} was not found, and is most likely missing from the archive.".format(file_path))
             return None, False
     return asset, created
+
+def is_valid_photo(photo_file):
+    # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
+    from PIL import Image
+    from PIL.ExifTags import TAGS, GPSTAGS
+    im = Image.open(photo_file)
+    info = im._getexif()
+    properties = {}
+    if info:
+        for tag, value in info.items():
+            decoded = TAGS.get(tag,tag)
+            if decoded == "GPSInfo":
+                gps_data = {}
+                for t in value:
+                    sub_decoded = GPSTAGS.get(t, t)
+                    gps_data[sub_decoded] = value[t]
+
+                properties[(decoded)] = gps_data
+            elif decoded != "MakerNote":
+                    properties[(decoded)] = (value)
+
+        if "GPSInfo" in properties:
+            gps_info = properties["GPSInfo"]
+
+            try:
+                gps_lat = gps_info["GPSLatitude"]
+                gps_lat_ref = gps_info["GPSLatitudeRef"]
+                gps_long = gps_info["GPSLongitude"]
+                gps_long_ref = gps_info["GPSLongitudeRef"]
+
+            except:
+                print "Could not get lat/long"
+                return False
+
+            lat = convert_to_degrees(gps_lat)
+            if gps_lat_ref != "N":
+                lat = 0 - lat
+
+            long = convert_to_degrees(gps_long)
+            if gps_lat_ref != "E":
+                long = 0 - long
+
+            coords = [round(lat, 6), round(long, 6)]
+
+            features = []
+            feature = {"type": "Feature",
+                    "geometry": {"type": "Point",
+                    "coordinates": [coords[1], coords[0]]
+                    },
+                    "properties": properties
+            }
+            features += [feature]
+            geojson = {"type": "FeatureCollection", "features": features}
+            filtered_features, count = filter_features(geojson)
+            if filtered_features.get('features'):
+                print "Photo passed the filter"
+                return True
+            else:
+                print "Photo did not pass the filter"
+                return False
+        else:
+            print "No GPS info found"
+            return True
+    else:
+        print "No EXIF Info"
+        return True
+
+def convert_to_degrees(value):
+    d0 = value[0][0]
+    d1 = value[0][1]
+    d = float(d0) / float(d1)
+
+    m0 = value[1][0]
+    m1 = value[1][1]
+    m = float(m0) / float(m1)
+
+    s0 = value[2][0]
+    s1 = value[2][1]
+    s = float(s0) / float(s1)
+
+    return d + (m / 60.0) + (s / 3600.0)
 
 def update_geoshape_layers():
     import subprocess
