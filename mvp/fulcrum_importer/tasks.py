@@ -16,7 +16,7 @@ from hashlib import md5
 
 LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE SHOULD IS IN SECONDS
 
-@shared_task(name="fulcrum_importer.tasks.task_update_layers", queue="fulcrum_importer")
+@shared_task(name="fulcrum_importer.tasks.task_update_layers")
 def task_update_layers():
     name = "fulcrum_importer.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
@@ -32,7 +32,7 @@ def task_update_layers():
             release_lock()
 
 
-@shared_task(name="fulcrum_importer.tasks.pull_s3_data", queue="fulcrum_importer")
+@shared_task(name="fulcrum_importer.tasks.pull_s3_data")
 def pull_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
@@ -112,10 +112,11 @@ def update_tiles(filtered_features, layer_name):
             x = feature.get('geometry').get('coordinates')[0]
             y = feature.get('geometry').get('coordinates')[1]
             bounds = [str(x - 0.01),str(y - 0.01), str(x + 0.01),str(y + 0.01)]
-            truncate_tiles(bounds=bounds, layer_name=layer_name, srs=4326)
+            truncate_tiles(bounds=bounds, layer_name=layer_name.lower(), srs=4326)
 
 
 def truncate_tiles(bounds, layer_name=None, srs=4326, **kwargs):
+    import socket
     """
     Truncates a GWC cache.
 
@@ -127,26 +128,34 @@ def truncate_tiles(bounds, layer_name=None, srs=4326, **kwargs):
     See also https://github.com/GeoNode/geonode/issues/1656
     """
     params = kwargs
-    params.setdefault('name', layer_name)
+    params.setdefault('name', 'geonode:{0}'.format(layer_name))
+    print layer_name
     params.setdefault('bounds', {'coords': {'double': bounds}})
+    print bounds
     params.setdefault('srs', {'number': srs})
-    params.setdefault('zoomStart', 1)
-    params.setdefault('zoomStop', 21)
+    print srs
+    params.setdefault('zoomStart', 00)
+    params.setdefault('zoomStop', 30)
     params.setdefault('format', 'image/png')
     params.setdefault('type', 'truncate')
     params.setdefault('threadCount', 4)
 
     payload = json.dumps({'seedRequest': params})
-
-    url = 'https://geoshape.dev/geoservers/gwc/rest/seed/{0}.json'.format(layer_name)
+    try:
+        hostname = socket.gethostname()
+        print hostname
+    except:
+        print "Could not get hostname"
+        hostname = 'https://geoshape.dev'
+    url = 'https://{0}/geoserver/gwc/rest/seed/geonode:{1}.json'.format(hostname, layer_name)
     print('Truncating cached tiles in extent: {0}'.format(bounds))
     print('GWC Payload: {0}'.format(payload))
     print('GWC URL: {0}'.format(url))
 
-    requests.post(url,
+    print requests.post(url,
                   auth=(getattr(settings, 'GEOSERVER_USERNAME', 'admin'),
                         getattr(settings, 'GEOSERVER_PASSWORD', 'geoserver'),
                         ),
                   headers={'content-type': 'application/json'},
                   data=payload,
-                  verify=False)
+                  verify=False).text
