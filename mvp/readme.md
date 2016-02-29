@@ -31,7 +31,7 @@ vagrant up
 SSH into the VM and run the following commands
 ```
 cd /tmp
-wget https://raw.githubusercontent.com/venicegeo/fm-demo/master/alerter_demo_geoshape/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
+wget https://raw.githubusercontent.com/venicegeo/fm-mvp/master/mvp/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
 sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
 You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
