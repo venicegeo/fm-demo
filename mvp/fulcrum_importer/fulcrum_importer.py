@@ -429,11 +429,15 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
-            if is_valid_photo(File(temp)):
-                asset.asset_data.save(asset.asset_uid, File(temp))
+            print get_type_extension(asset_type)
+            if get_type_extension(asset_type) == 'jpg':
+                if is_valid_photo(File(temp)):
+                    asset.asset_data.save(asset.asset_uid, File(temp))
+                else:
+                    asset.delete()
+                    return None
             else:
-                asset.delete()
-                return None
+                asset.asset_data.save(asset.asset_uid, File(temp))
     else:
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
