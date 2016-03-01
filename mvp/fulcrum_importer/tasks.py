@@ -111,51 +111,46 @@ def update_tiles(filtered_features, layer_name):
         if feature.get('geometry').get('type').lower() == 'point':
             x = feature.get('geometry').get('coordinates')[0]
             y = feature.get('geometry').get('coordinates')[1]
-            bounds = [str(x - 0.01),str(y - 0.01), str(x + 0.01),str(y + 0.01)]
+            bounds = [str(x - 1),str(y - 1),str(x + 1),str(y + 1)]
             truncate_tiles(bounds=bounds, layer_name=layer_name.lower(), srs=4326)
+            truncate_tiles(bounds=bounds, layer_name=layer_name.lower(), srs=900913)
 
 
-def truncate_tiles(bounds, layer_name=None, srs=4326, **kwargs):
+def truncate_tiles(bounds, layer_name=None, srs=None, **kwargs):
     import socket
-    """
-    Truncates a GWC cache.
 
-    :param bounds: Bounds of the area to truncate.
-    :param layer_name: The name of the layer to truncate.
-    :param srs: The spatial reference system.
+    #See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
+    #See also https://github.com/GeoNode/geonode/issues/1656
 
-    See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
-    See also https://github.com/GeoNode/geonode/issues/1656
-    """
     params = kwargs
-    params.setdefault('name', 'geonode:{0}'.format(layer_name))
+    params.setdefault("name", "geonode:{0}".format(layer_name))
     print layer_name
-    params.setdefault('bounds', {'coords': {'double': bounds}})
-    print bounds
-    params.setdefault('srs', {'number': srs})
+    #params.setdefault("bounds", {"coords": {"double": bounds}})
+    #print bounds
+    params.setdefault("srs", {"number": srs})
     print srs
-    params.setdefault('zoomStart', 00)
-    params.setdefault('zoomStop', 30)
-    params.setdefault('format', 'image/png')
-    params.setdefault('type', 'truncate')
-    params.setdefault('threadCount', 4)
+    params.setdefault("zoomStart", 0)
+    params.setdefault("zoomStop", 30)
+    params.setdefault("format", "image/png")
+    params.setdefault("type", "truncate")
+    params.setdefault("threadCount", 4)
 
-    payload = json.dumps({'seedRequest': params})
+    payload = json.dumps({"seedRequest": params})
     try:
         hostname = socket.gethostname()
         print hostname
     except:
         print "Could not get hostname"
-        hostname = 'https://geoshape.dev'
-    url = 'https://{0}/geoserver/gwc/rest/seed/geonode:{1}.json'.format(hostname, layer_name)
-    print('Truncating cached tiles in extent: {0}'.format(bounds))
-    print('GWC Payload: {0}'.format(payload))
-    print('GWC URL: {0}'.format(url))
+        hostname = "https://geoshape.dev"
+    url = "https://{0}/geoserver/gwc/rest/seed/geonode:{1}.json".format(hostname, layer_name)
+    print("Truncating cached tiles in extent: {0}".format(bounds))
+    print("GWC Payload: {0}".format(payload))
+    print("GWC URL: {0}".format(url))
 
     print requests.post(url,
-                  auth=(getattr(settings, 'GEOSERVER_USERNAME', 'admin'),
-                        getattr(settings, 'GEOSERVER_PASSWORD', 'geoserver'),
+                  auth=(getattr(settings, "GEOSERVER_USERNAME", "admin"),
+                        getattr(settings, "GEOSERVER_PASSWORD", "geoserver"),
                         ),
-                  headers={'content-type': 'application/json'},
+                  headers={"content-type": "application/json"},
                   data=payload,
                   verify=False).text
