@@ -360,9 +360,13 @@ def find_media_keys(feature):
     asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
     for prop_key, prop_val in feature.get('properties').iteritems():
         for asset_key in asset_types:
-            if ('_url' in prop_key) and (asset_key in prop_val):
-                media_key = prop_key.rstrip("_url")
-                key_map[media_key] = asset_key
+            if '_url' in prop_key:
+                print('Found url key: {}'.format(prop_key))
+                if asset_key in prop_val:
+                    print('Found {} in {}'.format(asset_key, prop_val))
+                    media_key = prop_key.rstrip("_url")
+                    print("Found media key: {}".format(media_key))
+                    key_map[media_key] = asset_key
     return key_map
 
 
@@ -602,7 +606,6 @@ def upload_to_postgis(feature_data, table, media_keys):
     Returns:
         True, if no errors occurred.
     """
-    datastore_name = "{}".format(settings.FULCRUM_DATABASE_NAME)
     host = settings.DATABASE_HOST
     port = settings.DATABASE_PORT
     database = settings.FULCRUM_DATABASE_NAME
@@ -614,23 +617,23 @@ def upload_to_postgis(feature_data, table, media_keys):
         return False
     print("Media keys for layer {}:{}".format(table, media_keys))
     for feature in feature_data:
-        for property in feature.get('properties'):
-            if not feature.get('properties').get(property):
+        for feat_prop in feature.get('properties'):
+            if not feature.get('properties').get(feat_prop):
                 continue
-            if type(feature.get('properties').get(property)) == list:
-                type_ext = get_type_extension(property)
+            if type(feature.get('properties').get(feat_prop)) == list:
+                type_ext = get_type_extension(feat_prop)
                 if type_ext:
                     props = []
-                    for prop in feature.get('properties').get(property):
+                    for prop in feature.get('properties').get(feat_prop):
                         props += ['{}.{}'.format(prop, type_ext)]
-                    feature['properties'][property] = props
+                    feature['properties'][feat_prop] = props
                 try:
-                    feature['properties'][property] = json.dumps(feature['properties'][property])
+                    feature['properties'][feat_prop] = json.dumps(feature['properties'][feat_prop])
                 except TypeError:
                     #Null arrays are fine.
                     continue
-            if 'url' in str(property):
-                remove_urls += [property]
+            if 'url' in str(feat_prop):
+                remove_urls += [feat_prop]
         for prop in remove_urls:
             try:
                 del feature['properties'][prop]
@@ -638,8 +641,10 @@ def upload_to_postgis(feature_data, table, media_keys):
                 pass
         for media_key, media_val in media_keys.iteritems():
             if media_val != media_key:
-                new_key = '{}_{}'.format(media_key, media_val)
-                feature['properties'][new_key] = feature.get('properties').get(media_key)
+                new_key = '{}_{}'.format(media_val, media_key)
+                media_ext = get_type_extension(media_val)
+                media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
+                feature['properties'][new_key] = json.dumps(media_assets)
 
     temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
