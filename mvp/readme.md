@@ -1,4 +1,4 @@
-\Geoshape-Fulcrum MVP
+#Geoshape-Fulcrum MVP
 
 This is a django application which allows the user to connect to a kafka server and ingest data. If the data is a valid geojson feature it can be displayed on a map.
 
