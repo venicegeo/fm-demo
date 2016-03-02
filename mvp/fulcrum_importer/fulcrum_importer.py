@@ -674,7 +674,7 @@ def upload_to_postgis(feature_data, table, media_keys):
         key_name = 'fulcrum_id'
     else:
         key_name = 'id'
-    execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
+    execute_alter = ['/usr/bin/psql', '-d', database, '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
         subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
