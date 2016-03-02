@@ -18,10 +18,8 @@ change directories to the geoshape-vagrant repo, and install the vagrant hosts u
 ```
 vagrant plugin install vagrant-hostsupdater
 ```
-Add an entry to the Vagrantfile
-```
-config.vm.hostname = "geoshape.dev"
-```
+
+Copy the vagrant files from fm-mvp/vagrant_files into your geoshape-vagrant folder.  Also ensure that your geoshape vagrant folder exists on a large disk since by default the scripts will create a disk with a 500 GB capacity (thin provisioned).  
 
 Bring up the geoshape vm.
 ```
