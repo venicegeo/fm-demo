@@ -10,6 +10,7 @@ mv -f fm-mvp-master/mvp/fulcrum_importer /var/lib/geonode/lib/python2.7/site-pac
 chown geoshape:geoservice -R /var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer
 rm master.zip
 rm -rf master
+
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
 yum install memcached -y
@@ -39,9 +40,9 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'schedule': timedelta(seconds=30),\n\
         'args': None\n\
     },\n\
-	'pull_s3_data_60_secs': {\n\
+	'pull_s3_data_120_secs': {\n\
         'task': 'fulcrum_importer.tasks.pull_s3_data',\n\
-        'schedule': timedelta(seconds=60),\n\
+        'schedule': timedelta(seconds=120),\n\
         'args': None\n\
     },\n\
 \n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
