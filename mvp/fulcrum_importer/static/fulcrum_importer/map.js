@@ -7,25 +7,25 @@
 			}
 
 		var OpenStreetMap = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-			maxZoom : 16,
+			maxZoom : 18,
 			attribution : 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
 			id : 'mapbox.light'
 		});
 		
 		var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-			maxZoom : 16,
+			maxZoom : 18,
 			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
 		});
 		
 		var mini1 = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			minZoom: 0, 
-			maxZoom: 14, 
+			maxZoom: 16, 
 			attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
 		});
 		
 		var mini2 = new L.TileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
 			minZoom: 0,
-			maxZoom: 14,
+			maxZoom: 16,
 			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN , IGP, UPR-EGP, and teh GIS User Community'
 		});
 		
@@ -337,80 +337,54 @@
 		// Adds a popup with information for each point //
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
-				var content = "";
-				
-				// Add alert name //
-				if (e.target.feature.properties.name != null && e.target.feature.properties.name != "") {
-					content += '<p><strong>Name: </strong> ' + e.target.feature.properties.name + '</p>';
-				}
-				else  {
-					content += '<p><strong>Name: </strong>Unavailable</p>';
-				}
-				
-				// Add alert time //
-				if (e.target.feature.properties.time != null && e.target.feature.properties != "") {
-					var time = new Date(e.target.feature.properties.time * 1000);
-					content += '<p><strong>Date: </strong>'+ time + '</p>';
-				}
-				else {
-					content += '<p><strong>Date: </strong>Unavailable</p>';
-				}
-				
-				// Add alert address //
-				if (e.target.feature.properties.address_1 != null && e.target.feature.properties.address_1 != "") {
-					content += '<p><strong>Address: </strong>' + e.target.feature.properties.address_1;
-				}
-				else {
-					content += '<p><strong>Address: </strong>Unavailable';
-				}
-				
-				// Add alert city //
-				if (e.target.feature.properties.city != null && e.target.feature.properties.city != "") {
-					content += '</br><strong>City: </strong>' + e.target.feature.properties.city;
-				}
-				else {
-					content += '</br><strong>City: </strong>Unavailable';
-				}
-				
-				// Add alert country //
-				if (e.target.feature.properties.country != null && e.target.feature.properties.country != "") {
-					content += '</br><strong>Country: </strong>' + e.target.feature.properties.country;
-				}
-				else {
-					content += '</br><strong>Country: </strong>Unavailable';
-				}
-				
-				// close the address, city, country paragraph //
-				content += '</p>';
-				
-				// Add alert photos //
-				if (e.target.feature.properties.photos_url != null && e.target.feature.properties.photos_url != "") {
-					var urlStr = "";
-					for (var url in e.target.feature.properties.photos_url){
-						urlStr += '<p><a href="' + e.target.feature.properties.photos_url[url] + '" target="_blank"><img src="' + e.target.feature.properties.photos_url[url] + '" style="width: 250px; height: 250px;"/></a></p>';
-					};
+				var genericStr = "";
+				var titleStr = "";
+				var idStr = "";
+				var photosStr = "";
+				var audioStr = "";
+				var videosStr = "";
+				for (var property in e.target.feature.properties) {
 					
-					content += urlStr;
-				}
-				
-				// Add alert videos
-				if (e.target.feature.properties.videos_url != null && e.target.feature.properties.videos_url != "") {
-					var urlStr = "";
-					for (var url in e.target.feature.properties.videos_url){
-						urlStr += '<p><video width="250" height="250" controls><source src="' + e.target.feature.properties.videos_url[url] + '" type="video/mp4" target="_blank"></video></p>';
-					};
+					if (String(property).toLowerCase().indexOf('name') > -1 || String(property).toLowerCase().indexOf('title') > -1) {
+						titleStr += '<p><strong>' + property + ':</strong> ' + e.target.feature.properties[property] + '</p>'
+					}
+					else if (String(property).toLowerCase().indexOf('id') == 0){
+						idStr += '<p><strong>' + property + ':</strong> ' + e.target.feature.properties[property] + '</p>'
+					}
+					else if((String(property).indexOf('photos_') > -1 || String(property).indexOf('pic_') > -1 ) && String(property).indexOf('_url') > -1) {
+						if (e.target.feature.properties[property] != null && e.target.feature.properties[property] != "") {
+							var urls = String(e.target.feature.properties[property]).split(",");
+							console.log(urls);
+							for (var url in urls){
+								if(String(urls[url]).indexOf('.jpg') > -1) {
+									photosStr += '<p><a href="' + urls[url] + '" target="_blank"><img src="' + urls[url] + '" style="width: 250px; height: 250px;"/></a></p>';
+								}
+							}
+						}
+					}
 					
-					content += urlStr;
-				}
-				
-				// Add alert audio
-				if (e.target.feature.properties.audio_url != null && e.target.feature.properties.audio_url != "") {
-					var urlStr = "";
-					for (var url in e.target.feature.properties.audio_url){
-						urlStr += '<p><audio controls><source src="' + e.target.feature.properties.audio_url[url] + '" type="audio/mp4"></audio></p>';
-					};
+					else if(String(property).indexOf('videos_') > -1 && String(property).indexOf('_url') > -1) {
+						if (e.target.feature.properties[property] != null && e.target.feature.properties[property] != "") {
+							var urls = String(e.target.feature.properties[property]).split(",");
+							for (var url in urls){
+								videosStr += '<p><video width="250" height="250" controls><source src="' + urls[url] + '" type="video/mp4" target="_blank"></video></p>';
+							}
+						}
+					}
 					
-					content += urlStr;
+					else if(String(property).indexOf('audio_') > -1 && String(property).indexOf('_url') > -1){
+						if (e.target.feature.properties[property] != null && e.target.feature.properties[property] != "") {
+							var urls = String(e.target.feature.properties[property]).split(",");
+							for (var url in urls){
+								audioStr += '<p><audio controls><source src="' + urls[url] + '" type="audio/mp4"></audio></p>';
+							}
+						}
+					}
+					else {
+						if (e.target.feature.properties[property] != null && e.target.feature.properties[property] != "") {
+							genericStr += '<p><strong>' + property + ':</strong> ' + e.target.feature.properties[property] + '</p>';
+						}
+					}
 				}
 				
 				// Get position for popup //
@@ -421,7 +395,7 @@
 					maxHeight: 400,
 					closeOnClick: false,
 					keepInView: true
-				}).setLatLng(coords).setContent(content).openOn(map);
+				}).setLatLng(coords).setContent(titleStr + idStr + genericStr + photosStr + videosStr + audioStr).openOn(map);
 			});
 		}
 		
