@@ -14,10 +14,12 @@ from django.core.cache import cache
 import requests
 from hashlib import md5
 
-LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE SHOULD IS IN SECONDS
 
 @shared_task(name="fulcrum_importer.tasks.task_update_layers")
 def task_update_layers():
+
+    LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
+
     name = "fulcrum_importer.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     file_name_hexdigest = md5(name).hexdigest()
@@ -37,6 +39,8 @@ def pull_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
 
+    LOCK_EXPIRE = 60 * 2160 # LOCK_EXPIRE IS IN SECONDS (i.e. 60*2160 is 1.5 days)
+
     name = "fulcrum_importer.tasks.pull_s3_data"
     try:
         S3_KEY = settings.S3_KEY
@@ -54,10 +58,12 @@ def pull_s3_data():
     if S3_GPG:
         cfg.gpg_passphrase = S3_GPG
     s3 = S3(cfg)
-    file_name_hexdigest = md5(name).hexdigest()
-    lock_id = '{0}-lock-{1}'.format(name, file_name_hexdigest)
+
+    function_name_hexdigest = md5(name).hexdigest()
+    lock_id = '{0}-lock-{1}'.format(name, function_name_hexdigest)
     acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
     release_lock = lambda: cache.delete(lock_id)
+
     if acquire_lock():
         try:
             for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
