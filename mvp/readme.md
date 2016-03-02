@@ -1,4 +1,4 @@
-\Geoshape-Fulcrum MVP
+#Geoshape-Fulcrum MVP
 
 This is a django application which allows the user to connect to a kafka server and ingest data. If the data is a valid geojson feature it can be displayed on a map.
 
@@ -45,7 +45,7 @@ sudo geoshape-config init "geoshape.dev"
 ##Known Issues
 
 - Sometimes duplicate points are allowed in the same layer.
-- Tiles need to be dumped from GeoWebCache based on feature location.  Testing was done to ensure this is NOT a browser issue but rather a server issue.
+- Tiles are completely dumped when a layer is updated.  This is because the GWC bounding box tools was unsuccessful during various attempts even using their built in web tool.  This solution while inefficient is probably ok for static datasets and rarely updated data, as opposed to just not caching tiles at all.
 - Unit tests need to be done.
 - An installer should be created.
 
