@@ -10,6 +10,7 @@ mv -f fm-mvp-master/mvp/fulcrum_importer /var/lib/geonode/lib/python2.7/site-pac
 chown geoshape:geoservice -R /var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer
 rm master.zip
 rm -rf master
+
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
 yum install memcached -y
@@ -30,6 +31,7 @@ grep -q '^CELERY_SEND_EVENTS' /var/lib/geonode/rogue_geonode/geoshape/settings.p
 grep -q '^CELERYBEAT_USER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_USER.*/CELERYBEAT_USER='geoshape'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_USER='geoshape'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_GROUP' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_GROUP.*/CELERYBEAT_GROUP='geoservice'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_GROUP='geoservice'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q '^CELERYBEAT_SCHEDULER' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^CELERYBEAT_SCHEDULER.*/CELERYBEAT_SCHEDULER='djcelery\.schedulers\.DatabaseScheduler'/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "CELERYBEAT_SCHEDULER='djcelery.schedulers.DatabaseScheduler'" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+
 grep -q "from datetime import timedelta" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "from datetime import timedelta" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 grep -q "^CELERYBEAT_SCHEDULE =" /var/lib/geonode/rogue_geonode/geoshape/settings.py ||
 printf "CELERYBEAT_SCHEDULE = {\n\
@@ -38,9 +40,9 @@ printf "CELERYBEAT_SCHEDULE = {\n\
         'schedule': timedelta(seconds=30),\n\
         'args': None\n\
     },\n\
-	'pull_s3_data_60_secs': {\n\
+	'pull_s3_data_120_secs': {\n\
         'task': 'fulcrum_importer.tasks.pull_s3_data',\n\
-        'schedule': timedelta(seconds=60),\n\
+        'schedule': timedelta(seconds=120),\n\
         'args': None\n\
     },\n\
 \n}\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
@@ -61,6 +63,12 @@ printf "CACHES = {\n\
 grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_UPLOAD.*/FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^S3_BUCKET' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_BUCKET.*/S3_BUCKET=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_BUCKET=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^S3_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_KEY.*/S3_KEY=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_KEY=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^S3_SECRET' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_SECRET.*/S3_SECRET=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_SECRET=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^S3_GPG' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_GPG.*/S3_GPG=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_GPG=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+grep -q '^S3_CFG' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_CFG.*/S3_CFG='\/var\/lib\/geonode\/lib\/python2\.7\/site\-packages\/fulcrum_importer\/.s3cfg'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_CFG='/var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer/.s3cfg'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+
 
 function getFulcrumApiKey() {
 	echo "Enter Fulcrum Username:"

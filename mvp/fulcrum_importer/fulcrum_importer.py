@@ -361,11 +361,8 @@ def find_media_keys(feature):
     for prop_key, prop_val in feature.get('properties').iteritems():
         for asset_key in asset_types:
             if '_url' in prop_key:
-                print('Found url key: {}'.format(prop_key))
                 if asset_key in prop_val:
-                    print('Found {} in {}'.format(asset_key, prop_val))
                     media_key = prop_key.rstrip("_url")
-                    print("Found media key: {}".format(media_key))
                     key_map[media_key] = asset_key
     return key_map
 
@@ -619,7 +616,6 @@ def upload_to_postgis(feature_data, table, media_keys):
     remove_urls = []
     if not feature_data:
         return False
-    print("Media keys for layer {}:{}".format(table, media_keys))
     for feature in feature_data:
         for feat_prop in feature.get('properties'):
             if not feature.get('properties').get(feat_prop):
@@ -674,7 +670,7 @@ def upload_to_postgis(feature_data, table, media_keys):
         key_name = 'fulcrum_id'
     else:
         key_name = 'id'
-    execute_alter = ['/usr/bin/psql', '-d', 'fulcrum', '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
+    execute_alter = ['/usr/bin/psql', '-d', database, '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
         subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
