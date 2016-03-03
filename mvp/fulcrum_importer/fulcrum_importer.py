@@ -203,6 +203,7 @@ def process_fulcrum_data(f):
 
 
 def filter_features(features):
+
     try:
         DATA_FILTERS = settings.DATA_FILTERS
     except AttributeError:
@@ -219,11 +220,11 @@ def filter_features(features):
                 filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
             except ValueError:
                 print("Failed to decode json")
-            if filtered_results.get('failed'):
+            if filtered_results.get('failed').get('features'):
                 print("Some features failed the {} filter.".format(filter))
                 # with open('./failed_features.geojson', 'a') as failed_features:
                 #     failed_features.write(json.dumps(filtered_results.get('failed')))
-            if filtered_results.get('passed'):
+            if filtered_results.get('passed').get('features'):
                 filtered_features = filtered_results.get('passed')
                 filtered_feature_count = len(filtered_results.get('passed').get('features'))
             else:
@@ -656,8 +657,9 @@ def upload_to_postgis(feature_data, table, media_keys):
             if media_val != media_key:
                 new_key = '{}_{}'.format(media_val, media_key)
                 media_ext = get_type_extension(media_val)
-                media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
-                feature['properties'][new_key] = json.dumps(media_assets)
+                if feature.get('properties').get(media_key):
+                    media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
+                    feature['properties'][new_key] = json.dumps(media_assets)
 
     temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
