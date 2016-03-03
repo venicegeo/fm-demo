@@ -14,35 +14,31 @@
 from __future__ import absolute_import
 
 from django.test import TestCase
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from ..fulcrum_importer import *
 import inspect
 from ..models import *
+from ..tasks import is_loaded
+
 
 class TasksTests(TestCase):
 
     def setUp(self):
         pass
 
-    # def test_unzip(self):
-    #     """File should be unzipped to a specified directory"""
-    #     test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    #     unzip_file(os.path.join(test_dir, 'unzipped_file'),
-    #                os.path.join(test_dir,
-    #                             os.path.join('sample_data','Fulcrum_Export.zip')))
-    #     self.assertTrue(os.path.exists(os.path.join(test_dir,
-    #                                                 os.path.join('unzipped_file',
-    #                                                              'test2'))))
-
-    def test_write_to_S3(self):
+    def test_store_s3_state(self):
         """
 
         Returns: Passes if S3Sync model exists and is writable and
         prevents duplicates.
         """
         file_name = "Test"
+        self.assertFalse(is_loaded(file_name))
         s3 = S3Sync.objects.create(s3_filename=file_name)
         self.assertIsNotNone(s3)
-
+        self.assertTrue(is_loaded(file_name))
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                S3Sync.objects.create(s3_filename=file_name)
 
 
