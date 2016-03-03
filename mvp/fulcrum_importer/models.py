@@ -43,7 +43,8 @@ class Layer(models.Model):
     layer_name = models.CharField(max_length=100)
     layer_uid = models.CharField(max_length=100)
     layer_date = models.IntegerField(default=0)
-
+    layer_media_keys = models.CharField(max_length=2000,default="{}")
+    
     class Meta:
         unique_together = (("layer_name", "layer_uid"),)
 
