@@ -43,17 +43,32 @@ class FulcrumImporterTests(TestCase):
 
         """
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
-        expected_keymap = {'photos': 'photos','videos': 'videos','audio': 'audio'}
+        expected_keymap = {'pics': 'photos','vids': 'videos','sounds': 'audio'}
         bad_geojson = {'type': 'feature',
-                       'properties': {'pics': '',
-                                      'vids': 'https://api.fulcrumapp.com/api/v2/videos',
-                                      'sounds': ''}}
-
+                       'properties': {'pics_url': '',
+                                      'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                      'sounds_url': ''}}
         good_geojson = {'type': 'feature',
-                       'properties': {'pics': 'https://api.fulcrumapp.com/api/v2/videos',
-                                      'vids': 'https://api.fulcrumapp.com/api/v2/videos',
-                                      'sounds': 'https://api.fulcrumapp.com/api/v2/videos'}}
+                       'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
+                                      'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                      'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
+        self.assertNotEqual(find_media_keys([bad_geojson], example_layer), expected_keymap)
+        self.assertEqual(find_media_keys([good_geojson], example_layer), expected_keymap)
 
-        self.assertNotEqual(find_media_keys(bad_geojson, "example"), expected_keymap)
-        self.assertEqual(find_media_keys(good_geojson, "example"), expected_keymap)
-        self.assertEqual(Layer.objects.get(layer_name="example").layer_media_keys, expected_keymap)
+    def test_layer_media_keys_update(self):
+        example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
+        expected_keymap = {'pics': 'photos','vids': 'videos','sounds': 'audio'}
+        bad_geojson = {'type': 'feature',
+                       'properties': {'pics_url': '',
+                                      'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                      'sounds_url': ''}}
+        good_geojson = {'type': 'feature',
+                       'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
+                                      'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                      'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
+        example_layer.layer_media_keys = find_media_keys([bad_geojson], example_layer)
+        example_layer.save()
+        self.assertNotEqual(example_layer.layer_media_keys, "{}")
+        example_layer.layer_media_keys = find_media_keys([good_geojson], example_layer)
+        example_layer.save()
+        self.assertEqual(example_layer.layer_media_keys, expected_keymap)
