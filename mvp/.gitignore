@@ -16,3 +16,4 @@ celerybeat-schedule
 test.json
 local_settings.py
 setup.py
+mvp/*

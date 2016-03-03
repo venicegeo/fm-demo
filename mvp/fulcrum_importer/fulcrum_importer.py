@@ -305,9 +305,10 @@ def upload_geojson(file_path=None, geojson=None):
 
     uploads = []
     count = 0
-    media_keys = find_media_keys(features[0])
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
     for feature in features:
+        layer = write_layer(file_basename)
+        media_keys = find_media_keys(features, layer)
         for media_key in media_keys:
             if from_file and feature.get('properties').get(media_key):
                 urls = []
@@ -333,7 +334,6 @@ def upload_geojson(file_path=None, geojson=None):
             elif from_file and not feature.get('properties').get(media_key):
                 feature['properties'][media_key] = None
                 feature['properties']['{}_url'.format(media_key)] = None
-        layer = write_layer(file_basename)
         if feature.get('properties').get('fulcrum_id'):
             key_name = 'fulcrum_id'
         else:
@@ -348,22 +348,30 @@ def upload_geojson(file_path=None, geojson=None):
         update_geoshape_layers()
 
 
-def find_media_keys(feature):
+def find_media_keys(features, layer=None):
     """
     Args:
-        feature: A single geojson feature as a dict object.
-
+        features: A single geojson feature as a dict object.
+        layer: The model to update
     Returns:
         A value of keys and types for media fields.
     """
     key_map = {}
     asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
-    for prop_key, prop_val in feature.get('properties').iteritems():
-        for asset_key in asset_types:
-            if '_url' in prop_key:
-                if asset_key in prop_val:
-                    media_key = prop_key.rstrip("_url")
-                    key_map[media_key] = asset_key
+    for feature in features:
+        for prop_key, prop_val in feature.get('properties').iteritems():
+            for asset_key in asset_types:
+                if '_url' in prop_key:
+                    if asset_key in prop_val:
+                        media_key = prop_key.rstrip("_url")
+                        if not key_map[media_key]:
+                            key_map[media_key] = asset_key
+    layer_media_keys = json.loads(layer.layer_media_keys)
+    for key_map_key in key_map:
+        if not layer_media_keys[key_map_key]:
+            layer_media_keys[key_map_key] = key_map.get("key_map_key")
+    layer.layer_media_keys = layer_media_keys
+    layer.save()
     return key_map
 
 
