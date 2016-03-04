@@ -514,7 +514,7 @@ def is_valid_photo(photo_file):
                 lat = 0 - lat
 
             long = convert_to_degrees(gps_long)
-            if gps_lat_ref != "E":
+            if gps_long_ref != "E":
                 long = 0 - long
 
             coords = [round(lat, 6), round(long, 6)]
