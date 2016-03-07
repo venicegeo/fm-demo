@@ -111,8 +111,7 @@ def update_tiles(filtered_features, layer_name):
     truncate_tiles(layer_name=layer_name.lower(), srs=900913)
 
 
-def truncate_tiles(layer_name=None, srs=None, **kwargs):
-    import socket
+def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs):
     #See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
     #See also https://github.com/GeoNode/geonode/issues/1656
     params = kwargs
@@ -128,20 +127,16 @@ def truncate_tiles(layer_name=None, srs=None, **kwargs):
     params.setdefault("threadCount", 4)
 
     payload = json.dumps({"seedRequest": params})
-    try:
-        hostname = socket.gethostname()
-        print hostname
-    except:
-        print "Could not get hostname"
-        hostname = "https://geoshape.dev"
-    url = "https://{0}/geoserver/gwc/rest/seed/geonode:{1}.json".format(hostname, layer_name)
-    print("GWC Payload: {0}".format(payload))
-    print("GWC URL: {0}".format(url))
 
-    print requests.post(url,
+    if not geoserver_base_url:
+        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+
+    url = "{0}/gwc/rest/seed/geonode:{1}.json".format(geoserver_base_url, layer_name)
+
+    requests.post(url,
                   auth=(getattr(settings, "GEOSERVER_USERNAME", "admin"),
                         getattr(settings, "GEOSERVER_PASSWORD", "geoserver"),
                         ),
                   headers={"content-type": "application/json"},
                   data=payload,
-                  verify=False).text
+                  verify=False)
