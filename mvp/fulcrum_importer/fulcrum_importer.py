@@ -514,10 +514,8 @@ def is_valid_photo(photo_file):
             geojson = {"type": "FeatureCollection", "features": features}
             filtered_features, count = filter_features(geojson)
             if filtered_features:
-                print "Photo passed the filter"
                 return True
             else:
-                print "Photo did not pass the filter"
                 return False
         else:
             return True
@@ -542,7 +540,6 @@ def get_gps_info(info):
                     properties[(decoded)] = (value)
         return properties
     else:
-        print "No EXIF Info"
         return None
 
 def get_gps_coords(properties):
@@ -570,7 +567,6 @@ def get_gps_coords(properties):
         coords = [round(lat, 6), round(long, 6)]
         return coords
     else:
-        print "No GPS info found"
         return None
 
 
