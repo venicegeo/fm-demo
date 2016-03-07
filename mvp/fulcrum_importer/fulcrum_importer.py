@@ -500,7 +500,7 @@ def is_valid_photo(photo_file):
         print "Failed to get exif data"
         return True
     properties = get_gps_info(info)
-    if properties:
+    if properties.get('GPSInfo'):
         coords = get_gps_coords(properties)
         if coords:
             features = []
@@ -526,32 +526,26 @@ def is_valid_photo(photo_file):
 def get_gps_info(info):
     from PIL.ExifTags import TAGS, GPSTAGS
     properties = {}
-    if info:
-        for tag, value in info.items():
-            decoded = TAGS.get(tag,tag)
-            if decoded == "GPSInfo":
-                gps_data = {}
-                for t in value:
-                    sub_decoded = GPSTAGS.get(t, t)
-                    gps_data[sub_decoded] = value[t]
+    for tag, value in info.items():
+        decoded = TAGS.get(tag,tag)
+        if decoded == "GPSInfo":
+            gps_data = {}
+            for t in value:
+                sub_decoded = GPSTAGS.get(t, t)
+                gps_data[sub_decoded] = value[t]
 
-                properties[(decoded)] = gps_data
-            elif decoded != "MakerNote":
-                    properties[(decoded)] = (value)
-        return properties
-    else:
-        return None
+            properties[decoded] = gps_data
+        elif decoded != "MakerNote":
+                properties[decoded] = value
+    return properties
 
 def get_gps_coords(properties):
-    if "GPSInfo" in properties:
-        gps_info = properties["GPSInfo"]
-
         try:
+            gps_info = properties["GPSInfo"]
             gps_lat = gps_info["GPSLatitude"]
             gps_lat_ref = gps_info["GPSLatitudeRef"]
             gps_long = gps_info["GPSLongitude"]
             gps_long_ref = gps_info["GPSLongitudeRef"]
-
         except:
             print "Could not get lat/long"
             return None
@@ -566,9 +560,6 @@ def get_gps_coords(properties):
 
         coords = [round(lat, 6), round(long, 6)]
         return coords
-    else:
-        return None
-
 
 
 def convert_to_degrees(value):
