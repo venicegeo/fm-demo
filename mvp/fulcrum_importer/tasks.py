@@ -134,8 +134,8 @@ def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs)
     url = "{0}/gwc/rest/seed/geonode:{1}.json".format(geoserver_base_url, layer_name)
 
     requests.post(url,
-                  auth=(getattr(settings, "GEOSERVER_USERNAME", "admin"),
-                        getattr(settings, "GEOSERVER_PASSWORD", "geoserver"),
+                  auth=(settings.OGC_SERVER['default']['USER'],
+                        settings.OGC_SERVER['default']['PASSWORD'],
                         ),
                   headers={"content-type": "application/json"},
                   data=payload,
