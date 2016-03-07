@@ -50,9 +50,13 @@ class Layer(models.Model):
 
 
 class Feature(models.Model):
-    feature_uid = models.CharField(max_length=100, primary_key=True)
+    feature_uid = models.CharField(max_length=100)
+    feature_version = models.IntegerField(default=0)
     layer = models.ForeignKey(Layer,on_delete=models.CASCADE,default="")
     feature_data = models.CharField(max_length=10000)
+
+    class Meta:
+        unique_together = (("feature_uid", "feature_version"),)
 
 
 class Links(models.Model):

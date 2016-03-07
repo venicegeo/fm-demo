@@ -17,6 +17,8 @@ from django.test import TestCase
 from ..fulcrum_importer import *
 import inspect
 from ..models import *
+import copy
+from django.db import IntegrityError, transaction
 
 class FulcrumImporterTests(TestCase):
 
@@ -72,3 +74,32 @@ class FulcrumImporterTests(TestCase):
         example_layer.layer_media_keys = find_media_keys([good_geojson], example_layer)
         example_layer.save()
         self.assertEqual(example_layer.layer_media_keys, expected_keymap)
+
+    def test_feature_model_for_duplicates(self):
+        example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
+        first_feature = {
+            "type" : "Feature",
+            "properties" : {
+                "fulcrum_id" : "5daf7ab7-e257-48d1-b1e6-0bb049b49d98",
+                "version" : 1,
+            }}
+        second_feature = copy.deepcopy(first_feature)
+        second_feature['properties']['version'] = 2
+        print(str(first_feature))
+        print(str(second_feature))
+        feature1 = Feature.objects.create(layer=example_layer,
+                             feature_uid=first_feature.get('properties').get('fulcrum_id'),
+                             feature_version=first_feature.get('properties').get('version'),
+                             feature_data=json.dumps(first_feature))
+        self.assertIsNotNone(feature1)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Feature.objects.create(layer=example_layer,
+                             feature_uid=first_feature.get('properties').get('fulcrum_id'),
+                             feature_version=first_feature.get('properties').get('version'),
+                             feature_data=json.dumps(first_feature))
+        feature2 = Feature.objects.create(layer=example_layer,
+                     feature_uid=second_feature.get('properties').get('fulcrum_id'),
+                     feature_version=second_feature.get('properties').get('version'),
+                     feature_data=json.dumps(second_feature))
+        self.assertIsNotNone(feature2)

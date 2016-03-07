@@ -14,6 +14,9 @@ from datetime import datetime
 import time
 from geoserver.catalog import Catalog
 import subprocess
+from django.db import connection,connections
+import re
+from osgeo import ogr
 
 
 class FulcrumImporter:
@@ -396,12 +399,13 @@ def write_layer(name, date=None):
     return layer
 
 
-def write_feature(key, app, feature_data):
+def write_feature(key, version, layer, feature_data):
     """
 
     Args:
-        key: A unique key, presumably the Fulcrum UID.
-        app: The name of the Fulcrum App (AKA the layer).
+        key: A unique key as a string, presumably the Fulcrum UID.
+        version: A version number for the feature as an integer, usually provided by Fulcrum.
+        app: The layer model object, which represents the Fulcrum App (AKA the layer).
         feature_data: The actual feature data as a dict, mapped like a geojson.
 
     Returns:
@@ -410,7 +414,8 @@ def write_feature(key, app, feature_data):
     from .models import Feature
     import json
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
-                                                             defaults={'layer': app,
+                                                             feature_version=version,
+                                                             defaults={'layer': layer,
                                                                        'feature_data': json.dumps(feature_data)})
     return feature
 
@@ -508,7 +513,7 @@ def is_valid_photo(photo_file):
 
                 properties[(decoded)] = gps_data
             elif decoded != "MakerNote":
-                    properties[(decoded)] = (value)
+                properties[(decoded)] = (value)
 
         if "GPSInfo" in properties:
             gps_info = properties["GPSInfo"]
@@ -535,11 +540,11 @@ def is_valid_photo(photo_file):
 
             features = []
             feature = {"type": "Feature",
-                    "geometry": {"type": "Point",
-                    "coordinates": [coords[1], coords[0]]
-                    },
-                    "properties": properties
-            }
+                       "geometry": {"type": "Point",
+                                    "coordinates": [coords[1], coords[0]]
+                                    },
+                       "properties": properties
+                       }
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
             filtered_features, count = filter_features(geojson)
@@ -609,7 +614,7 @@ def update_geoshape_layers():
         subprocess.Popen(execute, env=env,stdout=DEVNULL, stderr=DEVNULL)
 
 
-def upload_to_postgis(feature_data, table, media_keys):
+def upload_to_postgis(feature_data, table, media_keys, database=None, database_alias=None):
     """
 
     Args:
@@ -621,15 +626,27 @@ def upload_to_postgis(feature_data, table, media_keys):
     Returns:
         True, if no errors occurred.
     """
-    host = settings.DATABASE_HOST
-    port = settings.DATABASE_PORT
-    database = settings.FULCRUM_DATABASE_NAME
-    password = settings.DATABASE_PASSWORD
-    user = settings.DATABASE_USER
+    if database_alias:
+        database = connections[database_alias].settings_dict.get('NAME')
+    else:
+        database = connection.settings_dict.get('NAME')
+
+    pg_conn_string = "host={host} " \
+                     "port={port} " \
+                     "dbname={database} " \
+                     "user={user} " \
+                     "password={password}".format(host=connection.settings_dict.get('HOST'),
+                                                  port=connection.settings_dict.get('PORT'),
+                                                  database=database,
+                                                  user=connection.settings_dict.get('USER'),
+                                                  password=connection.settings_dict.get('PASSWORD'))
 
     remove_urls = []
     if not feature_data:
         return False
+
+    pg_features = get_all_postgis_features(table, database_alias=database_alias)
+
     for feature in feature_data:
         for feat_prop in feature.get('properties'):
             if not feature.get('properties').get(feat_prop):
@@ -644,7 +661,7 @@ def upload_to_postgis(feature_data, table, media_keys):
                 try:
                     feature['properties'][feat_prop] = json.dumps(feature['properties'][feat_prop])
                 except TypeError:
-                    #Null arrays are fine.
+                    # Null arrays are fine.
                     continue
             if 'url' in str(feat_prop):
                 remove_urls += [feat_prop]
@@ -660,6 +677,8 @@ def upload_to_postgis(feature_data, table, media_keys):
                 if feature.get('properties').get(media_key):
                     media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
                     feature['properties'][new_key] = json.dumps(media_assets)
+        if check_postgis_for_feature(feature, pg_features):
+            update_postgis_feature(feature, table, database_alias=database_alias)
 
     temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
     temp_file = '/'.join(temp_file.split('\\'))
@@ -668,34 +687,154 @@ def upload_to_postgis(feature_data, table, media_keys):
 
     with open(temp_file, 'w') as open_file:
         open_file.write(json.dumps(feature_collection))
-    conn_string = "host={} port={} dbname={} user={} password={}".format(host,
-                                                                         port,
-                                                                         database,
-                                                                         user,
-                                                                         password)
+
+    ogr2ogr_geojson2postgis(geojson_file=temp_file, pg_conn_string=pg_conn_string, table=table, key_name='fulcrum_id')
+
+
+def ogr2ogr_geojson2postgis(geojson_file=None, pg_conn_string=None, table=None, key_name=None):
     execute_append = ['ogr2ogr',
                       '-f', 'PostgreSQL',
                       '-append',
                       '-skipfailures',
-                      'PG:"{}"'.format(conn_string),
-                      temp_file,
+                      'PG:"{}"'.format(pg_conn_string),
+                      geojson_file,
                       '-nln', table]
-
-    if feature_data[0].get('properties').get('fulcrum_id'):
-        key_name = 'fulcrum_id'
-    else:
-        key_name = 'id'
-    execute_alter = ['/usr/bin/psql', '-d', database, '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
     try:
         DEVNULL = open(os.devnull, 'wb')
         subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-        subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
         return True
     except subprocess.CalledProcessError:
         return False
 
+def postgis_add_unique_constraint(database=None, table=None, key_name=None):
 
-def publish_layer(layer_name):
+    if not is_alnum(table):
+        return None
+
+    if database:
+        cur = connections['fulcrum'].cursor()
+    else:
+        cur = connection.cursor()
+
+    query = "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)
+    try:
+        cur.execute(query)
+        features = []
+        fulcrum_id_index = get_column_index('fulcrum_id', cur)
+        ogc_index = get_column_index('ogc_fid', cur)
+        for feature in cur:
+            features += [{'fulcrum_id': feature[fulcrum_id_index],
+                          'ofc_fid':feature[ogc_index],
+                          'feature_data': feature}]
+    finally:
+        cur.close()
+
+
+def load_geometries(geojson, database=None):
+    points = []
+    for feature in geojson.get('features'):
+        points += [ogr.CreateGeometryFromJson(json.dumps(feature.get('geometry')))]
+    return points
+
+
+def check_postgis_for_feature(feature, pg_features=None):
+    fulcrum_id = feature.get('properties'.get('fulcrum_id'))
+    if pg_features.get(fulcrum_id):
+        return feature
+    return None
+
+
+def get_all_postgis_features(layer, database_alias=None):
+
+    if not is_alnum(layer):
+        return None
+
+    if database_alias:
+        cur = connections[database_alias].cursor()
+    else:
+        cur = connection.cursor()
+
+    query = "SELECT * FROM {};".format(layer)
+    try:
+        cur.execute(query)
+        features = {}
+        fulcrum_id_index = get_column_index('fulcrum_id', cur)
+        ogc_index = get_column_index('ogc_fid', cur)
+        for feature in cur:
+            features[feature[fulcrum_id_index]] = {'fulcrum_id': feature[fulcrum_id_index],
+                          'ofc_fid':feature[ogc_index],
+                          'feature_data': feature}
+    finally:
+        cur.close()
+
+    return features
+
+
+def get_column_index(name, cursor):
+    for ind, val in enumerate([desc[0] for desc in cursor.description]):
+        if val == name:
+            return ind
+
+
+def update_postgis_feature(feature, layer, database_alias=None):
+
+    if not is_alnum(layer):
+        return None
+
+    if database_alias:
+        cur = connections[database_alias].cursor()
+    else:
+        cur = connection.cursor()
+
+    new_vals = remove_items(feature.get('properties'),remove=['ogc_id','fulcrum_id'])
+    fulcrum_id = feature.get('properties').get('fulcrum_id')
+
+    update_query = []
+    for key, value in new_vals.iteritems():
+        if not is_alnum(layer):
+            print("The property {} in layer {} was not updated," \
+                  " because it contained a non-alphanumeric or '_'.".format(key,layer))
+            continue
+        update_query += ["{} = {}".format(key,value)]
+
+    query = "UPDATE {} SET {} WHERE fulcrum_id = '{}';".format(layer, ','.join(update_query), fulcrum_id)
+
+    try:
+        cur.execute(query)
+    finally:
+        cur.close()
+
+
+def remove_items(iterable, remove=[]):
+    if type(iterable) == list:
+        items = []
+        for item in iterable:
+            if item not in remove:
+                items += [item]
+    else:
+        items = {}
+        for item in iterable:
+            if item not in remove:
+                items[item] = iterable[item]
+    return items
+
+
+def is_alnum(data):
+    """
+    Used to ensure that only 'safe' data can be used to query data.
+    This should never be a problem since Fulcrum implements the same restrictions.
+
+    Args:
+        data: String of data to be tested.
+
+    Returns:
+        True: if data is only alphanumeric or '_' chars.
+    """
+    if re.match(r'\w+$',data):
+        return True
+
+
+def publish_layer(layer_name, geoserver_base_url=None):
     """
     Args:
         layer_name: The name of the table that already exists in postgis,
@@ -705,7 +844,11 @@ def publish_layer(layer_name):
         None
     """
 
-    url = "http://localhost:8080/geoserver/rest"
+    if not geoserver_base_url:
+        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+        # geoserver_base_url = "http://localhost:8080/geoserver"
+
+    url = "{}/rest".format(geoserver_base_url)
     workspace_name = "geonode"
     workspace_uri = "http://www.geonode.org/"
     datastore_name = "{}".format(settings.FULCRUM_DATABASE_NAME)
@@ -759,3 +902,9 @@ def publish_layer(layer_name):
     if not layer:
         # Publish remote layer
         layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
+        return layer, True
+    else:
+        return layer, False
+    return None, False
+
+
