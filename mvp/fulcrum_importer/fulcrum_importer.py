@@ -440,7 +440,6 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
-            print get_type_extension(asset_type)
             if get_type_extension(asset_type) == 'jpg':
                 if is_valid_photo(File(temp)):
                     asset.asset_data.save(asset.asset_uid, File(temp))
@@ -514,7 +513,7 @@ def is_valid_photo(photo_file):
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
             filtered_features, count = filter_features(geojson)
-            if filtered_features.get('features'):
+            if filtered_features:
                 print "Photo passed the filter"
                 return True
             else:
@@ -570,7 +569,6 @@ def get_gps_coords(properties):
 
         coords = [round(lat, 6), round(long, 6)]
         return coords
-
     else:
         print "No GPS info found"
         return None
