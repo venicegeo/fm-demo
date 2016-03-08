@@ -5,7 +5,6 @@ import requests
 class PzWorkflow:
 
 
-
     def __init__(self, url):
         self.addr = url
         self.map = {'trigger': "/v1/triggers/", 'eventtypes': '/v1/eventtypes/', 'event': "/v1/events/", 'alert': "/v1/alerts/"}
