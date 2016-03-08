@@ -32,6 +32,15 @@ cd /tmp
 wget https://raw.githubusercontent.com/venicegeo/fm-mvp/master/mvp/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
 sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
+
+By default the install script should take care of the following dependencies:
+```
+/var/lib/geonode/bin/pip install fulcrum
+/var/lib/geonode/bin/pip install python-memcached
+/var/lib/geonode/bin/pip install s3cmd
+/var/lib/geonode/bin/pip install Pillow
+```
+
 You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
  file (sudo required).  Additionally in local_settings add in an S3_KEY, S3_SECRET, and an arbitrary S3_GPG value.  The name of an S3 bucket should be provided as well.  If the bucket is s3://my-data then the value should be S3_BUCKET = "my-data".
  
