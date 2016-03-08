@@ -1246,7 +1246,7 @@
 			modal: false,
 			buttons: {
 				"Submit": function() {
-					triggerTitle = $("#triggerTitleID").val()
+					triggerTitle = $("#triggerTitleID").val();
 					triggerType = $("#triggerTypeID").val();
 					triggerCode = $("#triggerCodeID").val();
 					triggerSeverity = $("#triggerSeverityID").val();
@@ -2114,10 +2114,6 @@
 		];
 		
 		var approvedColors = [
-			"#00ffff",
-			"#f0ffff",
-			"#f5f5dc",
-			"#000000",
 			"#0000ff",
 			"#a52a2a",
 			"#00ffff",
