@@ -35,6 +35,8 @@ sudo bash /tmp/geoshape_fulcrum_install.sh
 You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
  file (sudo required).  Additionally in local_settings add in an S3_KEY, S3_SECRET, and an arbitrary S3_GPG value.  The name of an S3 bucket should be provided as well.  If the bucket is s3://my-data then the value should be S3_BUCKET = "my-data".
  
+To allow for geoshape tile truncation on addition of new data, make sure there is a default OGC_SERVER value in the  /var/lib/geonode/rogue_genode/geoshape/local_settings.py file. It should look like OGC_SERVER = { 'default': { 'your settings here'}}
+The setting keys required for tile truncation are USER and PASSWORD. These should correspond to the username/password of your GeoServer.
 
 Add any desired filters to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file. (US geospatial and phone number filters are added by default.)
 Then run the command:
