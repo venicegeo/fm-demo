@@ -342,10 +342,11 @@ def upload_geojson(file_path=None, geojson=None):
             elif from_file and not feature.get('properties').get(media_key):
                 feature['properties'][media_key] = None
                 feature['properties']['{}_url'.format(media_key)] = None
-        if feature.get('properties').get('fulcrum_id'):
-            key_name = 'fulcrum_id'
-        else:
-            key_name = 'id'
+        if not feature.get('properties').get('fulcrum_id'):
+            feature['properties']['fulcrum_id'] = feature.get('properties').get('id')
+
+        key_name = 'fulcrum_id'
+
         write_feature(feature.get('properties').get(key_name),
                       layer,
                       feature)
@@ -614,7 +615,7 @@ def update_geoshape_layers():
         subprocess.Popen(execute, env=env,stdout=DEVNULL, stderr=DEVNULL)
 
 
-def upload_to_postgis(feature_data, table, media_keys, database=None, database_alias=None):
+def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
     """
 
     Args:
@@ -680,18 +681,35 @@ def upload_to_postgis(feature_data, table, media_keys, database=None, database_a
         if check_postgis_for_feature(feature, pg_features):
             update_postgis_feature(feature, table, database_alias=database_alias)
 
-    temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
-    temp_file = '/'.join(temp_file.split('\\'))
+    key_name = 'fulcrum_id'
 
-    feature_collection = {"type": "FeatureCollection", "features": feature_data}
+    ogr2ogr_geojson_to_postgis(geojson_file=geojson_to_file(feature_data[0]),
+                               pg_conn_string=pg_conn_string,
+                               table=table)
 
-    with open(temp_file, 'w') as open_file:
+    postgis_add_unique_constraint(database=database_alias, table=table, key_name=key_name)
+
+    ogr2ogr_geojson_to_postgis(geojson_file=geojson_to_file(feature_data[1:]),
+                               pg_conn_string=pg_conn_string,
+                               table=table)
+
+
+def geojson_to_file(features, file_path=None):
+
+    if not file_path:
+        file_path = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
+        file_path = '/'.join(file_path.split('\\'))
+
+    feature_collection = {"type": "FeatureCollection", "features": features}
+
+    with open(file_path, 'w') as open_file:
         open_file.write(json.dumps(feature_collection))
 
-    ogr2ogr_geojson2postgis(geojson_file=temp_file, pg_conn_string=pg_conn_string, table=table, key_name='fulcrum_id')
+    return file_path
 
 
-def ogr2ogr_geojson2postgis(geojson_file=None, pg_conn_string=None, table=None, key_name=None):
+def ogr2ogr_geojson_to_postgis(geojson_file=None, pg_conn_string=None, table=None):
+
     execute_append = ['ogr2ogr',
                       '-f', 'PostgreSQL',
                       '-append',
@@ -706,13 +724,13 @@ def ogr2ogr_geojson2postgis(geojson_file=None, pg_conn_string=None, table=None, 
     except subprocess.CalledProcessError:
         return False
 
-def postgis_add_unique_constraint(database=None, table=None, key_name=None):
+def postgis_add_unique_constraint(database_alias=None, table=None, key_name=None):
 
     if not is_alnum(table):
         return None
 
-    if database:
-        cur = connections['fulcrum'].cursor()
+    if database_alias:
+        cur = connections[database_alias].cursor()
     else:
         cur = connection.cursor()
 
