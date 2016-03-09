@@ -18,3 +18,4 @@ local_settings.py
 setup.py
 mvp/*
 clear_fm_db.sh
+test.sqlite3

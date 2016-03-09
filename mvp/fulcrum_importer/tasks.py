@@ -98,7 +98,7 @@ def s3_download(s3, uri, file_name, file_size):
         start_pos = int(os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name)))
         print("Starting Position Reported for {}: {}".format(os.path.join(settings.FULCRUM_UPLOAD, file_name), start_pos))
         if start_pos == int(file_size):
-            return
+            return True
     print("Downloading from S3: {}".format(file_name))
     with open(os.path.join(settings.FULCRUM_UPLOAD, file_name), 'wb') as download:
         response = s3.object_get(uri, download, file_name, start_position = start_pos-8)

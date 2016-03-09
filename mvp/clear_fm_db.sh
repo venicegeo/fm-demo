@@ -17,9 +17,9 @@ sudo -u geoshape psql -d geoshape -c "drop table layers_layer cascade"
 
 # Delete data
 sudo -u geoshape psql -d geoshape_data -c "drop table urban_survey cascade"
-sudo -u geoshape psql -d geoshape_data -c "drop table test cascade"
-sudo -u geoshape psql -d geoshape_data -c "drop table test2 cascade"
-sudo -u geoshape psql -d geoshape_data -c "drop table test3 cascade"
+sudo -u geoshape psql -d geoshape_data -c "drop table fulcrum_test cascade"
+sudo -u geoshape psql -d geoshape_data -c "drop table fulcrum_test2 cascade"
+sudo -u geoshape psql -d geoshape_data -c "drop table fulcrum_test3 cascade"
 sudo -u geoshape psql -d geoshape_data -c "drop table urban_survey_business cascade"
 sudo -u geoshape psql -d geoshape_data -c "drop table urban_survey_business_pic_business cascade"
 sudo -u geoshape psql -d geoshape_data -c "drop table urban_survey_business_pic_marketing cascade"
@@ -51,3 +51,4 @@ sudo -u geoshape psql -d geoshape_data -c "drop table vehicle_survey_vehicle_pho
 
 #restart service
 service geoshape restart
+tail -f /var/log/celery/* /var/log/geoshape/*
