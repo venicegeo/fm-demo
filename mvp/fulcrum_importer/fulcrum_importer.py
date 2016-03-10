@@ -14,9 +14,10 @@ from datetime import datetime
 import time
 from geoserver.catalog import Catalog
 import subprocess
-from django.db import connection, connections, ProgrammingError, OperationalError
+from django.db import connection, connections, ProgrammingError, OperationalError, transaction
 from django.db.utils import ConnectionDoesNotExist
 import re
+import ogr2ogr
 
 
 class FulcrumImporter:
@@ -644,15 +645,7 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
     else:
         database = connection.settings_dict.get('NAME')
 
-    pg_conn_string = "host={host} " \
-                     "port={port} " \
-                     "dbname={database} " \
-                     "user={user} " \
-                     "password={password}".format(host=connection.settings_dict.get('HOST'),
-                                                  port=connection.settings_dict.get('PORT'),
-                                                  database=database,
-                                                  user=connection.settings_dict.get('USER'),
-                                                  password=connection.settings_dict.get('PASSWORD'))
+    pg_conn_string = get_pg_conn_string(database_alias=database_alias)
 
     remove_urls = []
     if not feature_data:
@@ -696,8 +689,8 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
     print "Database_alias: {}".format(database_alias)
     if not table_exists(table=table, database_alias=database_alias):
         ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data[0]),
-                                   pg_conn_string=pg_conn_string,
-                                   table=table)
+                              database_alias=database_alias,
+                              table=table)
         add_unique_constraint(database_alias=database_alias, table=table, key_name=key_name)
         feature_data = feature_data[1:]
 
@@ -714,7 +707,7 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
             update_db_features(non_unique_feature_data, table, database_alias=database_alias)
 
         if not ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data),
-                                     pg_conn_string=pg_conn_string,
+                                     database_alias=database_alias,
                                      table=table):
             continue
 
@@ -728,8 +721,12 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
 
 def features_to_file(features, file_path=None):
     if not file_path:
-        file_path = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
-        file_path = '/'.join(file_path.split('\\'))
+        try:
+            file_path = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
+            file_path = '/'.join(file_path.split('\\'))
+        except AttributeError:
+            print "ERROR: Unable to write features_to_file because " \
+                  "file_path AND settings.FULCRUM_UPLOAD are not defined."
 
     if type(features) == list:
         feature_collection = {"type": "FeatureCollection", "features": features}
@@ -742,32 +739,61 @@ def features_to_file(features, file_path=None):
     return file_path
 
 
-def ogr2ogr_geojson_to_db(geojson_file=None, pg_conn_string=None, sqlite_file=None, table=None, fid=None):
-    if pg_conn_string:
-        format = 'PostgresSQL'
-        source = ['PG:"{}"'.format(pg_conn_string)]
+def get_pg_conn_string(database_alias=None):
+    if database_alias:
+        db_conn = connections[database_alias]
     else:
-        format = 'SQLite'
-        if not sqlite_file:
-            sqlite_file = connection.settings_dict.get('NAME')
-        source = '"{}"'.format(sqlite_file)
+        db_conn = connection
 
-    execute_append = ['ogr2ogr',
-                      '-f', format,
+    return "host={host} " \
+           "port={port} " \
+           "dbname={database} " \
+           "user={user} " \
+           "password={password}".format(host=db_conn.settings_dict.get('HOST'),
+                                        port=db_conn.settings_dict.get('PORT'),
+                                        database=db_conn.settings_dict.get('NAME'),
+                                        user=db_conn.settings_dict.get('USER'),
+                                        password=db_conn.settings_dict.get('PASSWORD'))
+
+
+def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None, fid=None):
+
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    if 'postgis' in db_conn.settings_dict.get('ENGINE') or 'postgres' in db_conn.settings_dict.get('ENGINE'):
+        db_format = 'PostgreSQL'
+        dest = "PG:{}".format(get_pg_conn_string(database_alias))
+    else:
+        db_format = 'SQLite'
+        sqlite_file = connection.settings_dict.get('NAME')
+        dest = '{}'.format(sqlite_file)
+
+    execute_append = ['',
+                      '-f', db_format,
+                      '-update',
                       '-append',
                       '-skipfailures',
-                      source,
-                      '"{}"'.format(geojson_file),
+                      dest,
+                      '{}'.format(geojson_file),
                       '-nln', table]
+
     print ' '.join(execute_append)
-    try:
-        DEVNULL = open(os.devnull, 'wb')
-        # subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-        subprocess.Popen(' '.join(execute_append), shell=True)
-        return True
-    except subprocess.CalledProcessError:
-        print("Failed to upload geojson to postgis.")
-        return False
+
+    with transaction.atomic():
+        ogr2ogr.main(execute_append)
+
+
+    # try:
+    #     DEVNULL = open(os.devnull, 'wb')
+    #     # subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
+    #     subprocess.Popen(' '.join(execute_append), shell=True)
+    #     return True
+    # except subprocess.CalledProcessError:
+    #     print("Failed to upload geojson to postgis.")
+    #     return False
 
 
 def add_unique_constraint(database_alias=None, table=None, key_name=None):
@@ -787,7 +813,8 @@ def add_unique_constraint(database_alias=None, table=None, key_name=None):
         query = "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)
 
     try:
-        cur.execute(query)
+        with transaction.atomic():
+            cur.execute(query)
     except ProgrammingError:
         print("Unable to add a key because {} was not created yet.".format(table))
     finally:
@@ -799,14 +826,17 @@ def table_exists(database_alias=None, table=None):
         return None
 
     if database_alias:
-        cur = connections[database_alias].cursor()
+        db_conn = connections[database_alias]
     else:
-        cur = connection.cursor()
+        db_conn = connection
+
+    cur = db_conn.cursor()
 
     query = "select * from {};".format(table)
 
     try:
-        cur.execute(query)
+        with transaction.atomic():
+            cur.execute(query)
         does_table_exist = True
     except ProgrammingError:
         does_table_exist = False
@@ -875,14 +905,15 @@ def get_all_db_features(layer, database_alias=None):
 
     query = "SELECT * FROM {};".format(layer)
     try:
-        cur.execute(query)
-        features = {}
-        fulcrum_id_index = get_column_index('fulcrum_id', cur)
-        ogc_index = get_column_index('ogc_fid', cur)
-        for feature in cur:
-            features[feature[fulcrum_id_index]] = {'fulcrum_id': feature[fulcrum_id_index],
-                                                   'ofc_fid': feature[ogc_index],
-                                                   'feature_data': feature}
+        with transaction.atomic():
+            cur.execute(query)
+            features = {}
+            fulcrum_id_index = get_column_index('fulcrum_id', cur)
+            ogc_index = get_column_index('ogc_fid', cur)
+            for feature in cur:
+                features[feature[fulcrum_id_index]] = {'fulcrum_id': feature[fulcrum_id_index],
+                                                       'ofc_fid': feature[ogc_index],
+                                                       'feature_data': feature}
     except ProgrammingError:
         return None
     finally:
@@ -899,23 +930,35 @@ def get_column_index(name, cursor):
             return ind
 
 
-def update_db_features(features, layer, database_alias=None):
+def update_db_features(features, layer, database_alias=None, pg_conn_string=None, sqlite_file=None):
     if type(features) != list:
         features = [features]
     for feature in features:
-        update_db_feature(feature, layer, database_alias=database_alias)
+        update_db_feature(feature,
+                          layer,
+                          database_alias=database_alias,
+                          pg_conn_string=pg_conn_string,
+                          sqlite_file=None)
 
 
-def update_db_feature(feature, layer, database_alias=None):
+def update_db_feature(feature, layer, database_alias=None, pg_conn_string=None, sqlite_file=None):
     if not is_alnum(layer):
         return
 
     if not feature:
         return
 
-    # ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature),
-    #                                pg_conn_string=pg_conn_string,
-    #                                table=table)
+    if not feature.get('ogc_fid'):
+        if not check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias)):
+            print("WARNING: Attempted to update a feature that doesn't exist in the database.")
+
+    delete_db_feature(feature,
+                      layer=layer,
+                      database_alias=database_alias)
+
+    ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature),
+                          database_alias=database_alias,
+                          table=layer)
     # if database_alias:
     #     cur = connections[database_alias].cursor()
     # else:
@@ -940,6 +983,32 @@ def update_db_feature(feature, layer, database_alias=None):
     #     cur.execute(query)
     # finally:
     #     cur.close()
+
+
+def delete_db_feature(feature, layer, database_alias=None):
+    if not is_alnum(layer):
+        return
+
+    if not feature:
+        return
+
+    if not feature.get('ogc_fid'):
+        if not check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias)):
+            print("WARNING: Attempted to delete a feature that doesn't exist in the database (or have an OGC_FID.")
+            return
+
+    if database_alias:
+        cur = connections[database_alias].cursor()
+    else:
+        cur = connection.cursor()
+
+    query = "DELETE FROM {} WHERE OGC_FID = {};".format(layer, feature.get('ogc_fid'))
+    try:
+        cur.execute(query)
+    except ProgrammingError:
+        return None
+    finally:
+        cur.close()
 
 
 def remove_items(iterable, remove=[]):
@@ -1047,3 +1116,12 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
     else:
         return layer, False
     return None, False
+
+
+def dictfetchall(cursor):
+    "Return all rows from a cursor as a dict"
+    columns = [col[0] for col in cursor.description]
+    return [
+        dict(zip(columns, row))
+        for row in cursor.fetchall()
+    ]

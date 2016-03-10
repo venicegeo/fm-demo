@@ -152,12 +152,14 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_non_unique_features, non_unique_features)
 
     def test_table_exist(self):
-        table_name = "test"
+        table_name = "test_table_exist"
         self.assertFalse(table_exists(table=table_name))
 
         cur = connection.cursor()
+        query = "CREATE TABLE {}(id integer);".format(table_name)
 
-        cur.execute("CREATE TABLE test(id);")
+        with transaction.atomic():
+            cur.execute(query)
 
         self.assertTrue(table_exists(table=table_name))
 
@@ -189,9 +191,6 @@ class FulcrumImporterTests(TestCase):
             imported_geojson = json.load(test_file)
 
         os.remove(test_path)
-
-        print imported_geojson.get('type')
-
         self.assertEqual(expected_result, imported_geojson)
         self.assertFalse(os.path.isfile(test_path))
 
@@ -208,24 +207,27 @@ class FulcrumImporterTests(TestCase):
                           },
                           "properties": {
                             "name": "Dinagat Islands",
-                            "id":"123"
+                            "fulcrum_id": "123"
                           }
                         }
+
         self.assertFalse(table_exists(table=table_name))
 
         geojson_file = features_to_file(test_features, file_path=test_path)
         self.assertTrue(os.path.isfile(geojson_file))
 
-        cur = connection.cursor()
-
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
                               table=table_name)
 
+        cur = connection.cursor()
 
-        result = cur.execute("SELECT name FROM test WHERE id = 123 LIMIT 1;")
-
-        print "QUERY RESULTS:{}".format(result[0])
         self.assertTrue(table_exists(table=table_name))
+
+        cur.execute("SELECT name FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
+
+        imported_name = dictfetchall(cur)[0].get('name')
+
+        self.assertEqual("Dinagat Islands", imported_name)
         os.remove(geojson_file)
 
     def test_add_unique_constraint(self):
@@ -234,16 +236,19 @@ class FulcrumImporterTests(TestCase):
 
         table_name = 'test_unique'
 
-        cur.execute("CREATE TABLE {}(id int);".format(table_name))
+        with transaction.atomic():
+            cur.execute("CREATE TABLE {}(id integer);".format(table_name))
 
         self.assertTrue(table_exists(table=table_name))
 
-        cur.execute("INSERT INTO {} values(1);".format(table_name))
+        with transaction.atomic():
+            cur.execute("INSERT INTO {} values(1);".format(table_name))
 
         add_unique_constraint(database_alias=None, table=table_name, key_name='id')
 
         try:
             cur.execute("INSERT INTO {} values(1);".format(table_name))
+            connection.commit()
             added_duplicate_value = True
         except ProgrammingError:
             added_duplicate_value = False
@@ -256,12 +261,57 @@ class FulcrumImporterTests(TestCase):
 
         self.assertFalse(added_duplicate_value)
 
-    # def test_update_db_feature(self):
-    #
-    #     cur = connection.cursor()
-    #
-    #     table_name = 'test_update_db_feature'
-    #
-    #     cur.execute("CREATE TABLE {}(id int);".format(table_name))
-    #
-    #     update_db_feature()
+    def test_update_db_feature(self):
+        import time
+
+        table_name = 'test_update_db_feature'
+        test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+        test_name = 'test_geojson.json'
+        test_path = os.path.join(test_dir, test_name)
+
+        test_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": "1",
+                            "fulcrum_id":"123"
+                          }
+                        }
+
+        test_feature_2 = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": "2",
+                            "fulcrum_id":"123"
+                          }
+                        }
+        self.assertFalse(table_exists(table=table_name))
+
+        geojson_file = features_to_file(test_feature, file_path=test_path)
+        self.assertTrue(os.path.isfile(geojson_file))
+
+        ogr2ogr_geojson_to_db(geojson_file=geojson_file,
+                              table=table_name)
+
+        print("ALL FEATURES IN {}".format(table_name))
+
+        for feature in get_all_db_features(table_name):
+            print feature
+
+        update_db_feature(test_feature_2, layer=table_name)
+
+
+        # result = cur.execute("SELECT name FROM test WHERE id = 123 LIMIT 1;")
+        #
+        # print "QUERY RESULTS:{}".format(result[0])
+        # self.assertTrue(table_exists(table=table_name))
+        # os.remove(geojson_file)
