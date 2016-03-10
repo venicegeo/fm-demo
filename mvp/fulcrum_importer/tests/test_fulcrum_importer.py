@@ -196,7 +196,7 @@ class FulcrumImporterTests(TestCase):
         self.assertFalse(os.path.isfile(test_path))
 
     def test_ogr2ogr_geojson_to_db(self):
-        table_name = 'test'
+        table_name = 'test_ogr2ogr_geojson_to_db'
         test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         test_name = 'test_geojson.json'
         test_path = os.path.join(test_dir, test_name)
@@ -207,7 +207,8 @@ class FulcrumImporterTests(TestCase):
                             "coordinates": [125.6, 10.1]
                           },
                           "properties": {
-                            "name": "Dinagat Islands"
+                            "name": "Dinagat Islands",
+                            "id":"123"
                           }
                         }
         self.assertFalse(table_exists(table=table_name))
@@ -215,8 +216,52 @@ class FulcrumImporterTests(TestCase):
         geojson_file = features_to_file(test_features, file_path=test_path)
         self.assertTrue(os.path.isfile(geojson_file))
 
+        cur = connection.cursor()
+
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
                               table=table_name)
 
+
+        result = cur.execute("SELECT name FROM test WHERE id = 123 LIMIT 1;")
+
+        print "QUERY RESULTS:{}".format(result[0])
         self.assertTrue(table_exists(table=table_name))
         os.remove(geojson_file)
+
+    def test_add_unique_constraint(self):
+
+        cur = connection.cursor()
+
+        table_name = 'test_unique'
+
+        cur.execute("CREATE TABLE {}(id int);".format(table_name))
+
+        self.assertTrue(table_exists(table=table_name))
+
+        cur.execute("INSERT INTO {} values(1);".format(table_name))
+
+        add_unique_constraint(database_alias=None, table=table_name, key_name='id')
+
+        try:
+            cur.execute("INSERT INTO {} values(1);".format(table_name))
+            added_duplicate_value = True
+        except ProgrammingError:
+            added_duplicate_value = False
+        except OperationalError:
+            added_duplicate_value = False
+        except IntegrityError:
+            added_duplicate_value = False
+        finally:
+            cur.close()
+
+        self.assertFalse(added_duplicate_value)
+
+    # def test_update_db_feature(self):
+    #
+    #     cur = connection.cursor()
+    #
+    #     table_name = 'test_update_db_feature'
+    #
+    #     cur.execute("CREATE TABLE {}(id int);".format(table_name))
+    #
+    #     update_db_feature()
