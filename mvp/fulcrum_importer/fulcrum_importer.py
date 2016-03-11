@@ -84,7 +84,7 @@ class FulcrumImporter:
         uploads = []
 
         if filtered_features:
-            media_keys = find_media_keys(filtered_features.get('features')[0])
+            media_keys = find_media_keys(filtered_features.get('features'))
             for feature in filtered_features.get('features'):
                 for asset_type in {'photos', 'videos', 'audio'}:
                     if feature.get('properties').get(asset_type):
@@ -203,6 +203,7 @@ def process_fulcrum_data(f):
 
 
 def filter_features(features):
+
     try:
         DATA_FILTERS = settings.DATA_FILTERS
     except AttributeError:
@@ -219,11 +220,11 @@ def filter_features(features):
                 filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
             except ValueError:
                 print("Failed to decode json")
-            if filtered_results.get('failed'):
+            if filtered_results.get('failed').get('features'):
                 print("Some features failed the {} filter.".format(filter))
                 # with open('./failed_features.geojson', 'a') as failed_features:
                 #     failed_features.write(json.dumps(filtered_results.get('failed')))
-            if filtered_results.get('passed'):
+            if filtered_results.get('passed').get('features'):
                 filtered_features = filtered_results.get('passed')
                 filtered_feature_count = len(filtered_results.get('passed').get('features'))
             else:
@@ -298,15 +299,20 @@ def upload_geojson(file_path=None, geojson=None):
     geojson, filtered_count = filter_features(geojson)
     if not geojson:
         return
+
     if geojson.get('features'):
         features = geojson.get('features')
     else:
         return
 
+    if type(features) != list:
+        features = [features]
+
     uploads = []
     count = 0
-    media_keys = find_media_keys(features[0])
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
+    layer = write_layer(file_basename)
+    media_keys = find_media_keys(features, layer)
     for feature in features:
         for media_key in media_keys:
             if from_file and feature.get('properties').get(media_key):
@@ -333,7 +339,6 @@ def upload_geojson(file_path=None, geojson=None):
             elif from_file and not feature.get('properties').get(media_key):
                 feature['properties'][media_key] = None
                 feature['properties']['{}_url'.format(media_key)] = None
-        layer = write_layer(file_basename)
         if feature.get('properties').get('fulcrum_id'):
             key_name = 'fulcrum_id'
         else:
@@ -348,24 +353,33 @@ def upload_geojson(file_path=None, geojson=None):
         update_geoshape_layers()
 
 
-def find_media_keys(feature):
+def find_media_keys(features, layer=None):
     """
     Args:
-        feature: A single geojson feature as a dict object.
-
+        features: An array of features as a dict object.
+        layer: The model to update
     Returns:
         A value of keys and types for media fields.
     """
     key_map = {}
     asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
-    for prop_key, prop_val in feature.get('properties').iteritems():
-        for asset_key in asset_types:
-            if '_url' in prop_key:
-                if asset_key in prop_val:
-                    media_key = prop_key.rstrip("_url")
-                    key_map[media_key] = asset_key
+    for feature in features:
+        for prop_key, prop_val in feature.get('properties').iteritems():
+            for asset_key in asset_types:
+                if '_url' in prop_key:
+                    if asset_key in prop_val:
+                        media_key = prop_key.rstrip("_url")
+                        if not key_map.get(media_key):
+                            key_map[media_key] = asset_key
     return key_map
 
+def update_layer_media_keys(key_map=None, layer=None):
+    layer_media_keys = json.loads(layer.layer_media_keys)
+    for key_map_key in key_map:
+        if not layer_media_keys.get(key_map_key):
+            layer_media_keys[key_map_key] = key_map.get("key_map_key")
+    layer.layer_media_keys = json.dumps(layer_media_keys)
+    layer.save()
 
 def write_layer(name, date=None):
     """
@@ -426,7 +440,6 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
-            print get_type_extension(asset_type)
             if get_type_extension(asset_type) == 'jpg':
                 if is_valid_photo(File(temp)):
                     asset.asset_data.save(asset.asset_uid, File(temp))
@@ -479,46 +492,17 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
 def is_valid_photo(photo_file):
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
     from PIL import Image
-    from PIL.ExifTags import TAGS, GPSTAGS
-    im = Image.open(photo_file)
-    info = im._getexif()
-    properties = {}
-    if info:
-        for tag, value in info.items():
-            decoded = TAGS.get(tag,tag)
-            if decoded == "GPSInfo":
-                gps_data = {}
-                for t in value:
-                    sub_decoded = GPSTAGS.get(t, t)
-                    gps_data[sub_decoded] = value[t]
 
-                properties[(decoded)] = gps_data
-            elif decoded != "MakerNote":
-                    properties[(decoded)] = (value)
-
-        if "GPSInfo" in properties:
-            gps_info = properties["GPSInfo"]
-
-            try:
-                gps_lat = gps_info["GPSLatitude"]
-                gps_lat_ref = gps_info["GPSLatitudeRef"]
-                gps_long = gps_info["GPSLongitude"]
-                gps_long_ref = gps_info["GPSLongitudeRef"]
-
-            except:
-                print "Could not get lat/long"
-                return False
-
-            lat = convert_to_degrees(gps_lat)
-            if gps_lat_ref != "N":
-                lat = 0 - lat
-
-            long = convert_to_degrees(gps_long)
-            if gps_lat_ref != "E":
-                long = 0 - long
-
-            coords = [round(lat, 6), round(long, 6)]
-
+    try:
+        im = Image.open(photo_file)
+        info = im._getexif()
+    except:
+        print "Failed to get exif data"
+        return True
+    properties = get_gps_info(info)
+    if properties.get('GPSInfo'):
+        coords = get_gps_coords(properties)
+        if coords:
             features = []
             feature = {"type": "Feature",
                     "geometry": {"type": "Point",
@@ -529,18 +513,53 @@ def is_valid_photo(photo_file):
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
             filtered_features, count = filter_features(geojson)
-            if filtered_features.get('features'):
-                print "Photo passed the filter"
+            if filtered_features:
                 return True
             else:
-                print "Photo did not pass the filter"
                 return False
         else:
-            print "No GPS info found"
             return True
     else:
-        print "No EXIF Info"
         return True
+
+
+def get_gps_info(info):
+    from PIL.ExifTags import TAGS, GPSTAGS
+    properties = {}
+    for tag, value in info.items():
+        decoded = TAGS.get(tag,tag)
+        if decoded == "GPSInfo":
+            gps_data = {}
+            for t in value:
+                sub_decoded = GPSTAGS.get(t, t)
+                gps_data[sub_decoded] = value[t]
+
+            properties[decoded] = gps_data
+        elif decoded != "MakerNote":
+                properties[decoded] = value
+    return properties
+
+def get_gps_coords(properties):
+        try:
+            gps_info = properties["GPSInfo"]
+            gps_lat = gps_info["GPSLatitude"]
+            gps_lat_ref = gps_info["GPSLatitudeRef"]
+            gps_long = gps_info["GPSLongitude"]
+            gps_long_ref = gps_info["GPSLongitudeRef"]
+        except:
+            print "Could not get lat/long"
+            return None
+
+        lat = convert_to_degrees(gps_lat)
+        if gps_lat_ref != "N":
+            lat = 0 - lat
+
+        long = convert_to_degrees(gps_long)
+        if gps_lat_ref != "E":
+            long = 0 - long
+
+        coords = [round(lat, 6), round(long, 6)]
+        return coords
 
 
 def convert_to_degrees(value):
@@ -643,8 +662,9 @@ def upload_to_postgis(feature_data, table, media_keys):
             if media_val != media_key:
                 new_key = '{}_{}'.format(media_val, media_key)
                 media_ext = get_type_extension(media_val)
-                media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
-                feature['properties'][new_key] = json.dumps(media_assets)
+                if feature.get('properties').get(media_key):
+                    media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
+                    feature['properties'][new_key] = json.dumps(media_assets)
 
     temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
     temp_file = '/'.join(temp_file.split('\\'))

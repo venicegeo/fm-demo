@@ -20,6 +20,12 @@ def task_update_layers():
 
     LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
 
+    try:
+        settings.FULCRUM_API_KEY
+    except AttributeError:
+        print("Cannot update layers without a FULCRUM_API_KEY.")
+        return
+
     name = "fulcrum_importer.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     file_name_hexdigest = md5(name).hexdigest()
@@ -96,7 +102,6 @@ def s3_download(s3, uri, file_name, file_size):
     print("Downloading from S3: {}".format(file_name))
     with open(os.path.join(settings.FULCRUM_UPLOAD, file_name), 'wb') as download:
         response = s3.object_get(uri, download, file_name, start_position = start_pos-8)
-    print("Download returned with filesize: {}".format(int(os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name)))))
     return response
 
 
@@ -105,58 +110,44 @@ def handle_file(s3, file_name, file_size):
     #     return
     if is_loaded(file_name):
         return
-    print(str(s3_download(s3, S3Uri("s3://{}/{}".format(settings.S3_BUCKET,file_name)), file_name, file_size)))
-    print("Processing: {}".format(file_name))
-    process_fulcrum_data(file_name)
-    S3Sync.objects.create(s3_filename=file_name)
+    if s3_download(s3, S3Uri("s3://{}/{}".format(settings.S3_BUCKET,file_name)), file_name, file_size):
+        print("Processing: {}".format(file_name))
+        process_fulcrum_data(file_name)
+        S3Sync.objects.create(s3_filename=file_name)
 
 
 @shared_task(name="fulcrum_importer.tasks.task_update_tiles")
 def update_tiles(filtered_features, layer_name):
-    for feature in filtered_features.get('features'):
-        if feature.get('geometry').get('type').lower() == 'point':
-            x = feature.get('geometry').get('coordinates')[0]
-            y = feature.get('geometry').get('coordinates')[1]
-            bounds = [str(x - 1),str(y - 1),str(x + 1),str(y + 1)]
-            truncate_tiles(bounds=bounds, layer_name=layer_name.lower(), srs=4326)
-            truncate_tiles(bounds=bounds, layer_name=layer_name.lower(), srs=900913)
+    truncate_tiles(layer_name=layer_name.lower(), srs=4326)
+    truncate_tiles(layer_name=layer_name.lower(), srs=900913)
 
 
-def truncate_tiles(bounds, layer_name=None, srs=None, **kwargs):
-    import socket
-
+def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs):
     #See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
     #See also https://github.com/GeoNode/geonode/issues/1656
-
     params = kwargs
     params.setdefault("name", "geonode:{0}".format(layer_name))
-    print layer_name
-    #params.setdefault("bounds", {"coords": {"double": bounds}})
-    #print bounds
     params.setdefault("srs", {"number": srs})
-    print srs
     params.setdefault("zoomStart", 0)
-    params.setdefault("zoomStop", 30)
+    if srs == 4326:
+        params.setdefault("zoomStop", 21)
+    else:
+        params.setdefault("zoomStop", 31)
     params.setdefault("format", "image/png")
     params.setdefault("type", "truncate")
     params.setdefault("threadCount", 4)
 
     payload = json.dumps({"seedRequest": params})
-    try:
-        hostname = socket.gethostname()
-        print hostname
-    except:
-        print "Could not get hostname"
-        hostname = "https://geoshape.dev"
-    url = "https://{0}/geoserver/gwc/rest/seed/geonode:{1}.json".format(hostname, layer_name)
-    print("Truncating cached tiles in extent: {0}".format(bounds))
-    print("GWC Payload: {0}".format(payload))
-    print("GWC URL: {0}".format(url))
 
-    print requests.post(url,
-                  auth=(getattr(settings, "GEOSERVER_USERNAME", "admin"),
-                        getattr(settings, "GEOSERVER_PASSWORD", "geoserver"),
+    if not geoserver_base_url:
+        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+
+    url = "{0}/gwc/rest/seed/geonode:{1}.json".format(geoserver_base_url, layer_name)
+
+    requests.post(url,
+                  auth=(settings.OGC_SERVER['default']['USER'],
+                        settings.OGC_SERVER['default']['PASSWORD'],
                         ),
                   headers={"content-type": "application/json"},
                   data=payload,
-                  verify=False).text
+                  verify=False)
