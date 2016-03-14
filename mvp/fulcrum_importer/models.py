@@ -18,8 +18,10 @@ from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
-
-fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
+try:
+    fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
+except AttributeError:
+    fs = FileSystemStorage(location=settings.MEDIA_ROOT)
 
 
 def get_asset_name(instance, filename):

@@ -100,7 +100,7 @@ class FulcrumImporter:
                 connections[database_alias]
             except ConnectionDoesNotExist:
                 database_alias = None
-            upload_to_postgis(uploads, layer.layer_name, media_keys, database_alias=database_alias)
+            upload_to_db(uploads, layer.layer_name, media_keys, database_alias=database_alias)
             publish_layer(layer.layer_name, database_alias=database_alias)
             update_geoshape_layers()
             send_task('fulcrum_importer.tasks.task_update_tiles', (filtered_features, layer.layer_name))
@@ -336,7 +336,7 @@ def upload_geojson(file_path=None, geojson=None):
                             else:
                                 urls += [asset.asset_data.url]
                     else:
-                        urls += ['Import Needed.']
+                        urls += [None]
                 feature['properties']['{}_url'.format(media_key)] = urls
             elif from_file and not feature.get('properties').get(media_key):
                 feature['properties'][media_key] = None
@@ -360,7 +360,7 @@ def upload_geojson(file_path=None, geojson=None):
         database_alias = None
 
     table_name = "fulcrum_{}".format(layer.layer_name)
-    if upload_to_postgis(uploads, table_name, media_keys, database_alias=database_alias):
+    if upload_to_db(uploads, table_name, media_keys, database_alias=database_alias):
         publish_layer(table_name, database_alias=database_alias)
         update_geoshape_layers()
 
@@ -468,11 +468,11 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
     else:
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
-        if settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"):
-            return '{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"), asset_uid,
-                                    get_type_extension(asset_type))
-        else:
-            return asset.asset_data.url
+        # if settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"):
+        #     return '{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"), asset_uid,
+        #                             get_type_extension(asset_type))
+        # else:
+        return asset.asset_data.url
 
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
@@ -627,7 +627,7 @@ def update_geoshape_layers():
         subprocess.Popen(execute, env=env, stdout=DEVNULL, stderr=DEVNULL)
 
 
-def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
+def upload_to_db(feature_data, table, media_keys, database_alias=None):
     """
 
     Args:
@@ -640,53 +640,22 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
-    if database_alias:
-        database = connections[database_alias].settings_dict.get('NAME')
-    else:
-        database = connection.settings_dict.get('NAME')
-
-    pg_conn_string = get_pg_conn_string(database_alias=database_alias)
 
     remove_urls = []
     if not feature_data:
         return False
 
-    for feature in feature_data:
-        for feat_prop in feature.get('properties'):
-            if not feature.get('properties').get(feat_prop):
-                continue
-            if type(feature.get('properties').get(feat_prop)) == list:
-                type_ext = get_type_extension(feat_prop)
-                if type_ext:
-                    props = []
-                    for prop in feature.get('properties').get(feat_prop):
-                        props += ['{}.{}'.format(prop, type_ext)]
-                    feature['properties'][feat_prop] = props
-                try:
-                    feature['properties'][feat_prop] = json.dumps(feature['properties'][feat_prop])
-                except TypeError:
-                    # Null arrays are fine.
-                    continue
-            if 'url' in str(feat_prop):
-                remove_urls += [feat_prop]
-        for prop in remove_urls:
-            try:
-                del feature['properties'][prop]
-            except KeyError:
-                pass
-        for media_key, media_val in media_keys.iteritems():
-            if media_val != media_key:
-                new_key = '{}_{}'.format(media_val, media_key)
-                media_ext = get_type_extension(media_val)
-                if feature.get('properties').get(media_key):
-                    media_assets = ["{}.{}".format(s, media_ext) for s in
-                                    feature.get('properties').get(media_key).split(',')]
-                    feature['properties'][new_key] = json.dumps(media_assets)
+    try:
+        sitename = settings.SITENAME
+    except AttributeError:
+        sitename = None
+
+    if sitename == 'GeoSHAPE':
+        feature_data = prepare_features_for_geoshape(feature_data, media_keys=media_keys)
 
     key_name = 'fulcrum_id'
 
     # Use ogr2ogr to create a table and add an index, before any non unique values are added.
-    print "Database_alias: {}".format(database_alias)
     if not table_exists(table=table, database_alias=database_alias):
         ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data[0]),
                               database_alias=database_alias,
@@ -700,6 +669,8 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
     # Try to upload the presumed unique values in bulk, repeatedly.
     uploaded = False
     while not uploaded:
+        if not feature_data:
+            break
         feature_data, non_unique_feature_data = check_db_for_features(feature_data,
                                                                       table,
                                                                       database_alias=database_alias)
@@ -717,6 +688,58 @@ def upload_to_postgis(feature_data, table, media_keys, database_alias=None):
     if non_unique_feature_data:
         update_db_features(non_unique_features, table, database_alias=database_alias)
     return True
+
+
+def prepare_features_for_geoshape(feature_data, media_keys=None):
+
+    if not feature_data:
+        return None
+
+    remove_urls = []
+    for feature in feature_data:
+        for feat_prop in feature.get('properties'):
+            if not feature.get('properties').get(feat_prop):
+                continue
+            if type(feature.get('properties').get(feat_prop)) == list:
+                type_ext = get_type_extension(feat_prop)
+                if type_ext:
+                    props = []
+                    for prop in feature.get('properties').get(feat_prop):
+                        props += ['{}.{}'.format(prop, type_ext)]
+                    feature['properties'][feat_prop] = props
+                try:
+                    feature['properties'][feat_prop] = json.dumps(feature['properties'][feat_prop])
+                except TypeError:
+                    # Null arrays are fine.
+                    continue
+
+        for media_key, media_val in media_keys.iteritems():
+            try:
+                url_prop = "{}_url".format(media_key)
+                del feature['properties'][url_prop]
+            except KeyError:
+                print("ERROR: Could not delete the key {}.".format(url_prop))
+                pass
+            media_ext = get_type_extension(media_val)
+            if media_val == 'audio':
+                #Because of maploom
+                media_val == 'audios'
+            if media_val != media_key:
+                new_key = '{}_{}'.format(media_val, media_key)
+            else:
+                new_key = media_val
+                feature['properties']['caption_{}'.format(media_key)] = feature['properties']['{}_caption'.format(media_key)]
+                try:
+                    del feature['properties']['{}_caption'.format(media_key)]
+                except KeyError:
+                    print "Could not delete key {}.".format('{}_caption'.format(media_key))
+
+            if feature.get('properties').get(media_key):
+                media_assets = ["{}.{}".format(s, media_ext)
+                                for s in feature.get('properties').get(media_key).split(',')]
+                feature['properties'][new_key] = json.dumps(media_assets)
+
+    return feature_data
 
 
 def features_to_file(features, file_path=None):
@@ -780,20 +803,8 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None, fid=Non
                       '{}'.format(geojson_file),
                       '-nln', table]
 
-    print ' '.join(execute_append)
-
     with transaction.atomic():
         ogr2ogr.main(execute_append)
-
-
-    # try:
-    #     DEVNULL = open(os.devnull, 'wb')
-    #     # subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-    #     subprocess.Popen(' '.join(execute_append), shell=True)
-    #     return True
-    # except subprocess.CalledProcessError:
-    #     print("Failed to upload geojson to postgis.")
-    #     return False
 
 
 def add_unique_constraint(database_alias=None, table=None, key_name=None):
@@ -889,6 +900,11 @@ def check_db_for_feature(feature, db_features=None):
     if not db_features:
         return None
     if db_features.get(fulcrum_id):
+        # While it is unlikely that the database would have a newer version than the one being presented.
+        # Older versions should be rejected.  If they fail to be handled at least they won't overwrite a
+        # more current value.
+        if db_features.get('version') > feature.get('properties').get('version'):
+            return "reject"
         feature['ogc_fid'] = db_features.get('ogc_fid')
         return feature
     return None
@@ -909,10 +925,10 @@ def get_all_db_features(layer, database_alias=None):
             cur.execute(query)
             features = {}
             fulcrum_id_index = get_column_index('fulcrum_id', cur)
-            ogc_index = get_column_index('ogc_fid', cur)
+            version_index = get_column_index('version', cur)
             for feature in cur:
                 features[feature[fulcrum_id_index]] = {'fulcrum_id': feature[fulcrum_id_index],
-                                                       'ofc_fid': feature[ogc_index],
+                                                       'version': feature[version_index],
                                                        'feature_data': feature}
     except ProgrammingError:
         return None
@@ -949,40 +965,23 @@ def update_db_feature(feature, layer, database_alias=None, pg_conn_string=None, 
         return
 
     if not feature.get('ogc_fid'):
-        if not check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias)):
-            print("WARNING: Attempted to update a feature that doesn't exist in the database.")
+        check_feature = check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias))
+        if not check_feature:
+            print("WARNING: An attempted to update a feature that doesn't exist in the database.")
+            print(" A new entry will be created for the feature {}.".format(feature))
+        elif check_feature == 'reject':
+            print("WARNING: An attempt was made to update a feature with an older version. "
+                  "The feature {} was rejected.".format(feature))
+        else:
+            feature = check_feature
 
     delete_db_feature(feature,
-                      layer=layer,
-                      database_alias=database_alias)
+                          layer=layer,
+                          database_alias=database_alias)
 
     ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature),
                           database_alias=database_alias,
                           table=layer)
-    # if database_alias:
-    #     cur = connections[database_alias].cursor()
-    # else:
-    #     cur = connection.cursor()
-    #
-    # fulcrum_id = feature.get('properties').get('fulcrum_id')
-    # new_vals = remove_items(feature.get('properties'), remove=['ogc_id'])
-    #
-    # update_query = []
-    # for key, value in new_vals.iteritems():
-    #     if not is_alnum(layer):
-    #         print("The property {} in layer {} was not updated," \
-    #               " because it contained a non-alphanumeric or '_'.".format(key, layer))
-    #         continue
-    #     update_query += [u"{} = '{}'".format(unicode(key), unicode(value))]
-    #
-    # query = u"UPDATE {} SET {} WHERE fulcrum_id = '{}';".format(unicode(layer),
-    #                                                             u','.join(update_query),
-    #                                                             unicode(fulcrum_id))
-    #
-    # try:
-    #     cur.execute(query)
-    # finally:
-    #     cur.close()
 
 
 def delete_db_feature(feature, layer, database_alias=None):
@@ -993,20 +992,26 @@ def delete_db_feature(feature, layer, database_alias=None):
         return
 
     if not feature.get('ogc_fid'):
-        if not check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias)):
-            print("WARNING: Attempted to delete a feature that doesn't exist in the database (or have an OGC_FID.")
-            return
-
+        check_feature = check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias))
+        if not check_feature:
+            print("WARNING: An attempt was made to delete a feature "
+                  "that doesn't exist in the database (or have an OGC_FID.")
+        elif check_feature == 'reject':
+            print("WARNING: An attempt was made to update a feature with an older version. "
+                  "The feature {} was rejected.".format(feature))
     if database_alias:
         cur = connections[database_alias].cursor()
     else:
         cur = connection.cursor()
 
-    query = "DELETE FROM {} WHERE OGC_FID = {};".format(layer, feature.get('ogc_fid'))
+    query = "DELETE FROM {} WHERE fulcrum_id = '{}';".format(layer, feature.get('properties').get('fulcrum_id'))
+
     try:
         cur.execute(query)
     except ProgrammingError:
-        return None
+        print("Unable to delete the feature:")
+        print(str(feature))
+        print("It is most likely not in the database or missing a fulcrum_id.")
     finally:
         cur.close()
 

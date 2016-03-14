@@ -262,7 +262,6 @@ class FulcrumImporterTests(TestCase):
         self.assertFalse(added_duplicate_value)
 
     def test_update_db_feature(self):
-        import time
 
         table_name = 'test_update_db_feature'
         test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -300,12 +299,10 @@ class FulcrumImporterTests(TestCase):
         self.assertTrue(os.path.isfile(geojson_file))
 
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
-                              table=table_name)
+                                  table=table_name)
 
-        print("ALL FEATURES IN {}".format(table_name))
-
-        for feature in get_all_db_features(table_name):
-            print feature
+        # for feature in get_all_db_features(table_name):
+        #     print feature
 
         update_db_feature(test_feature_2, layer=table_name)
 
