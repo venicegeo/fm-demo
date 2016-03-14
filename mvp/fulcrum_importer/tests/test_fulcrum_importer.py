@@ -312,3 +312,55 @@ class FulcrumImporterTests(TestCase):
         # print "QUERY RESULTS:{}".format(result[0])
         # self.assertTrue(table_exists(table=table_name))
         # os.remove(geojson_file)
+
+    def test_prepare_features_for_geoshape(self):
+
+        test_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": "1",
+                            "fulcrum_id": "123",
+                            "image": "test",
+                            "image_url": "image.jpg",
+                            "movie": "test",
+                            "movie_url": "movie.mp4",
+                            "sound": "test",
+                            "sound_url": "sound.m4a"
+                          }
+                        }
+
+        media_keys = {'image': 'photos', 'movie': 'videos', 'sound': 'audio'}
+
+        #Note that the expected feature contains json objects as strings, as opposed to an array of strings.
+        expected_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": "1",
+                            "fulcrum_id": "123",
+                            "photos_image": '["test.jpg"]',
+                            "videos_movie": '["test.mp4"]',
+                            "audios_sound": '["test.m4a"]',
+                            "image": "test",
+                            "movie": "test",
+                            "sound": "test",
+                          }
+                        }
+
+
+        returned_features = prepare_features_for_geoshape(test_feature, media_keys=media_keys)
+
+        print("The returned features: {}".format(expected_feature))
+        print("The returned features: {}".format(returned_features[0]))
+
+        self.assertEqual(expected_feature, returned_features[0])
+

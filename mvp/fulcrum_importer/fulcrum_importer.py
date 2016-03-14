@@ -691,27 +691,24 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
 
 
 def prepare_features_for_geoshape(feature_data, media_keys=None):
+    """
+
+    Args:
+        feature_data: An array of features, to be prepared for best viewing in geoshape.
+        media_keys: A list of the properties keys which map to media files.
+
+    Returns:
+        A list of the features, with slightly modified properties.
+
+    """
 
     if not feature_data:
         return None
 
-    remove_urls = []
+    if type(feature_data) != list:
+        feature_data = [feature_data]
+
     for feature in feature_data:
-        for feat_prop in feature.get('properties'):
-            if not feature.get('properties').get(feat_prop):
-                continue
-            if type(feature.get('properties').get(feat_prop)) == list:
-                type_ext = get_type_extension(feat_prop)
-                if type_ext:
-                    props = []
-                    for prop in feature.get('properties').get(feat_prop):
-                        props += ['{}.{}'.format(prop, type_ext)]
-                    feature['properties'][feat_prop] = props
-                try:
-                    feature['properties'][feat_prop] = json.dumps(feature['properties'][feat_prop])
-                except TypeError:
-                    # Null arrays are fine.
-                    continue
 
         for media_key, media_val in media_keys.iteritems():
             try:
@@ -723,7 +720,7 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
             media_ext = get_type_extension(media_val)
             if media_val == 'audio':
                 #Because of maploom
-                media_val == 'audios'
+                media_val = 'audios'
             if media_val != media_key:
                 new_key = '{}_{}'.format(media_val, media_key)
             else:
@@ -946,18 +943,16 @@ def get_column_index(name, cursor):
             return ind
 
 
-def update_db_features(features, layer, database_alias=None, pg_conn_string=None, sqlite_file=None):
+def update_db_features(features, layer, database_alias=None):
     if type(features) != list:
         features = [features]
     for feature in features:
         update_db_feature(feature,
                           layer,
-                          database_alias=database_alias,
-                          pg_conn_string=pg_conn_string,
-                          sqlite_file=None)
+                          database_alias=database_alias)
 
 
-def update_db_feature(feature, layer, database_alias=None, pg_conn_string=None, sqlite_file=None):
+def update_db_feature(feature, layer, database_alias=None):
     if not is_alnum(layer):
         return
 
