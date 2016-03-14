@@ -42,6 +42,7 @@
 	<div id="map"></div>
 
 	<div id="placeholder"></div>
+	
 	<div id="waiting" title="Waiting for layer return">
 		<i class="fa fa-cog fa-spin fa-2x"></i>
 	</div>
@@ -80,8 +81,6 @@
 		<fieldset>
 			<label for="pzType">Pz-Type</label>
 			<br/>
-			<!--<input type="text" id="alertType" class="text ui-widget-content ui-corner-all"/>
-			-->
 			<select name="Type" id="pzType">
 				<option>Trigger</option>
 				<option>Event</option>
@@ -92,7 +91,6 @@
 			<br/>
 			<label for="Action">Pz-Action</label>
 			<br/>
-			<!--<input type="text" id="alertAction" class="text ui-widget-content ui-corner-all"/>-->
 			<select name="pzAction" id="pzAction">
 				<option>GET</option>
 				<option>POST</option>
@@ -119,6 +117,11 @@
 			<input type="text" id="deleteEventID" class="text ui-widget-content ui-corner-all"/>
 			<br/>
 			<br/>
+			<label for="deleteEventTypeName">Event Type Name</label>
+			<br/>
+			<input type="text" id="deleteEventTypeName" class="text ui-widget-content ui-corner-all"/>
+			<br/>
+			<br/>
 		</fieldset>
 	</form>
 	
@@ -127,219 +130,6 @@
 			<label for="deleteID">ID</label>
 			<br/>
 			<input type="text" id="deleteID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="triggerContainer" title="Trigger Data" visibility="hidden">
-		<fieldset>
-			<label for="triggerTitle">Title</label>
-			<br/>
-			<input type="text" id="triggerTitle" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerType">Type</label>
-			<br/>
-			<input type="text" id="triggerType" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerCode">Code</label>
-			<br/>
-			<input type="text" id="triggerCode" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerSeverity">Severity</label>
-			<br/>
-			<input type="number" id="triggerSeverity" min="1" max="5" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerTask">Task</label>
-			<br/>
-			<input type="text" id="triggerTask" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="triggerContainerID" title="Trigger Data" visibility="hidden">
-		<fieldset>
-			<label for="triggerIdID">ID</label>
-			<br/>
-			<input type="text" id="triggerIdID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerTitleID">Title</label>
-			<br/>
-			<input type="text" id="triggerTitleID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerTypeID">Type</label>
-			<br/>
-			<input type="text" id="triggerTypeID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerCodeID">Code</label>
-			<br/>
-			<input type="text" id="triggerCodeID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerSeverityID">Severity</label>
-			<br/>
-			<input type="number" id="triggerSeverityID" min="1" max="5" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="triggerTaskID">Task</label>
-			<br/>
-			<input type="text" id="triggerTaskID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="eventContainer" title="Event Data" visibility="hidden">
-		<fieldset>
-			<label for="eventType">Type</label>
-			<br/>
-			<input type="text" id="eventType" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventDate">Date</label>
-			<br/>
-			<input type="text" id="eventDate" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventFilename">Filename</label>
-			<br/>
-			<input type="text" id="eventFilename" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventSeverity">Severity</label>
-			<br/>
-			<input type="number" id="eventSeverity" min="1" max="5" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/><label for="eventCode">Code</label>
-			<br/>
-			<input type="text" id="eventCode" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="eventContainerID" title="Event Data" visibility="hidden">
-		<fieldset>
-			<label for="eventIdID">ID</label>
-			<br/>
-			<input type="text" id="eventIdID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventTypeID">Type</label>
-			<br/>
-			<input type="text" id="eventTypeID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventDateID">Date</label>
-			<br/>
-			<input type="text" id="eventDateID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventFilenameID">Filename</label>
-			<br/>
-			<input type="text" id="eventFilenameID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventSeverityID">Severity</label>
-			<br/>
-			<input type="number" id="eventSeverityID" min="1" max="5" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/><label for="eventCodeID">Code</label>
-			<br/>
-			<input type="text" id="eventCodeID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="eventtypesContainer" title="EventTypes Data" visibility="hidden">
-		<fieldset>
-			<label for="eventtypesName">Name</label>
-			<br/>
-			<input type="text" id="eventtypesName" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventtypesFilename">Filename Data Type</label>
-			<br/>
-			<select id="eventtypesFilename">
-				<option value = "string">string</option>
-				<option value = "boolean">boolean</option>
-				<option value = "integer">integer</option>
-				<option value = "double">double</option>
-				<option value = "date">data</option>
-				<option value = "float">float</option>
-				<option value = "byte">byte</option>
-				<option value = "short">short</option>
-				<option value = "long">long</option>
-			</select>
-			<br/>
-			<br/>
-			<label for="eventtypesSeverity">Severity Data Type</label>
-			<br/>
-			<select id="eventtypesSeverity">
-				<option value = "string">string</option>
-				<option value = "boolean">boolean</option>
-				<option value = "integer">integer</option>
-				<option value = "double">double</option>
-				<option value = "date">data</option>
-				<option value = "float">float</option>
-				<option value = "byte">byte</option>
-				<option value = "short">short</option>
-				<option value = "long">long</option>
-			</select>
-			<br/>
-			<br/>
-			<label for="eventtypesCode">Code Data Type</label>
-			<br/>
-			<select id="eventtypesCode" >
-				<option value = "string">string</option>
-				<option value = "boolean">boolean</option>
-				<option value = "integer">integer</option>
-				<option value = "double">double</option>
-				<option value = "date">data</option>
-				<option value = "float">float</option>
-				<option value = "byte">byte</option>
-				<option value = "short">short</option>
-				<option value = "long">long</option>
-			</select>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="eventtypesContainerID" title="EventTypes Data" visibility="hidden">
-		<fieldset>
-			<label for="eventtypesId">ID</label>
-			<br/>
-			<input type="text" id="eventtypesId" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventtypesName">Name</label>
-			<br/>
-			<input type="text" id="eventtypesName" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventtypesFilename">Filename</label>
-			<br/>
-			<input type="text" id="eventtypesFilename" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventtypesSeverity">Severity</label>
-			<br/>
-			<input type="number" id="eventtypesSeverity" min="1" max="5" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="eventtypesCode">Code</label>
-			<br/>
-			<input type="text" id="eventtypesCode" class="text ui-widget-content ui-corner-all"/>
 			<br/>
 			<br/>
 		</fieldset>
@@ -360,28 +150,13 @@
 		</fieldset>
 	</form>
 	
-	<form id="alertContainerID" title="Alert Data" visibility="hidden">
-		<fieldset>
-			<label for="alertIdID">ID</label>
-			<br/>
-			<input type="text" id="alertIdID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="alertTriggerIdID">Trigger ID</label>
-			<br/>
-			<input type="text" id="alertTriggerIdID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="alertEventIdID">Event ID</label>
-			<br/>
-			<input type="text" id="alertEventIdID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
+	<form id="Manager" title="Manager" visibility="hidden"></form>
 	
-	<form id="Manager" title="Manager" visibility="hidden">
-	</form>
+	<form id="postEventtype" title="Post EventType" visibility="hidden"></form>
+	
+	<form id="postTrigger" title="Post Trigger" visibility="hidden"></form>
+	
+	<form id="postEvent" title="Post Event" visibility="hidden"></form>
 
 				
 		

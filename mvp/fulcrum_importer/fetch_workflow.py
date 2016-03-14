@@ -75,7 +75,8 @@ class PzWorkflow:
             print "Creating. . ."
             data = json.dumps(user_request.get('data'))
             if user_request.get('type') == 'event':
-                posted = requests.post(self.addr + self.map.get(user_request.get('type')) + user_request.get('eventname'), data=data)
+                eventtype = self.get({'type': 'eventtypes', 'data': {'id': user_request.get('data').get('type')}})
+                posted = requests.post(self.addr + self.map.get(user_request.get('type')) + eventtype.get('name'), data=data)
             else:
                 posted = requests.post(self.addr + self.map.get(user_request.get('type')), data=data)
             if posted.status_code == 201:
@@ -101,10 +102,9 @@ class PzWorkflow:
             print "Deleting"
 
             if user_request.get('type') == "event":
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))  + user_request.get('eventname') + "/" + check.get('id'))
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))  + user_request.get('data').get('eventname') + "/" + user_request.get('data').get('id'))
             else :
-                print self.addr + self.map.get(user_request.get('type')) + ':' + check.get('id')
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) + check.get('id'))
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) + user_request.get('data').get('id'))
             check = self.get(user_request)
             if check:
                 print "Delete failed"

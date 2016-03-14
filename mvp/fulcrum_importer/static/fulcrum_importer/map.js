@@ -1,3 +1,19 @@
+	/*
+	Copyright 2016, RadiantBlue Technologies, Inc.
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+	*/
+	
 "use strict";
 		
 	$(document).ready(function () {
@@ -819,32 +835,26 @@
 		var pzAction;
 		
 		var getID;
+		var deleteID;
+		var deleteEventName;
 		
 		var eventtypesId;
 		var eventtypesName;
-		var eventtypesFilename;
-		var eventtypesSeverity;
-		var eventtypesCode;
 		
 		var triggerId;
 		var triggerTitle;
 		var triggerType;
-		var triggerSeverity;
-		var triggerCode;
 		var triggerTask;
 		
 		var eventId;
 		var eventType;
 		var eventDate;
-		var eventFilename;
-		var eventSeverity;
-		var eventCode;
 		
 		var alertId;
 		var alertTriggerId;
 		var alertEventId;
 		
-		//var getPzAction = $(function() {
+		
 		var pzDialogBox = $("#pzContainer").dialog({
 			autoOpen: false,
 			closeOnEscape: false,
@@ -938,7 +948,7 @@
 					map.doubleClickZoom.enable();
 				}
 			}
-		}); //end confirm dialog
+		});
 		
 		function deleteManager() {
 			var choice = $('input[name="choice"]:checked').val();
@@ -989,18 +999,18 @@
 					$("#deleteEventContainer").dialog("open");
 				}
 				else {
-					$("deleteContainer").dialog("open");
+					$("#deleteContainer").dialog("open");
 				}
 			}
 			else {
 				if(type == 'eventtypes') {
-					$("#eventtypesContainer").dialog("open");
+					$("#postEventtype").dialog("open");
 				}
 				else if(type == 'trigger') {
-					$("#triggerContainer").dialog("open");
+					$("#postTrigger").dialog("open");
 				}
 				else if(type == 'event') {
-					$("#eventContainer").dialog("open");
+					$("#postEvent").dialog("open");
 				}
 				else if(type == 'alert') {
 					$("#alertContainer").dialog("open");
@@ -1010,25 +1020,6 @@
 		
 		function pzSender(pzrequest) {
 			var requestStr = JSON.stringify(pzrequest);
-			/*function getCookie(name) {
-				var cookieValue = null;
-				if (document.cookie && document.cookie != '') {
-					var cookies = document.cookie.split(';');
-						for (var i = 0; i < cookies.length; i++) {
-							var cookie = jQuery.trim(cookies[i]);
-							// Does this cookie string begin with the name we want?
-							if (cookie.substring(0, name.length + 1) == (name + '=')) {
-								cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-								break;
-							}
-						}
-				}
-				return cookieValue;
-			}
-			function csrfSafeMethod(method) {
-				// these HTTP methods do not require CSRF protection
-				return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
-			}*/
 			var csrftoken = getCookie('csrftoken');
 			console.log(requestStr);
 			$.ajax({
@@ -1043,7 +1034,6 @@
 					pzResponse(result);
 				},
 				error: function(result) {
-					console.log("Error");
 					pzError(result);
 				},
 				beforeSend: function(xhr, settings) {
@@ -1065,6 +1055,7 @@
 					}
 				}
 				else {
+					console.log("Delete failed")
 					console.log(result);
 				}
 			}
@@ -1096,9 +1087,15 @@
 						pzTriggers[result['id']] = result['id'];
 						console.log(pzTriggers);
 					}
-					if(pzType == 'eventtypes') {
+					else if(pzType == 'eventtypes') {
 						pzEventtypes[result['id']] = eventtypesName;
 						console.log(pzEventtypes);
+					}
+					else if(pzType == 'event') {
+						pzEvents[result['id']] = result['id'];
+					}
+					else {
+						console.log(result);
 					}
 				}
 			}
@@ -1107,7 +1104,6 @@
 		function getDialog(result) {
 			$('<div></div>').dialog({
 				autoOpen: true,
-				//maxWidth: 450,
 				maxHeight: 600,
 				width: 400,
 				modal: false,
@@ -1136,100 +1132,13 @@
 						map.scrollWheelZoom.enable();
 					}
 				}
-			}); //end confirm dialog
+			});
 		}
 		
 		function pzError(result) {
-			if (pzAction == 'delete') {
-				console.log("Oh crap it failed");
-			}
+			console.log("Request failed");
+			console.log(result);
 		}
-		
-		var triggerDialogBox = $("#triggerContainer").dialog({
-			autoOpen: false,
-			closeOnEscape: false,
-			open: function(event, ui) {
-				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-			},
-			height: 425,
-			width: 300,
-			appendTo: "#map",
-			position: {
-				my: "left top",
-				at: "right bottom",
-				of: placeholder
-			},
-			modal: false,
-			buttons: {
-				"Submit": function() {
-					triggerTitle = $("#triggerTitle").val()
-					triggerType = $("#triggerType").val();
-					triggerCode = $("#triggerCode").val();
-					triggerSeverity = $("#triggerSeverity").val();
-					triggerTask = $("#triggerTask").val();
-					var triggerData = {"title": triggerTitle, 
-										"condition": {
-											"type": triggerType, 
-											"query": {
-												"query": {
-													"bool": {
-														"must": [
-															{
-															"match": {
-																"severity": triggerSeverity
-																}
-															},
-															{
-															"match": {
-																"code": triggerCode
-																}
-															}
-														]
-													}
-												}
-											},
-											"job": {
-												"Task": triggerTask
-											}
-										}
-									}
-									
-					var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
-					pzTrigger["data"] = triggerData;
-					console.log(pzTrigger);
-					console.log(triggerData);
-					pzSender(pzTrigger);
-					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
-				},
-				"Cancel": function() {
-					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
-				}
-			},
-		});
-		
-		$('triggerContainer').keypress( function(e) {
-			if (e.charCode == 13 || e.keyCode == 13) {
-				triggerTitle = $("#triggerTitle").val()
-				triggerType = $("#triggerType").val();
-				triggerCode = $("#triggerCode").val();
-				triggerSeverity = $("#triggerSeverity").val();
-				triggerTask = $("#triggerTask").val();
-				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": {"query": {"bool": {"must": [{"match": {"severity": triggerSeverity}},{"match": {"code": triggerCode}}]}}}, "job": {"Task": triggerTask}}}
-				var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
-				pzTrigger["data"] = triggerData;
-				console.log(pzTrigger);
-				console.log(triggerData);
-				pzSender(pzTrigger);
-				$(this).dialog("close");
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
-				e.preventDefault();	
-			}
-		});
 		
 		var getDialogBox = $("#getContainer").dialog({
 			autoOpen: false,
@@ -1237,7 +1146,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 250,
+			height: 200,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1263,7 +1172,7 @@
 				}
 			},
 		});
-		$('getContainer').keypress( function(e) {
+		$('#getContainer').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
 				getID = $("#getID").val();			
 				var pzGet = {"type": pzType, "action": pzAction};
@@ -1282,7 +1191,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 250,
+			height: 200,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1295,7 +1204,7 @@
 				"Submit": function() {
 					deleteID = $("#deleteID").val();			
 					var pzDelete = {"type": pzType, "action": pzAction};
-					pzGet["data"] = {"id" : deleteID};
+					pzDelete["data"] = {"id" : deleteID};
 					pzSender(pzDelete);
 					$(this).dialog("close");
 					map.dragging.enable();
@@ -1308,11 +1217,11 @@
 				}
 			},
 		});
-		$('deleteContainer').keypress( function(e) {
+		$('#deleteContainer').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
 				deleteID = $("#deleteID").val();			
 				var pzDelete = {"type": pzType, "action": pzAction};
-				pzGet["data"] = {"id" : deleteID};
+				pzDelete["data"] = {"id" : deleteID};
 				pzSender(pzDelete);
 				$(this).dialog("close");
 				map.dragging.enable();
@@ -1320,14 +1229,14 @@
 				e.preventDefault();	
 			}
 		});
-		/*
-		var triggerIdDialogBox = $("#triggerContainerID").dialog({
+		
+		var deleteEvenDialogBox = $("#deleteEventContainer").dialog({
 			autoOpen: false,
 			closeOnEscape: false,
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 500,
+			height: 250,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1338,21 +1247,11 @@
 			modal: false,
 			buttons: {
 				"Submit": function() {
-					triggerTitle = $("#triggerTitleID").val();
-					triggerType = $("#triggerTypeID").val();
-					triggerCode = $("#triggerCodeID").val();
-					triggerSeverity = $("#triggerSeverityID").val();
-					triggerTask = $("#triggerTaskID").val();
-					var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": {"query": {"bool": {"must": [{"match": {"severity": triggerSeverity}},{"match": {"code": triggerCode}}]}}}, "job": {"Task": triggerTask}}};
-					if($("#triggerIdID").val() != "") {
-						triggerId = $("#triggerIdID").val();
-						triggerData["id"] = $("#triggerIdID").val();
-					}
-					var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
-					pzTrigger["data"] = triggerData;
-					console.log(pzTrigger);
-					console.log(triggerData);
-					pzSender(pzTrigger);
+					deleteID = $("#deleteEventID").val();
+					deleteEventName = $("#deleteEventTypeName").val();
+					var pzDelete = {"type": pzType, "action": pzAction};
+					pzDelete["data"] = {"id" : deleteID, 'eventname': deleteEventName};
+					pzSender(pzDelete);
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
@@ -1364,291 +1263,310 @@
 				}
 			},
 		});
-		$('triggerContainerID').keypress( function(e) {
+		$('#deleteEventContainer').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				triggerTitle = $("#triggerTitleID").val()
-				triggerType = $("#triggerTypeID").val();
-				triggerCode = $("#triggerCodeID").val();
-				triggerSeverity = $("#triggerSeverityID").val();
-				triggerTask = $("#triggerTaskID").val();
-				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": {"query": {"bool": {"must": [{"match": {"severity": triggerSeverity}},{"match": {"code": triggerCode}}]}}}, "job": {"Task": triggerTask}}};
-				if($("#triggerIdID").val() != "") {
-					triggerId = $("#triggerIdID").val();
-					triggerData["id"] = $("#triggerIdID").val();
-				}
-				var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
-				pzTrigger["data"] = triggerData;
-				console.log(pzTrigger);
-				console.log(triggerData);
-				pzSender(pzTrigger);
+				deleteID = $("#deleteEventID").val();
+				deleteEventName = $("#deleteEventTypeName").val();
+				var pzDelete = {"type": pzType, "action": pzAction};
+				pzDelete["data"] = {"id" : deleteID, 'eventname': deleteEventName};
+				pzSender(pzDelete);
 				$(this).dialog("close");
 				map.dragging.enable();
 				map.doubleClickZoom.enable();
 				e.preventDefault();	
 			}
 		});
-		*/
-		var eventDialogBox = $("#eventContainer").dialog({
+		
+		var triggerFields = 0;
+		var triggerMaxFields = 10;
+		var postTriggerDialog = $('#postTrigger').dialog({
 			autoOpen: false,
-			closeOnEscape: false,
-			open: function(event, ui) {
-				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-			},
-			height: 425,
-			width: 300,
-			appendTo: "#map",
+			width: 400,
+			maxHeight: 620,
+			height: 'auto',
+			appendTo: '#map',
+			modal: false,
 			position: {
 				my: "left top",
 				at: "right bottom",
 				of: placeholder
 			},
-			modal: false,
+			open: function () {
+				map.scrollWheelZoom.disable();
+				var contentStr = '<fieldset id="triggerFieldset">';
+				contentStr += '<label for="triggerTitle">Title</label><br/><input type="text" id="triggerTitle" class="text ui-widget-content ui-corner-all"/><br/>';
+				contentStr += '<label for="triggerType">EventType ID</label><br/><input type="text" id="triggerType" class="text ui-widget-content ui-corner-all"/><br/>';
+				contentStr += '<label for="triggerTask">Task</label><br/><input type="text" id="triggerTask" class="text ui-widget-content ui-corner-all"/>'
+				contentStr += '<p>Querys</p></fieldset>';
+				$(this).html(contentStr);
+			},
 			buttons: {
 				"Submit": function() {
-					eventType = $("#eventType").val();
-					eventDate = $("#eventDate").val();
-					eventFilename = $("#eventFilename").val();
-					eventCode = $("#eventCode").val();
-					eventSeverity = $("#eventSeverity").val();
-					var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": parseInt(eventSeverity)}}
-					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-					if(pzAction == 'post') {
-						pzEvent["eventname"] = pzEventtypes[eventType];
-						console.log(pzEventtypes[eventType]);
-					}
-					console.log(pzEvent);
-					console.log(pzData);
-					pzSender(pzEvent);
+					submitTrigger();
 					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
 				},
-				"Cancel": function() {
+				"Add Query": function() {
+					if (triggerFields < triggerMaxFields) {
+						$("#triggerFieldset").append('<fieldset><select id="triggerClause' + triggerFields + '">' +
+														'<option value = "must">must</option>' +
+														'<option value = "filter">filter</option>' +
+														'<option value = "must_not">must_not</option>' +
+														'<option value = "should">should</option>' +
+													'</select>' +
+													'<select id="triggerTerm' + triggerFields + '">' +
+														'<option value = "match">match</option>' +
+														'<option value = "term">term</option>' +
+													'</select><br/>' +
+													'<label for="queryKey' + triggerFields + '">Key</label><br/><input type="text" id="queryKey' + triggerFields + '" class="text ui-widget-content ui-corner-all"><br/>' +
+													'<label for="queryValue' + triggerFields + '">Value</label><br/><input type="text" id="queryValue' + triggerFields + '" class="text ui-widget-content ui-corner-all">' +
+													'</fieldset>');
+						triggerFields++;
+					}
+				},
+				"Cancel": function () {
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
+					map.scrollWheelZoom.enable();
+					triggerFields = 0;
 				}
-			},
-		});
-		$('eventContainer').keypress( function(e) {
+			}
+		}); 
+		
+		$('#postTrigger').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				eventType = $("#eventType").val();
-				eventDate = $("#eventDate").val();
-				eventFilename = $("#eventFilename").val();
-				eventCode = $("#eventCode").val();
-				eventSeverity = $("#eventSeverity").val();
-				var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": eventSeverity}}
-				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-				if(pzAction == 'post') {
-					pzEvent["eventname"] = pzEventtypes[eventType];
-					console.log(pzEventtypes[eventType]);
-				}
-				console.log(pzEvent);
-				console.log(pzData);
-				pzSender(pzEvent);
+				submitTrigger();
 				$(this).dialog("close");
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
 				e.preventDefault();	
 			}
 		});
-		/*
-		var eventIdDialogBox = $("#eventContainerID").dialog({
+		
+		function submitTrigger() {
+			triggerTitle = $("#triggerTitle").val();
+			triggerType = $("#triggerType").val();
+			triggerTask = $("#triggerTask").val();
+			var pzBool = {};
+			var must = [];
+			var filter = [];
+			var must_not = [];
+			var should = [];
+			for(var i = 0; i < triggerFields; i++) {
+				var clause = $("#triggerClause{0}".format(i)).val();
+				var term = $("#triggerTerm{0}".format(i)).val();
+				var key = $("#queryKey{0}".format(i)).val();
+				var value = $("#queryValue{0}".format(i)).val();
+				if (clause == 'must') {
+					var termJson = {};
+					termJson[key] = value;
+					var clauseJson = {};
+					clauseJson[term] = termJson;
+					must.push(clauseJson);
+				}
+				else if (clause == 'filter') {
+					var termJson = {};
+					termJson[key] = value;
+					var clauseJson = {};
+					clauseJson[term] = termJson;
+					filter.push(clauseJson);
+				}
+				else if (clause == 'must_not') {
+					var termJson = {};
+					termJson[key] = value;
+					var clauseJson = {};
+					clauseJson[term] = termJson;
+					must_not.push(clauseJson);
+				}
+				else {
+					var termJson = {};
+					termJson[key] = value;
+					var clauseJson = {};
+					clauseJson[term] = termJson;
+					should.push(clauseJson);
+				}
+			}
+			if(must.length > 0) {
+				pzBool['must'] = must;
+			}
+			if(filter.length > 0) {
+				pzBool['filter'] = filter;
+			}
+			if(must_not.length > 0) {
+				pzBool['must_not'] = must_not;
+			}
+			if(should.length > 0) {
+				pzBool['should'] = should;
+			}
+			
+			var pzData = {'title': triggerTitle, 'condition': {'type': triggerType, 'query': {'query': {'bool': pzBool}}, 'job': {'task' : triggerTask}}};
+			var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+			console.log(pzEvent);
+			console.log(pzData);
+			pzSender(pzEvent);
+			map.dragging.enable();
+			map.doubleClickZoom.enable();
+			map.scrollWheelZoom.enable();
+			triggerFields = 0;
+		}
+		
+		var eventFields = 0;
+		var eventMaxFields = 10;
+		var postEventDialog = $('#postEvent').dialog({
 			autoOpen: false,
-			closeOnEscape: false,
-			open: function(event, ui) {
-				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-			},
-			height: 500,
-			width: 300,
-			appendTo: "#map",
+			width: 400,
+			maxHeight: 620,
+			height: 'auto',
+			appendTo: '#map',
+			modal: false,
 			position: {
 				my: "left top",
 				at: "right bottom",
 				of: placeholder
 			},
-			modal: false,
+			open: function () {
+				map.scrollWheelZoom.disable();
+				var contentStr = '<fieldset id="eventFieldset">';
+				contentStr += '<label for="eventType">EventType ID  </label><br/><input type="text" id="eventType" class="text ui-widget-content ui-corner-all"/><br/><br/>';
+				contentStr += '<label for="eventDate">Date  </label><br/><input type="text" id="eventDate" class="text ui-widget-content ui-corner-all"/><br/>';
+				contentStr += '<p>Event Data</p></fieldset>';
+				$(this).html(contentStr);
+			},
 			buttons: {
 				"Submit": function() {
-					eventType = $("#eventTypeID").val();
-					eventDate = $("#eventDateID").val();
-					eventFilename = $("#eventFilenameID").val();
-					eventCode = $("#eventCodeID").val();
-					eventSeverity = $("#eventSeverityID").val();
-					var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": eventSeverity}}
-					
-					if ($("#eventIdID").val() != "") {
-						eventId = $("#eventIdID").val();
-						pzData["id"] = eventId;
-					}
-					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-					if(pzAction == 'delete') {
-						pzEvent['eventname'] = pzEventtypes[eventType];
-					}
-					console.log(pzEvent);
-					console.log(pzData);
-					pzSender(pzEvent);
+					submitEvent();
 					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
 				},
-				"Cancel": function() {
+				"Add Data Field": function() {
+					if (eventFields < eventMaxFields) {
+						$("#eventFieldset").append('<fieldset><label for="eventKey' + eventFields + '">Key</label><br/><input type="text" id="eventKey' + eventFields + '" class="text ui-widget-content ui-corner-all"><br/>' +
+													'<label for="eventValue' + eventFields + '">Value</label><br/><input type="text" id="eventValue' + eventFields + '" class="text ui-widget-content ui-corner-all">' +
+													'</fieldset>');
+						eventFields++;
+					}
+				},
+				"Cancel": function () {
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
+					map.scrollWheelZoom.enable();
+					eventFields = 0;
 				}
-			},
-		});
-		$('eventContainerID').keypress( function(e) {
+			}
+		}); 
+		
+		$('#postEvent').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				eventType = $("#eventTypeID").val();
-				eventDate = $("#eventDateID").val();
-				eventFilename = $("#eventFilenameID").val();
-				eventCode = $("#eventCodeID").val();
-				eventSeverity = $("#eventSeverityID").val();
-				var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": eventSeverity}}
-				if ($("#eventIdID").val() != "") {
-					eventId = $("#eventIdID").val();
-					pzData["id"] = eventId;
-				}
-				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-				if(pzAction == 'delete') {
-					pzEvent['eventname'] = pzEventtypes[eventType];
-				}
-				console.log(pzEvent);
-				console.log(pzData);
-				pzSender(pzEvent);
+				submitEvent();
 				$(this).dialog("close");
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
 				e.preventDefault();	
 			}
 		});
-		*/
-		var eventtypesDialogBox = $("#eventtypesContainer").dialog({
+		
+		function submitEvent() {
+			eventType = $("#eventType").val();
+			eventDate = $("#eventDate").val();
+			var pzData = {'type': eventType, 'date': eventDate};
+			var subData = {};
+			for(var i = 0; i < eventFields; i++) {
+				var key = $("#eventKey{0}".format(i)).val();
+				var value = $("#eventValue{0}".format(i)).val();
+				subData[key] = value;
+			}
+			pzData['data'] = subData;
+			var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+			console.log(pzEvent);
+			console.log(pzData);
+			pzSender(pzEvent);
+			map.dragging.enable();
+			map.doubleClickZoom.enable();
+			map.scrollWheelZoom.enable();
+			eventFields = 0;
+		}
+		
+		var eventtypeFields = 0;
+		var eventtypeMaxFields = 10;
+		var postEventtypeDialog = $('#postEventtype').dialog({
 			autoOpen: false,
-			closeOnEscape: false,
-			open: function(event, ui) {
-				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-			},
-			height: 375,
-			width: 300,
-			appendTo: "#map",
+			width: 500,
+			maxHeight: 620,
+			height: 'auto',
+			appendTo: '#map',
+			modal: false,
 			position: {
 				my: "left top",
 				at: "right bottom",
 				of: placeholder
 			},
-			modal: false,
+			open: function () {
+				map.scrollWheelZoom.disable();
+				var contentStr = '<fieldset id="eventtypesFieldset">';
+				contentStr += '<label for="eventtypesName">Name</label><br/><input type="text" id="eventtypesName" class="text ui-widget-content ui-corner-all"/><br/>';
+				contentStr += '<p>Mapping</p>';
+				$(this).html(contentStr);
+			},
 			buttons: {
 				"Submit": function() {
-					eventtypesName = $("#eventtypesName").val();
-					eventtypesFilename = $("#eventtypesFilename").val();
-					eventtypesSeverity = $("#eventtypesSeverity").val();
-					eventtypesCode = $("#eventtypesCode").val();
-					var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
-					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-					console.log(pzEvent);
-					console.log(pzData);
-					pzSender(pzEvent);
+					postEventtype();
 					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
 				},
-				"Cancel": function() {
-					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
-				}
-			},
-		});
-		$('eventtypesContainer').keypress( function(e) {
-			if (e.charCode == 13 || e.keyCode == 13) {
-				eventtypesName = $("#eventtypesName").val();
-				eventtypesFilename = $("#eventtypesFilename").val();
-				eventtypesSeverity = $("#eventtypesSeverity").val();
-				eventtypesCode = $("#eventtypesCode").val();
-				var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
-				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-				console.log(pzEvent);
-				console.log(pzData);
-				pzSender(pzEvent);
-				$(this).dialog("close");
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
-				e.preventDefault();	
-			}
-		});
-		/*
-		var eventtypesIdDialogBox = $("#eventtypesContainerID").dialog({
-			autoOpen: false,
-			closeOnEscape: false,
-			open: function(event, ui) {
-				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-			},
-			height: 425,
-			width: 300,
-			appendTo: "#map",
-			position: {
-				my: "left top",
-				at: "right bottom",
-				of: placeholder
-			},
-			modal: false,
-			buttons: {
-				"Submit": function() {
-					eventtypesName = $("#eventtypesName").val();
-					eventtypesFilename = $("#eventtypesFilename").val();
-					eventtypesSeverity = $("#eventtypesSeverity").val();
-					eventtypesCode = $("#eventtypesCode").val();
-					var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
-					if ($("#eventtypesId").val() != "") {
-						console.log("Should be working");
-						eventtypesId = $("#eventtypesId").val();
-						pzData["id"] = eventtypesId;
+				"Add Mapping Field": function() {
+					if (eventtypeFields < eventtypeMaxFields) {
+						$("#eventtypesFieldset").append('<fieldset><label for="eventMappingName' + eventtypeFields + '">FieldName  </label>' +
+														'<input type="text" id="eventMappingName' + eventtypeFields + '" class="text ui-widget-content ui-corner-all"/>' +
+															'<select id="eventMappingType' + eventtypeFields + '">' +
+																'<option value = "string">string</option>' +
+																'<option value = "boolean">boolean</option>' +
+																'<option value = "integer">integer</option>' +
+																'<option value = "double">double</option>' +
+																'<option value = "date">date</option>' +
+																'<option value = "float">float</option>' +
+																'<option value = "byte">byte</option>' +
+																'<option value = "short">short</option>' +
+																'<option value = "long">long</option>' +
+															'</select></fieldset>');
+						eventtypeFields++;
+						
 					}
-					console.log("Should be below me");
-					console.log($("#eventtypesId").val());
-					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-					console.log(pzEvent);
-					console.log(pzData);
-					pzSender(pzEvent);
-					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
 				},
-				"Cancel": function() {
+				"Cancel": function () {
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
+					map.scrollWheelZoom.enable();
+					eventtypeFields = 0;
 				}
-			},
-		});
-		$('eventtypesContainerID').keypress( function(e) {
+			}
+		}); 
+		
+		$('#postEventtype').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				eventtypesName = $("#eventtypesName").val();
-				eventtypesFilename = $("#eventtypesFilename").val();
-				eventtypesSeverity = $("#eventtypesSeverity").val();
-				eventtypesCode = $("#eventtypesCode").val();
-				var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
-				if ($("#eventtypesId").val() != "") {
-					console.log("Should be working");
-					eventtypesId = $("#eventtypesId").val();
-					pzData["id"] = eventtypesId;
-				}
-				console.log("Should be below me");
-				console.log($("#eventtypesId").val());
-				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
-				console.log(pzEvent);
-				console.log(pzData);
-				pzSender(pzEvent);
+				postEventtype();
 				$(this).dialog("close");
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
 				e.preventDefault();	
 			}
 		});
-		*/
+		
+		function postEventtype() {
+			eventtypesName = $("#eventtypesName").val();
+			var pzData = {};
+			var pzEvent = {"type": pzType, "action": pzAction};
+			var pzData = {'name': eventtypesName};
+			var pzMapping = {};
+			for(var i = 0; i < eventtypeFields; i++) {
+				var nameField = "#eventMappingName{0}".format(i);
+				var dataTypeField = "#eventMappingType{0}".format(i);
+				pzMapping[$(nameField).val()] = $(dataTypeField).val();
+			}
+			pzData['mapping'] = pzMapping;
+			pzEvent['data'] = pzData;
+			console.log(pzEvent);
+			console.log(pzData);
+			pzSender(pzEvent);
+			map.dragging.enable();
+			map.doubleClickZoom.enable();
+			map.scrollWheelZoom.enable();
+			eventtypeFields = 0;
+		}
+		
 		var alertDialogBox = $("#alertContainer").dialog({
 			autoOpen: false,
 			closeOnEscape: false,
@@ -1683,12 +1601,12 @@
 					$(this).dialog("close");
 					map.dragging.enable();
 					map.doubleClickZoom.enable();
+					map.scrollWheelZoom.enable();
 				}
 			},
 		});
-		$('alertContainer').keypress( function(e) {
+		$('#alertContainer').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				//alertId = $("#alertId").val();
 				alertTriggerId = $("#alertTriggerId").val();
 				alertEventId = $("#alertEventId").val();
 				var alertData = {"trigger_id": alertTriggerId, "event_id": alertEventId}
@@ -1703,68 +1621,7 @@
 				e.preventDefault();	
 			}
 		});
-		/*
-		var alertIdDialogBox = $("#alertContainerID").dialog({
-			autoOpen: false,
-			closeOnEscape: false,
-			open: function(event, ui) {
-				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
-			},
-			height: 325,
-			width: 300,
-			appendTo: "#map",
-			position: {
-				my: "left top",
-				at: "right bottom",
-				of: placeholder
-			},
-			modal: false,
-			buttons: {
-				"Submit": function() {
-					alertTriggerId = $("#alertTriggerIdID").val();
-					alertEventId = $("#alertEventIdID").val();
-					var alertData = {"trigger_id": alertTriggerId, "event_id": alertEventId}
-					if ($("#alertIdID").val() != "") {
-						alertId = $("#alertIdID").val();
-						alertData["id"] = alertId;
-					}
-					var pzAlert = {"type": pzType, "data": {}, "action": pzAction};
-					pzAlert["data"] = alertData;
-					console.log(pzAlert);
-					console.log(alertData);
-					pzSender(pzAlert);
-					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
-				},
-				"Cancel": function() {
-					$(this).dialog("close");
-					map.dragging.enable();
-					map.doubleClickZoom.enable();
-				}
-			},
-		});
-		$('alertContainerID').keypress( function(e) {
-			if (e.charCode == 13 || e.keyCode == 13) {
-				alertTriggerId = $("#alertTriggerIdID").val();
-				alertEventId = $("#alertEventIdID").val();
-				var alertData = {"trigger_id": alertTriggerId, "event_id": alertEventId}
-				if ($("#alertIdID").val() != "") {
-					alertId = $("#alertIdID").val();
-					alertData["id"] = alertId;
-				}
-				var pzAlert = {"type": pzType, "data": {}, "action": pzAction};
-				pzAlert["data"] = alertData;
-				console.log(pzAlert);
-				console.log(alertData);
-				pzSender(pzAlert);
-				$(this).dialog("close");
-				map.dragging.enable();
-				map.doubleClickZoom.enable();
-				e.preventDefault();	
-			}
-		});
-		*/
+		
 		var pzButton = L.easyButton({
 			states: [{
 				stateName: 'Pz-Workflow controller',
@@ -2006,17 +1863,9 @@
 				buttons: {
 					"Submit": function() {
 						var inStr = $("#sub").val();
-						//if(!ValidURL(inStr)) {
-						//	sub = "";
-						//	document.getElementById("sub").value = sub;
-						//	sessionStorage.sub = sub;
-						//}
-						//else {
-							sub = inStr;
-							sessionStorage.sub = inStr;
-							getSub(sub);
-							
-						//}
+						sub = inStr;
+						sessionStorage.sub = inStr;
+						getSub(sub);
 						$(this).dialog("close");
 						map.dragging.enable();
 						map.doubleClickZoom.enable();
@@ -2038,18 +1887,9 @@
 			$('#subcribeForm').keypress( function(e) {
 				if (e.charCode == 13 || e.keyCode == 13) {
 					var inStr = $("#sub").val();
-					//if(!ValidURL(inStr)) {
-					//	sub = "";
-					//	document.getElementById("sub").value = sub;
-					//	sessionStorage.sub = sub;
-					//}
-					//else {
-						sub = inStr;
-						sessionStorage.sub = inStr;
-						getSub(sub);
-							
-					//}
-					
+					sub = inStr;
+					sessionStorage.sub = inStr;
+					getSub(sub);
 					$(this).dialog("close");
 					e.preventDefault();
 					map.dragging.enable();
@@ -2086,7 +1926,7 @@
 		}	
 			
 		function subUpdate(result, url) {
-			//var layerName = result['test'];
+			var layerName = result['test'];
 			var layerName = 'test';
 			subLayers[layerName] = null;
 			if(!(layerName in layers)){
