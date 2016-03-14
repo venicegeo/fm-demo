@@ -1,3 +1,20 @@
+# Copyright 2016, RadiantBlue Technologies, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ogr2ogr.py is Copyright (c) 2010-2013, Even Rouault <even dot rouault at mines-paris dot org>
+# Copyright (c) 1999, Frank Warmerdam
+
 from fulcrum import Fulcrum
 from django.core.cache import cache
 from dateutil import parser
@@ -18,7 +35,6 @@ from django.db import connection, connections, ProgrammingError, OperationalErro
 from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
-
 
 class FulcrumImporter:
     def __init__(self):
@@ -646,7 +662,6 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
         True, if no errors occurred.
     """
 
-    remove_urls = []
     if not feature_data:
         return False
 
@@ -682,15 +697,15 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
         if non_unique_feature_data:
             update_db_features(non_unique_feature_data, table, database_alias=database_alias)
 
-        if not ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data),
-                                     database_alias=database_alias,
-                                     table=table):
-            continue
-
-        uploaded = True
+        if feature_data:
+            ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data),
+                                 database_alias=database_alias,
+                                 table=table)
+        else:
+            uploaded = True
 
     # Finally update one by one all of the features we know are in the database
-    if non_unique_feature_data:
+    if non_unique_features:
         update_db_features(non_unique_features, table, database_alias=database_alias)
     return True
 
@@ -713,15 +728,16 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
     if type(feature_data) != list:
         feature_data = [feature_data]
 
-    for feature in feature_data:
+    if not media_keys:
+        return feature_data
 
+    for feature in feature_data:
         for media_key, media_val in media_keys.iteritems():
             try:
                 url_prop = "{}_url".format(media_key)
                 del feature['properties'][url_prop]
             except KeyError:
                 print("ERROR: Could not delete the key {}.".format(url_prop))
-                pass
             media_ext = get_type_extension(media_val)
             if media_val == 'audio':
                 #Because of maploom
@@ -805,8 +821,7 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None, fid=Non
                       '{}'.format(geojson_file),
                       '-nln', table]
 
-    with transaction.atomic():
-        ogr2ogr.main(execute_append)
+    ogr2ogr.main(execute_append)
 
 
 def add_unique_constraint(database_alias=None, table=None, key_name=None):
@@ -867,7 +882,10 @@ def check_db_for_features(features, table, database_alias=None):
     unique_features = []
     non_unique_features = []
     for feature in features:
-        if check_db_for_feature(feature, db_features):
+        checked_feature = check_db_for_feature(feature, db_features)
+        if checked_feature == 'reject':
+            continue
+        if checked_feature:
             non_unique_features += [feature]
         else:
             unique_features += [feature]
@@ -885,6 +903,8 @@ def get_duplicate_features(features, properties_id=None):
 
     unique_features = [sorted_features[0]]
     non_unique_features = []
+    if not sorted_features[1]:
+        return unique_features, non_unique_features
     for feature in sorted_features[1:]:
         if feature.get('properties').get(properties_id) == unique_features[-1].get('properties').get(properties_id):
             non_unique_features += [feature]
@@ -905,9 +925,9 @@ def check_db_for_feature(feature, db_features=None):
         # While it is unlikely that the database would have a newer version than the one being presented.
         # Older versions should be rejected.  If they fail to be handled at least they won't overwrite a
         # more current value.
-        if db_features.get('version') > feature.get('properties').get('version'):
+        if db_features.get(fulcrum_id).get('version') > feature.get('properties').get('version'):
             return "reject"
-        feature['ogc_fid'] = db_features.get('ogc_fid')
+        feature['ogc_fid'] = db_features.get(fulcrum_id).get('ogc_fid')
         return feature
     return None
 
@@ -927,16 +947,17 @@ def get_all_db_features(layer, database_alias=None):
             cur.execute(query)
             features = {}
             fulcrum_id_index = get_column_index('fulcrum_id', cur)
-            version_index = get_column_index('version', cur)
+            ogc_id_index = get_column_index('ogc_fid', cur)
+            version_id_index = get_column_index('version', cur)
             for feature in cur:
                 features[feature[fulcrum_id_index]] = {'fulcrum_id': feature[fulcrum_id_index],
-                                                       'version': feature[version_index],
+                                                       'ogc_fid': feature[ogc_id_index],
+                                                       'version': feature[version_id_index],
                                                        'feature_data': feature}
     except ProgrammingError:
         return None
     finally:
         cur.close()
-
     return features
 
 
@@ -949,6 +970,9 @@ def get_column_index(name, cursor):
 
 
 def update_db_features(features, layer, database_alias=None):
+    if not features or not layer:
+        print("A feature or layer was not provided to update_db_features")
+        return
     if type(features) != list:
         features = [features]
     for feature in features:
@@ -1000,20 +1024,24 @@ def delete_db_feature(feature, layer, database_alias=None):
             print("WARNING: An attempt was made to update a feature with an older version. "
                   "The feature {} was rejected.".format(feature))
     if database_alias:
-        cur = connections[database_alias].cursor()
+        db_conn = connections[database_alias]
     else:
-        cur = connection.cursor()
+        db_conn = connection
+
+    cur = db_conn.cursor()
 
     query = "DELETE FROM {} WHERE fulcrum_id = '{}';".format(layer, feature.get('properties').get('fulcrum_id'))
 
     try:
-        cur.execute(query)
+        with transaction.atomic():
+            cur.execute(query)
     except ProgrammingError:
         print("Unable to delete the feature:")
         print(str(feature))
         print("It is most likely not in the database or missing a fulcrum_id.")
     finally:
         cur.close()
+
 
 
 def remove_items(iterable, remove=[]):
@@ -1130,3 +1158,36 @@ def dictfetchall(cursor):
         dict(zip(columns, row))
         for row in cursor.fetchall()
     ]
+
+
+
+
+def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs):
+    #See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
+    #See also https://github.com/GeoNode/geonode/issues/1656
+    params = kwargs
+    params.setdefault("name", "geonode:{0}".format(layer_name))
+    params.setdefault("srs", {"number": srs})
+    params.setdefault("zoomStart", 0)
+    if srs == 4326:
+        params.setdefault("zoomStop", 21)
+    else:
+        params.setdefault("zoomStop", 31)
+    params.setdefault("format", "image/png")
+    params.setdefault("type", "truncate")
+    params.setdefault("threadCount", 4)
+
+    payload = json.dumps({"seedRequest": params})
+
+    if not geoserver_base_url:
+        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+
+    url = "{0}/gwc/rest/seed/geonode:{1}.json".format(geoserver_base_url, layer_name)
+
+    requests.post(url,
+                  auth=(settings.OGC_SERVER['default']['USER'],
+                        settings.OGC_SERVER['default']['PASSWORD'],
+                        ),
+                  headers={"content-type": "application/json"},
+                  data=payload,
+                  verify=False)
