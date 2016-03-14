@@ -364,3 +364,24 @@ class FulcrumImporterTests(TestCase):
 
         self.assertEqual(expected_feature, returned_features[0])
 
+    def test_is_valid_photo(self):
+        import os
+        script_path = os.path.dirname(os.path.abspath( __file__ ))
+        from PIL import Image
+        file = os.path.join(script_path, 'good_photo.jpg')
+        good_photo = Image.open(file)
+        info = good_photo._getexif()
+        properties = get_gps_info(info)
+        self.assertNotIn("GPSInfo", properties)
+
+        file2 = os.path.join(script_path, 'bad_photo.jpg')
+        bad_photo = Image.open(file2)
+        info2 = bad_photo._getexif()
+        properties2 = get_gps_info(info2)
+        self.assertIn("GPSInfo", properties2)
+
+        coords = get_gps_coords(properties)
+        self.assertIsNone(coords)
+
+        coords2 = get_gps_coords(properties2)
+        self.assertEqual([38.889775, -77.456342], coords2)

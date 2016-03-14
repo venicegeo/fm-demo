@@ -7,25 +7,25 @@
 			}
 
 		var OpenStreetMap = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-			maxZoom : 16,
+			maxZoom : 18,
 			attribution : 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
 			id : 'mapbox.light'
 		});
 		
 		var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-			maxZoom : 16,
+			maxZoom : 18,
 			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
 		});
 		
 		var mini1 = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			minZoom: 0, 
-			maxZoom: 14, 
+			maxZoom: 16, 
 			attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
 		});
 		
 		var mini2 = new L.TileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
 			minZoom: 0,
-			maxZoom: 14,
+			maxZoom: 16,
 			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN , IGP, UPR-EGP, and teh GIS User Community'
 		});
 		
@@ -41,28 +41,7 @@
 			"Esri_WorldImagery": Esri_WorldImagery,
 			"OpenStreetMap": OpenStreetMap
 		};
-		
-		var myGeo = {
-			"type": "Feature",
-			"properties": {
-				"name": "A place"
-			},
-			"geometry": {
-				"type": "Point",
-				"coordinates": [91.99404, 62.75621]
-			}, 
-		};
-		
-		var myGeo2 = {
-			"type": "Feature",
-			"properties": {
-				"name": "A place"
-			},
-			"geometry": {
-				"type": "Point",
-				"coordinates": [89.99404, 60.75621]
-			}, 
-		};
+
 		
 		// Track which layers are in the map //
 		var activeLayers = {};
@@ -82,43 +61,12 @@
 		// Track triggers posted by user //
 		var pzTriggers= {};
 		
-		var mycolor = "#3d3d3d";
-		layerStyles["E55"] = {
-			radius : 4,
-			fillColor : "#cc3300",
-			color : "#000000",
-			weight : 1, 
-			opacity : 1,
-			fillOpacity : 1
-		}
-		var mycolor2 = "#009999";
-		layerStyles["E44"] = {
-			radius : 4,
-			fillColor : "#009999",
-			color : "#000000",
-			weight : 1, 
-			opacity : 1,
-			fillOpacity : 1
-		}
-		
-		var myLayer = L.geoJson(myGeo, {
-			pointToLayer: function(feature, latlng) {
-					return L.circleMarker(latlng, layerStyles["E55"]);
-				}
-		});
-		var myLayer2 = L.geoJson(myGeo2, {
-			pointToLayer: function(feature, latlng) {
-					return L.circleMarker(latlng, layerStyles["E44"]);
-				}
-		});
 		
 		// Empty layer list for any user uploaded layers //
 		var layers = {};
 		
 		// Empty layer list for any pz Events //
 		var events = {}; 
-		events["E55"] = myLayer;
-		events["E44"] = myLayer2;
 		
 		// Create divisions in the layer control //
 		var overlays = {
@@ -337,80 +285,42 @@
 		// Adds a popup with information for each point //
 		function onEachFeature(feature, layer) {
 			layer.on('click', function (e) {
-				var content = "";
-				
-				// Add alert name //
-				if (e.target.feature.properties.name != null && e.target.feature.properties.name != "") {
-					content += '<p><strong>Name: </strong> ' + e.target.feature.properties.name + '</p>';
-				}
-				else  {
-					content += '<p><strong>Name: </strong>Unavailable</p>';
-				}
-				
-				// Add alert time //
-				if (e.target.feature.properties.time != null && e.target.feature.properties != "") {
-					var time = new Date(e.target.feature.properties.time * 1000);
-					content += '<p><strong>Date: </strong>'+ time + '</p>';
-				}
-				else {
-					content += '<p><strong>Date: </strong>Unavailable</p>';
-				}
-				
-				// Add alert address //
-				if (e.target.feature.properties.address_1 != null && e.target.feature.properties.address_1 != "") {
-					content += '<p><strong>Address: </strong>' + e.target.feature.properties.address_1;
-				}
-				else {
-					content += '<p><strong>Address: </strong>Unavailable';
-				}
-				
-				// Add alert city //
-				if (e.target.feature.properties.city != null && e.target.feature.properties.city != "") {
-					content += '</br><strong>City: </strong>' + e.target.feature.properties.city;
-				}
-				else {
-					content += '</br><strong>City: </strong>Unavailable';
-				}
-				
-				// Add alert country //
-				if (e.target.feature.properties.country != null && e.target.feature.properties.country != "") {
-					content += '</br><strong>Country: </strong>' + e.target.feature.properties.country;
-				}
-				else {
-					content += '</br><strong>Country: </strong>Unavailable';
-				}
-				
-				// close the address, city, country paragraph //
-				content += '</p>';
-				
-				// Add alert photos //
-				if (e.target.feature.properties.photos_url != null && e.target.feature.properties.photos_url != "") {
-					var urlStr = "";
-					for (var url in e.target.feature.properties.photos_url){
-						urlStr += '<p><a href="' + e.target.feature.properties.photos_url[url] + '" target="_blank"><img src="' + e.target.feature.properties.photos_url[url] + '" style="width: 250px; height: 250px;"/></a></p>';
-					};
+				var genericStr = "";
+				var titleStr = "";
+				var idStr = "";
+				var photosStr = "";
+				var audioStr = "";
+				var videosStr = "";
+				for (var property in e.target.feature.properties) {
 					
-					content += urlStr;
-				}
-				
-				// Add alert videos
-				if (e.target.feature.properties.videos_url != null && e.target.feature.properties.videos_url != "") {
-					var urlStr = "";
-					for (var url in e.target.feature.properties.videos_url){
-						urlStr += '<p><video width="250" height="250" controls><source src="' + e.target.feature.properties.videos_url[url] + '" type="video/mp4" target="_blank"></video></p>';
-					};
-					
-					content += urlStr;
-				}
-				
-				// Add alert audio
-				if (e.target.feature.properties.audio_url != null && e.target.feature.properties.audio_url != "") {
-					var urlStr = "";
-					for (var url in e.target.feature.properties.audio_url){
-						urlStr += '<p><audio controls><source src="' + e.target.feature.properties.audio_url[url] + '" type="audio/mp4"></audio></p>';
-					};
-					
-					content += urlStr;
+					if (String(property).toLowerCase().indexOf('name') > -1 || String(property).toLowerCase().indexOf('title') > -1) {
+						titleStr += '<p><strong>' + property + ':</strong> ' + e.target.feature.properties[property] + '</p>'
+					}
+					else if (String(property).toLowerCase().indexOf('id') == 0){
+						idStr += '<p><strong>' + property + ':</strong> ' + e.target.feature.properties[property] + '</p>'
+					}
+					else if(String(property).indexOf('_url') > -1) {
+						if (e.target.feature.properties[property] != null && e.target.feature.properties[property] != "") {
+							var urls = String(e.target.feature.properties[property]).split(",");
+							console.log(urls);
+							for (var url in urls){
+								if(String(urls[url]).indexOf('.jpg') > -1) {
+									photosStr += '<p><a href="' + urls[url] + '" target="_blank"><img src="' + urls[url] + '" style="width: 250px; height: 250px;"/></a></p>';
+								}
+								if(String(urls[url]).indexOf('.mp4') > -1) {
+									videosStr += '<p><video width="250" height="250" controls><source src="' + urls[url] + '" type="video/mp4" target="_blank"></video></p>';
+								}
+								if(String(urls[url]).indexOf('.m4a') > -1) {
+									audioStr += '<p><audio controls><source src="' + urls[url] + '" type="audio/mp4"></audio></p>';
+								}
+							}
+						}
+					}
+					else {
+						if (e.target.feature.properties[property] != null && e.target.feature.properties[property] != "") {
+							genericStr += '<p><strong>' + property + ':</strong> ' + e.target.feature.properties[property] + '</p>';
+						}
+					}
 				}
 				
 				// Get position for popup //
@@ -421,7 +331,7 @@
 					maxHeight: 400,
 					closeOnClick: false,
 					keepInView: true
-				}).setLatLng(coords).setContent(content).openOn(map);
+				}).setLatLng(coords).setContent(titleStr + idStr + genericStr + photosStr + videosStr + audioStr).openOn(map);
 			});
 		}
 		
@@ -912,15 +822,27 @@
 		
 		var pzType;
 		var pzAction;
+		
+		var eventtypesId;
+		var eventtypesName;
+		var eventtypesFilename;
+		var eventtypesSeverity;
+		var eventtypesCode;
+		
 		var triggerId;
 		var triggerTitle;
 		var triggerType;
-		var triggerQuery;
+		var triggerSeverity;
+		var triggerCode;
 		var triggerTask;
+		
 		var eventId;
 		var eventType;
 		var eventDate;
-		var eventData;
+		var eventFilename;
+		var eventSeverity;
+		var eventCode;
+		
 		var alertId;
 		var alertTriggerId;
 		var alertEventId;
@@ -1061,6 +983,14 @@
 				var request = {"type": type, "data": {}, "action": action};
 				pzSender(request);
 			}
+			else if(type == 'eventtypes') {
+				if(action == 'get' || action == 'delete') {
+					$("#eventtypesContainerID").dialog("open");
+				}
+				else {
+					$("#eventtypesContainer").dialog("open");
+				}
+			}
 			else if(type == 'trigger') {
 				if(action == 'get' || action == 'delete') {
 					$("#triggerContainerID").dialog("open");
@@ -1092,11 +1022,32 @@
 		
 		function pzSender(pzrequest) {
 			var requestStr = JSON.stringify(pzrequest);
+			/*function getCookie(name) {
+				var cookieValue = null;
+				if (document.cookie && document.cookie != '') {
+					var cookies = document.cookie.split(';');
+						for (var i = 0; i < cookies.length; i++) {
+							var cookie = jQuery.trim(cookies[i]);
+							// Does this cookie string begin with the name we want?
+							if (cookie.substring(0, name.length + 1) == (name + '=')) {
+								cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+								break;
+							}
+						}
+				}
+				return cookieValue;
+			}
+			function csrfSafeMethod(method) {
+				// these HTTP methods do not require CSRF protection
+				return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+			}*/
+			var csrftoken = getCookie('csrftoken');
+			console.log(requestStr);
 			$.ajax({
 				url: '/fulcrum_pzworkflow',
 				type: "POST",
 				data: requestStr,
-				contentType: "application/json",
+				contentType: false,
 				processData: false,
 				dataType: "json",
 				success: function(result) {
@@ -1106,6 +1057,11 @@
 				error: function(result) {
 					console.log("Error");
 					pzError(result);
+				},
+				beforeSend: function(xhr, settings) {
+					if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+						xhr.setRequestHeader("X-CSRFToken", csrftoken);
+					}
 				}
 			});
 		};
@@ -1122,7 +1078,7 @@
 			else if (pzAction == 'get') {
 				console.log(result);
 				if (pzType == 'event') {
-					createEventLayer(result);
+					//createEventLayer(result);
 				}
 				else if(pzType = 'trigger') {
 					pzTriggers[result['id']] = result['id'];
@@ -1160,10 +1116,11 @@
 					at: "right bottom",
 					of: placeholder
 				},
-				title: "{0}s".format(pzType),
+				title: "{0}".format(pzType),
 				open: function () {
 					map.dragging.disable();
 					map.doubleClickZoom.disable();
+					map.scrollWheelZoom.disable();
 					var contentStr = "";
 					$.each(result, function (index, value) {
 						contentStr += '<pre style="text-align: left;">' + JSON.stringify(value, undefined, 2) + '</pre><br/>';
@@ -1175,6 +1132,7 @@
 						$(this).dialog("close");
 						map.dragging.enable();
 						map.doubleClickZoom.enable();
+						map.scrollWheelZoom.enable();
 					}
 				}
 			}); //end confirm dialog
@@ -1192,7 +1150,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 400,
+			height: 425,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1205,9 +1163,36 @@
 				"Submit": function() {
 					triggerTitle = $("#triggerTitle").val()
 					triggerType = $("#triggerType").val();
-					triggerQuery = $("#triggerQuery").val();
+					triggerCode = $("#triggerCode").val();
+					triggerSeverity = $("#triggerSeverity").val();
 					triggerTask = $("#triggerTask").val();
-					var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+					var triggerData = {"title": triggerTitle, 
+										"condition": {
+											"type": triggerType, 
+											"query": {
+												"query": {
+													"bool": {
+														"must": [
+															{
+															"match": {
+																"severity": triggerSeverity
+																}
+															},
+															{
+															"match": {
+																"code": triggerCode
+																}
+															}
+														]
+													}
+												}
+											},
+											"job": {
+												"Task": triggerTask
+											}
+										}
+									}
+									
 					var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
 					pzTrigger["data"] = triggerData;
 					console.log(pzTrigger);
@@ -1228,9 +1213,10 @@
 			if (e.charCode == 13 || e.keyCode == 13) {
 				triggerTitle = $("#triggerTitle").val()
 				triggerType = $("#triggerType").val();
-				triggerQuery = $("#triggerQuery").val();
+				triggerCode = $("#triggerCode").val();
+				triggerSeverity = $("#triggerSeverity").val();
 				triggerTask = $("#triggerTask").val();
-				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": {"query": {"bool": {"must": [{"match": {"severity": triggerSeverity}},{"match": {"code": triggerCode}}]}}}, "job": {"Task": triggerTask}}}
 				var pzTrigger = {"type": pzType, "data": {}, "action": pzAction};
 				pzTrigger["data"] = triggerData;
 				console.log(pzTrigger);
@@ -1249,7 +1235,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 450,
+			height: 500,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1262,9 +1248,10 @@
 				"Submit": function() {
 					triggerTitle = $("#triggerTitleID").val();
 					triggerType = $("#triggerTypeID").val();
-					triggerQuery = $("#triggerQueryID").val();
+					triggerCode = $("#triggerCodeID").val();
+					triggerSeverity = $("#triggerSeverityID").val();
 					triggerTask = $("#triggerTaskID").val();
-					var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+					var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": {"query": {"bool": {"must": [{"match": {"severity": triggerSeverity}},{"match": {"code": triggerCode}}]}}}, "job": {"Task": triggerTask}}};
 					if($("#triggerIdID").val() != "") {
 						triggerId = $("#triggerIdID").val();
 						triggerData["id"] = $("#triggerIdID").val();
@@ -1287,11 +1274,12 @@
 		});
 		$('triggerContainerID').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				triggerTitle = $("#triggerTitleID").val();
+				triggerTitle = $("#triggerTitleID").val()
 				triggerType = $("#triggerTypeID").val();
-				triggerQuery = $("#triggerQueryID").val();
+				triggerCode = $("#triggerCodeID").val();
+				triggerSeverity = $("#triggerSeverityID").val();
 				triggerTask = $("#triggerTaskID").val();
-				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": triggerQuery}, "job": {"Task": triggerTask}}
+				var triggerData = {"title": triggerTitle, "condition": {"type": triggerType, "query": {"query": {"bool": {"must": [{"match": {"severity": triggerSeverity}},{"match": {"code": triggerCode}}]}}}, "job": {"Task": triggerTask}}};
 				if($("#triggerIdID").val() != "") {
 					triggerId = $("#triggerIdID").val();
 					triggerData["id"] = $("#triggerIdID").val();
@@ -1314,7 +1302,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 350,
+			height: 425,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1325,16 +1313,12 @@
 			modal: false,
 			buttons: {
 				"Submit": function() {
-					//eventId = $("#eventId").val();
 					eventType = $("#eventType").val();
 					eventDate = $("#eventDate").val();
-					if ($("#eventData").val() != "") {
-						eventData = JSON.parse($("#eventData").val());
-					}
-					else {
-						eventData = {};
-					}
-					var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+					eventFilename = $("#eventFilename").val();
+					eventCode = $("#eventCode").val();
+					eventSeverity = $("#eventSeverity").val();
+					var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": parseInt(eventSeverity)}}
 					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
 					console.log(pzEvent);
 					console.log(pzData);
@@ -1352,16 +1336,12 @@
 		});
 		$('eventContainer').keypress( function(e) {
 			if (e.charCode == 13 || e.keyCode == 13) {
-				//eventId = $("#eventId").val();
 				eventType = $("#eventType").val();
 				eventDate = $("#eventDate").val();
-				if ($("#eventData").val() != "") {
-					eventData = JSON.parse($("#eventData").val());
-				}
-				else {
-					eventData = {};
-				}
-				var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+				eventFilename = $("#eventFilename").val();
+				eventCode = $("#eventCode").val();
+				eventSeverity = $("#eventSeverity").val();
+				var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": eventSeverity}}
 				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
 				console.log(pzEvent);
 				console.log(pzData);
@@ -1379,7 +1359,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 400,
+			height: 500,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1392,13 +1372,11 @@
 				"Submit": function() {
 					eventType = $("#eventTypeID").val();
 					eventDate = $("#eventDateID").val();
-					if ($("#eventDataID").val() != "") {
-						eventData = JSON.parse($("#eventDataID").val());
-					}
-					else {
-						eventData = {};
-					}
-					var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+					eventFilename = $("#eventFilenameID").val();
+					eventCode = $("#eventCodeID").val();
+					eventSeverity = $("#eventSeverityID").val();
+					var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": eventSeverity}}
+					
 					if ($("#eventIdID").val() != "") {
 						eventId = $("#eventIdID").val();
 						pzData["id"] = eventId;
@@ -1422,17 +1400,139 @@
 			if (e.charCode == 13 || e.keyCode == 13) {
 				eventType = $("#eventTypeID").val();
 				eventDate = $("#eventDateID").val();
-				if ($("#eventDataID").val() != "") {
-					eventData = JSON.parse($("#eventDataID").val());
-				}
-				else {
-					eventData = {};
-				}
-				var pzData = {"type": eventType, "date": eventDate, "data": eventData}
+				eventFilename = $("#eventFilenameID").val();
+				eventCode = $("#eventCodeID").val();
+				eventSeverity = $("#eventSeverityID").val();
+				var pzData = {"type": eventType, "date": eventDate, "data": {"filename": eventFilename, "code": eventCode, "severity": eventSeverity}}
+				
 				if ($("#eventIdID").val() != "") {
 					eventId = $("#eventIdID").val();
 					pzData["id"] = eventId;
 				}
+				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+				console.log(pzEvent);
+				console.log(pzData);
+				pzSender(pzEvent);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var eventtypesDialogBox = $("#eventtypesContainer").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 375,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
+					eventtypesName = $("#eventtypesName").val();
+					eventtypesFilename = $("#eventtypesFilename").val();
+					eventtypesSeverity = $("#eventtypesSeverity").val();
+					eventtypesCode = $("#eventtypesCode").val();
+					var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
+					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+					console.log(pzEvent);
+					console.log(pzData);
+					pzSender(pzEvent);
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				},
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				}
+			},
+		});
+		$('eventtypesContainer').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				eventtypesName = $("#eventtypesName").val();
+				eventtypesFilename = $("#eventtypesFilename").val();
+				eventtypesSeverity = $("#eventtypesSeverity").val();
+				eventtypesCode = $("#eventtypesCode").val();
+				var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
+				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+				console.log(pzEvent);
+				console.log(pzData);
+				pzSender(pzEvent);
+				$(this).dialog("close");
+				map.dragging.enable();
+				map.doubleClickZoom.enable();
+				e.preventDefault();	
+			}
+		});
+		
+		var eventtypesIdDialogBox = $("#eventtypesContainerID").dialog({
+			autoOpen: false,
+			closeOnEscape: false,
+			open: function(event, ui) {
+				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
+			},
+			height: 425,
+			width: 300,
+			appendTo: "#map",
+			position: {
+				my: "left top",
+				at: "right bottom",
+				of: placeholder
+			},
+			modal: false,
+			buttons: {
+				"Submit": function() {
+					eventtypesName = $("#eventtypesName").val();
+					eventtypesFilename = $("#eventtypesFilename").val();
+					eventtypesSeverity = $("#eventtypesSeverity").val();
+					eventtypesCode = $("#eventtypesCode").val();
+					var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
+					if ($("#eventtypesId").val() != "") {
+						console.log("Should be working");
+						eventtypesId = $("#eventtypesId").val();
+						pzData["id"] = eventtypesId;
+					}
+					console.log("Should be below me");
+					console.log($("#eventtypesId").val());
+					var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
+					console.log(pzEvent);
+					console.log(pzData);
+					pzSender(pzEvent);
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				},
+				"Cancel": function() {
+					$(this).dialog("close");
+					map.dragging.enable();
+					map.doubleClickZoom.enable();
+				}
+			},
+		});
+		$('eventtypesContainerID').keypress( function(e) {
+			if (e.charCode == 13 || e.keyCode == 13) {
+				eventtypesName = $("#eventtypesName").val();
+				eventtypesFilename = $("#eventtypesFilename").val();
+				eventtypesSeverity = $("#eventtypesSeverity").val();
+				eventtypesCode = $("#eventtypesCode").val();
+				var pzData = {"name": eventtypesName, "mapping": {"filename": eventtypesFilename, "severity": eventtypesSeverity, "code": eventtypesCode}};
+				if ($("#eventtypesId").val() != "") {
+					console.log("Should be working");
+					eventtypesId = $("#eventtypesId").val();
+					pzData["id"] = eventtypesId;
+				}
+				console.log("Should be below me");
+				console.log($("#eventtypesId").val());
 				var pzEvent = {"type": pzType, "data": pzData, "action": pzAction};
 				console.log(pzEvent);
 				console.log(pzData);
@@ -1505,7 +1605,7 @@
 			open: function(event, ui) {
 				$(".ui-dialog-titlebar-close", ui.dialog | ui).hide();
 			},
-			height: 350,
+			height: 325,
 			width: 300,
 			appendTo: "#map",
 			position: {
@@ -1621,9 +1721,10 @@
 		}, 30000);
 		
 		function pzChecker(pzrequest) {
+			var csrftoken = getCookie('csrftoken');
 			var requestStr = JSON.stringify(pzrequest);
 			$.ajax({
-				url: '/fulcrum_importer/fulcrum_pzworkflow',
+				url: '/fulcrum_pzworkflow',
 				type: "POST",
 				data: requestStr,
 				contentType: "application/json",
@@ -1636,6 +1737,11 @@
 				error: function(result) {
 					console.log("Error with alert request");
 					return result;
+				},
+				beforeSend: function(xhr, settings) {
+					if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+						xhr.setRequestHeader("X-CSRFToken", csrftoken);
+					}
 				}
 			});
 		};
@@ -1662,9 +1768,10 @@
 		}
 		
 		function addEvent(id) {
+			var csrftoken = getCookie('csrftoken');
 			var requestStr = JSON.stringify({"type": "event", "data": {"id": id}, "action": "get"});
 			$.ajax({
-				url: '/fulcrum_importer/fulcrum_pzworkflow',
+				url: '/fulcrum_pzworkflow',
 				type: "POST",
 				data: requestStr,
 				contentType: "application/json",
@@ -1672,16 +1779,21 @@
 				dataType: "json",
 				success: function(result) {
 					console.log("Event request successful");
-					createEventLayer(result);
+					alert(JSON.stringify(result));
 				},
 				error: function(result) {
 					console.log("Error getting event");
 					console.log(result);
+				},
+				beforeSend: function(xhr, settings) {
+					if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+						xhr.setRequestHeader("X-CSRFToken", csrftoken);
+					}
 				}
 			});
 		};
-		
-		function createEventLayer(result) {
+		//// IF PULLING GEOJSON FROM WORKFLOW, WOULD HAVE USED THIS //
+		/*function createEventLayer(result) {
 			if (Object.keys(result['data']).length != 0) {
 				if(!(result['id'] in events)) {
 					console.log("Adding event to layer control");
@@ -1717,7 +1829,7 @@
 				console.log("Event has no data");
 			}
 		};
-		
+		*/
 		// Button to set alert subscription //
 		if(typeof(Storage) != "undefined") {
 			if (sessionStorage.sub) {
@@ -1833,7 +1945,7 @@
 						subUpdate(result, url);
 					},
 				error : function() {
-						alert("Unable to get alert service, re-check URL or give up all hope");
+						alert("Unable to get alert service, re-check URL");
 					}
 			});
 		}	
@@ -1955,9 +2067,30 @@
 				legend.addTo(map);
 			};
 		};
+		
+		function getCookie(name) {
+				var cookieValue = null;
+				if (document.cookie && document.cookie != '') {
+					var cookies = document.cookie.split(';');
+						for (var i = 0; i < cookies.length; i++) {
+							var cookie = jQuery.trim(cookies[i]);
+							// Does this cookie string begin with the name we want?
+							if (cookie.substring(0, name.length + 1) == (name + '=')) {
+								cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+								break;
+							}
+						}
+				}
+				return cookieValue;
+			}
+			
+		function csrfSafeMethod(method) {
+			// these HTTP methods do not require CSRF protection
+			return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+		}
 	
 		// Gets randomized color for new layer //
-		var approvedColors =[
+		var approvedColors0 =[
 			"#003366", //darkblue
 			"#006600", //darkgreen
 			"#ff8000", //orange
@@ -1979,13 +2112,54 @@
 			"#666699", //pale-ish purple
 			"#333300" //vomit			
 		];
+		
+		var approvedColors = [
+			"#0000ff",
+			"#a52a2a",
+			"#00ffff",
+			"#00008b",
+			"#008b8b",
+			"#a9a9a9",
+			"#006400",
+			"#bdb76b",
+			"#8b008b",
+			"#556b2f",
+			"#ff8c00",
+			"#9932cc",
+			"#e9967a",
+			"#9400d3",
+			"#ff00ff",
+			"#ffd700",
+			"#008000",
+			"#4b0082",
+			"#f0e68c",
+			"#add8e6",
+			"#e0ffff",
+			"#90ee90",
+			"#d3d3d3",
+			"#ffb6c1",
+			"#ffffe0",
+			"#00ff00",
+			"#ff00ff",
+			"#800000",
+			"#000080",
+			"#808000",
+			"#ffa500",
+			"#ffc0cb",
+			"#800080",
+			"#800080",
+			"#c0c0c0",
+			"#ffff00"
+		]
 		var colorix = 0;
 		function getRandomColor() {
 			if(colorix < approvedColors.length) {
+				console.log(approvedColors[colorix]);
 				return approvedColors[colorix++];
 			}
 			else {
 				colorix = 1;
+				console.log(approvedColors[colorix]);
 				return approvedColors[0];
 			}
 		};

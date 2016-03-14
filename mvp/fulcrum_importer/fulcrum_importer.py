@@ -456,7 +456,6 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
-            print get_type_extension(asset_type)
             if get_type_extension(asset_type) == 'jpg':
                 if is_valid_photo(File(temp)):
                     asset.asset_data.save(asset.asset_uid, File(temp))
@@ -510,46 +509,17 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
 def is_valid_photo(photo_file):
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
     from PIL import Image
-    from PIL.ExifTags import TAGS, GPSTAGS
-    im = Image.open(photo_file)
-    info = im._getexif()
-    properties = {}
-    if info:
-        for tag, value in info.items():
-            decoded = TAGS.get(tag, tag)
-            if decoded == "GPSInfo":
-                gps_data = {}
-                for t in value:
-                    sub_decoded = GPSTAGS.get(t, t)
-                    gps_data[sub_decoded] = value[t]
 
-                properties[(decoded)] = gps_data
-            elif decoded != "MakerNote":
-                properties[(decoded)] = (value)
-
-        if "GPSInfo" in properties:
-            gps_info = properties["GPSInfo"]
-
-            try:
-                gps_lat = gps_info["GPSLatitude"]
-                gps_lat_ref = gps_info["GPSLatitudeRef"]
-                gps_long = gps_info["GPSLongitude"]
-                gps_long_ref = gps_info["GPSLongitudeRef"]
-
-            except:
-                print "Could not get lat/long"
-                return False
-
-            lat = convert_to_degrees(gps_lat)
-            if gps_lat_ref != "N":
-                lat = 0 - lat
-
-            long = convert_to_degrees(gps_long)
-            if gps_lat_ref != "E":
-                long = 0 - long
-
-            coords = [round(lat, 6), round(long, 6)]
-
+    try:
+        im = Image.open(photo_file)
+        info = im._getexif()
+    except:
+        print "Failed to get exif data"
+        return True
+    properties = get_gps_info(info)
+    if properties.get('GPSInfo'):
+        coords = get_gps_coords(properties)
+        if coords:
             features = []
             feature = {"type": "Feature",
                        "geometry": {"type": "Point",
@@ -560,18 +530,53 @@ def is_valid_photo(photo_file):
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
             filtered_features, count = filter_features(geojson)
-            if filtered_features.get('features'):
-                print "Photo passed the filter"
+            if filtered_features:
                 return True
             else:
-                print "Photo did not pass the filter"
                 return False
         else:
-            print "No GPS info found"
             return True
     else:
-        print "No EXIF Info"
         return True
+
+
+def get_gps_info(info):
+    from PIL.ExifTags import TAGS, GPSTAGS
+    properties = {}
+    for tag, value in info.items():
+        decoded = TAGS.get(tag,tag)
+        if decoded == "GPSInfo":
+            gps_data = {}
+            for t in value:
+                sub_decoded = GPSTAGS.get(t, t)
+                gps_data[sub_decoded] = value[t]
+
+            properties[decoded] = gps_data
+        elif decoded != "MakerNote":
+                properties[decoded] = value
+    return properties
+
+def get_gps_coords(properties):
+        try:
+            gps_info = properties["GPSInfo"]
+            gps_lat = gps_info["GPSLatitude"]
+            gps_lat_ref = gps_info["GPSLatitudeRef"]
+            gps_long = gps_info["GPSLongitude"]
+            gps_long_ref = gps_info["GPSLongitudeRef"]
+        except:
+            print "Could not get lat/long"
+            return None
+
+        lat = convert_to_degrees(gps_lat)
+        if gps_lat_ref != "N":
+            lat = 0 - lat
+
+        long = convert_to_degrees(gps_long)
+        if gps_lat_ref != "E":
+            long = 0 - long
+
+        coords = [round(lat, 6), round(long, 6)]
+        return coords
 
 
 def convert_to_degrees(value):
