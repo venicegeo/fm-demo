@@ -965,7 +965,7 @@ def get_column_index(name, cursor):
     if not cursor.description:
         return
     for ind, val in enumerate([desc[0] for desc in cursor.description]):
-        if val == name:
+        if val.lower() == name.lower():
             return ind
 
 
