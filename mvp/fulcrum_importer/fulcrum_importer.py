@@ -1,3 +1,20 @@
+# Copyright 2016, RadiantBlue Technologies, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ogr2ogr.py is Copyright (c) 2010-2013, Even Rouault <even dot rouault at mines-paris dot org>
+# Copyright (c) 1999, Frank Warmerdam
+
 from fulcrum import Fulcrum
 from django.core.cache import cache
 from dateutil import parser
@@ -14,10 +31,12 @@ from datetime import datetime
 import time
 from geoserver.catalog import Catalog
 import subprocess
-
+from django.db import connection, connections, ProgrammingError, OperationalError, transaction
+from django.db.utils import ConnectionDoesNotExist
+import re
+import ogr2ogr
 
 class FulcrumImporter:
-
     def __init__(self):
         self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
 
@@ -55,9 +74,9 @@ class FulcrumImporter:
 
         temp_features = []
         if layer.layer_date:
-            url_params={'form_id': layer.layer_uid,'updated_since': layer.layer_date+1}
+            url_params = {'form_id': layer.layer_uid, 'updated_since': layer.layer_date + 1}
         else:
-            url_params={'form_id': layer.layer_uid}
+            url_params = {'form_id': layer.layer_uid}
         imported_features = self.conn.records.search(url_params=url_params)
         if imported_features.get('current_page') <= imported_features.get('total_pages'):
             print("Received {} page {} of {}".format(layer.layer_name,
@@ -76,7 +95,6 @@ class FulcrumImporter:
 
         pulled_record_count = len(imported_geojson.get('features'))
 
-
         latest_time = self.get_latest_time(imported_geojson, layer.layer_date)
 
         filtered_features, filtered_feature_count = filter_features(imported_geojson)
@@ -93,12 +111,15 @@ class FulcrumImporter:
                             feature['properties']['{}_url'.format(asset_type)] += [self.get_asset(id, asset_type)]
                 write_feature(feature.get('properties').get('id'), layer, feature)
                 uploads += [feature]
-            print "FULCRUM_DATABASE_NAME: {}".format(settings.FULCRUM_DATABASE_NAME)
-            if settings.FULCRUM_DATABASE_NAME:
-                upload_to_postgis(uploads, layer.layer_name, media_keys)
-                publish_layer(layer.layer_name)
-                update_geoshape_layers()
-                send_task('fulcrum_importer.tasks.task_update_tiles',(filtered_features, layer.layer_name))
+            try:
+                database_alias = 'fulcrum'
+                connections[database_alias]
+            except ConnectionDoesNotExist:
+                database_alias = None
+            upload_to_db(uploads, layer.layer_name, media_keys, database_alias=database_alias)
+            publish_layer(layer.layer_name, database_alias=database_alias)
+            update_geoshape_layers()
+            send_task('fulcrum_importer.tasks.task_update_tiles', (filtered_features, layer.layer_name))
             layer.layer_date = latest_time
             layer.save()
         if pulled_record_count > 0:
@@ -179,7 +200,6 @@ class FulcrumImporter:
 
 
 def process_fulcrum_data(f):
-
     layers = []
     try:
         archive_name = f.name
@@ -203,7 +223,6 @@ def process_fulcrum_data(f):
 
 
 def filter_features(features):
-
     try:
         DATA_FILTERS = settings.DATA_FILTERS
     except AttributeError:
@@ -282,10 +301,9 @@ def delete_file(file_path):
 
 
 def upload_geojson(file_path=None, geojson=None):
-
     from_file = False
     if file_path and geojson:
-        raise "upload_geojson() must take file_path OR features"
+        print("upload_geojson() must take file_path OR features")
         return False
     elif geojson:
         geojson = geojson
@@ -294,7 +312,7 @@ def upload_geojson(file_path=None, geojson=None):
             geojson = json.load(data_file)
             from_file = True
     else:
-        raise "upload_geojson() must take file_path OR features"
+        print("upload_geojson() must take file_path OR features")
 
     geojson, filtered_count = filter_features(geojson)
     if not geojson:
@@ -334,22 +352,32 @@ def upload_geojson(file_path=None, geojson=None):
                             else:
                                 urls += [asset.asset_data.url]
                     else:
-                        urls += ['Import Needed.']
+                        urls += [None]
                 feature['properties']['{}_url'.format(media_key)] = urls
             elif from_file and not feature.get('properties').get(media_key):
                 feature['properties'][media_key] = None
                 feature['properties']['{}_url'.format(media_key)] = None
-        if feature.get('properties').get('fulcrum_id'):
-            key_name = 'fulcrum_id'
-        else:
-            key_name = 'id'
+        if not feature.get('properties').get('fulcrum_id'):
+            feature['properties']['fulcrum_id'] = feature.get('properties').get('id')
+
+        key_name = 'fulcrum_id'
+
         write_feature(feature.get('properties').get(key_name),
+                      feature.get('properties').get('version'),
                       layer,
                       feature)
         uploads += [feature]
         count += 1
-    if upload_to_postgis(uploads, layer.layer_name, media_keys):
-        publish_layer(layer.layer_name)
+
+    try:
+        database_alias = 'fulcrum'
+        connections[database_alias]
+    except ConnectionDoesNotExist:
+        database_alias = None
+
+    table_name = "fulcrum_{}".format(layer.layer_name)
+    if upload_to_db(uploads, table_name, media_keys, database_alias=database_alias):
+        publish_layer(table_name, database_alias=database_alias)
         update_geoshape_layers()
 
 
@@ -373,6 +401,7 @@ def find_media_keys(features, layer=None):
                             key_map[media_key] = asset_key
     return key_map
 
+
 def update_layer_media_keys(key_map=None, layer=None):
     layer_media_keys = json.loads(layer.layer_media_keys)
     for key_map_key in key_map:
@@ -380,6 +409,7 @@ def update_layer_media_keys(key_map=None, layer=None):
             layer_media_keys[key_map_key] = key_map.get("key_map_key")
     layer.layer_media_keys = json.dumps(layer_media_keys)
     layer.save()
+
 
 def write_layer(name, date=None):
     """
@@ -396,12 +426,13 @@ def write_layer(name, date=None):
     return layer
 
 
-def write_feature(key, app, feature_data):
+def write_feature(key, version, layer, feature_data):
     """
 
     Args:
-        key: A unique key, presumably the Fulcrum UID.
-        app: The name of the Fulcrum App (AKA the layer).
+        key: A unique key as a string, presumably the Fulcrum UID.
+        version: A version number for the feature as an integer, usually provided by Fulcrum.
+        app: The layer model object, which represents the Fulcrum App (AKA the layer).
         feature_data: The actual feature data as a dict, mapped like a geojson.
 
     Returns:
@@ -410,7 +441,8 @@ def write_feature(key, app, feature_data):
     from .models import Feature
     import json
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
-                                                             defaults={'layer': app,
+                                                             feature_version=version,
+                                                             defaults={'layer': layer,
                                                                        'feature_data': json.dumps(feature_data)})
     return feature
 
@@ -451,10 +483,11 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
     else:
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
-        if settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"):
-            return'{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),asset_uid,get_type_extension(asset_type))
-        else:
-            return asset.asset_data.url
+        # if settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"):
+        #     return '{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"), asset_uid,
+        #                             get_type_extension(asset_type))
+        # else:
+        return asset.asset_data.url
 
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
@@ -505,11 +538,11 @@ def is_valid_photo(photo_file):
         if coords:
             features = []
             feature = {"type": "Feature",
-                    "geometry": {"type": "Point",
-                    "coordinates": [coords[1], coords[0]]
-                    },
-                    "properties": properties
-            }
+                       "geometry": {"type": "Point",
+                                    "coordinates": [coords[1], coords[0]]
+                                    },
+                       "properties": properties
+                       }
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
             filtered_features, count = filter_features(geojson)
@@ -593,15 +626,16 @@ def update_geoshape_layers():
         GEOSHAPE_SERVER = None
         pass
     if GEOSHAPE_SERVER:
-        #http://stackoverflow.com/questions/13567507/passing-csrftoken-with-python-requests
+        # http://stackoverflow.com/questions/13567507/passing-csrftoken-with-python-requests
         client = requests.session()
         URL = 'https://{}/account/login'.format(GEOSHAPE_SERVER)
         client.get(URL, verify=False)
         csrftoken = client.cookies['csrftoken']
-        login_data = dict(username=GEOSHAPE_USER, password=GEOSHAPE_PASSWORD, csrfmiddlewaretoken=csrftoken, next='/gs/updatelayers/')
+        login_data = dict(username=GEOSHAPE_USER, password=GEOSHAPE_PASSWORD, csrfmiddlewaretoken=csrftoken,
+                          next='/gs/updatelayers/')
         client.post(URL, data=login_data, headers=dict(Referer=URL), verify=False)
     else:
-        python_bin =  '/var/lib/geonode/bin/python'
+        python_bin = '/var/lib/geonode/bin/python'
         manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
         env = {}
         execute = [python_bin,
@@ -611,10 +645,10 @@ def update_geoshape_layers():
                    '--remove-deleted',
                    '--skip-unadvertised']
         DEVNULL = open(os.devnull, 'wb')
-        subprocess.Popen(execute, env=env,stdout=DEVNULL, stderr=DEVNULL)
+        subprocess.Popen(execute, env=env, stdout=DEVNULL, stderr=DEVNULL)
 
 
-def upload_to_postgis(feature_data, table, media_keys):
+def upload_to_db(feature_data, table, media_keys, database_alias=None):
     """
 
     Args:
@@ -623,84 +657,423 @@ def upload_to_postgis(feature_data, table, media_keys):
             else a new table will be created.
         media_keys: A dict where the key is the name of a properties field containing
             a media file, and the value is the type (i.e. {'bldg_pic': 'photos'})
+        database_alias: Alias of database in the django DATABASES dict.
     Returns:
         True, if no errors occurred.
     """
-    host = settings.DATABASE_HOST
-    port = settings.DATABASE_PORT
-    database = settings.FULCRUM_DATABASE_NAME
-    password = settings.DATABASE_PASSWORD
-    user = settings.DATABASE_USER
 
-    remove_urls = []
     if not feature_data:
         return False
+
+    try:
+        sitename = settings.SITENAME
+    except AttributeError:
+        sitename = None
+
+    if sitename == 'GeoSHAPE':
+        feature_data = prepare_features_for_geoshape(feature_data, media_keys=media_keys)
+
+    key_name = 'fulcrum_id'
+
+    # Use ogr2ogr to create a table and add an index, before any non unique values are added.
+    if not table_exists(table=table, database_alias=database_alias):
+        ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data[0]),
+                              database_alias=database_alias,
+                              table=table)
+        add_unique_constraint(database_alias=database_alias, table=table, key_name=key_name)
+        feature_data = feature_data[1:]
+
+    # Sort the data in memory before making a ton of calls to the server.
+    feature_data, non_unique_features = get_duplicate_features(features=feature_data, properties_id='fulcrum_id')
+
+    # Try to upload the presumed unique values in bulk, repeatedly.
+    uploaded = False
+    while not uploaded:
+        if not feature_data:
+            break
+        feature_data, non_unique_feature_data = check_db_for_features(feature_data,
+                                                                      table,
+                                                                      database_alias=database_alias)
+        if non_unique_feature_data:
+            update_db_features(non_unique_feature_data, table, database_alias=database_alias)
+
+        if feature_data:
+            ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data),
+                                 database_alias=database_alias,
+                                 table=table)
+        else:
+            uploaded = True
+
+    # Finally update one by one all of the features we know are in the database
+    if non_unique_features:
+        update_db_features(non_unique_features, table, database_alias=database_alias)
+    return True
+
+
+def prepare_features_for_geoshape(feature_data, media_keys=None):
+    """
+
+    Args:
+        feature_data: An array of features, to be prepared for best viewing in geoshape.
+        media_keys: A list of the properties keys which map to media files.
+
+    Returns:
+        A list of the features, with slightly modified properties.
+
+    """
+
+    if not feature_data:
+        return None
+
+    if type(feature_data) != list:
+        feature_data = [feature_data]
+
+    if not media_keys:
+        return feature_data
+
     for feature in feature_data:
-        for feat_prop in feature.get('properties'):
-            if not feature.get('properties').get(feat_prop):
-                continue
-            if type(feature.get('properties').get(feat_prop)) == list:
-                type_ext = get_type_extension(feat_prop)
-                if type_ext:
-                    props = []
-                    for prop in feature.get('properties').get(feat_prop):
-                        props += ['{}.{}'.format(prop, type_ext)]
-                    feature['properties'][feat_prop] = props
-                try:
-                    feature['properties'][feat_prop] = json.dumps(feature['properties'][feat_prop])
-                except TypeError:
-                    #Null arrays are fine.
-                    continue
-            if 'url' in str(feat_prop):
-                remove_urls += [feat_prop]
-        for prop in remove_urls:
-            try:
-                del feature['properties'][prop]
-            except KeyError:
-                pass
         for media_key, media_val in media_keys.iteritems():
+            try:
+                url_prop = "{}_url".format(media_key)
+                del feature['properties'][url_prop]
+            except KeyError:
+                print("ERROR: Could not delete the key {}.".format(url_prop))
+            media_ext = get_type_extension(media_val)
+            if media_val == 'audio':
+                #Because of maploom
+                media_val = 'audios'
             if media_val != media_key:
                 new_key = '{}_{}'.format(media_val, media_key)
-                media_ext = get_type_extension(media_val)
-                if feature.get('properties').get(media_key):
-                    media_assets = ["{}.{}".format(s,media_ext) for s in feature.get('properties').get(media_key).split(',')]
-                    feature['properties'][new_key] = json.dumps(media_assets)
+            else:
+                new_key = media_val
+                feature['properties']['caption_{}'.format(media_key)] = feature['properties']['{}_caption'.format(media_key)]
+                try:
+                    del feature['properties']['{}_caption'.format(media_key)]
+                except KeyError:
+                    print "Could not delete key {}.".format('{}_caption'.format(media_key))
 
-    temp_file = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
-    temp_file = '/'.join(temp_file.split('\\'))
+            if feature.get('properties').get(media_key):
+                media_assets = ["{}.{}".format(s, media_ext)
+                                for s in feature.get('properties').get(media_key).split(',')]
+                feature['properties'][new_key] = json.dumps(media_assets)
 
-    feature_collection = {"type": "FeatureCollection", "features": feature_data}
+    return feature_data
 
-    with open(temp_file, 'w') as open_file:
+
+def features_to_file(features, file_path=None):
+    if not file_path:
+        try:
+            file_path = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
+            file_path = '/'.join(file_path.split('\\'))
+        except AttributeError:
+            print "ERROR: Unable to write features_to_file because " \
+                  "file_path AND settings.FULCRUM_UPLOAD are not defined."
+
+    if type(features) == list:
+        feature_collection = {"type": "FeatureCollection", "features": features}
+    else:
+        feature_collection = {"type": "FeatureCollection", "features": [features]}
+
+    with open(file_path, 'w') as open_file:
         open_file.write(json.dumps(feature_collection))
-    conn_string = "host={} port={} dbname={} user={} password={}".format(host,
-                                                                         port,
-                                                                         database,
-                                                                         user,
-                                                                         password)
-    execute_append = ['ogr2ogr',
-                      '-f', 'PostgreSQL',
+
+    return file_path
+
+
+def get_pg_conn_string(database_alias=None):
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    return "host={host} " \
+           "port={port} " \
+           "dbname={database} " \
+           "user={user} " \
+           "password={password}".format(host=db_conn.settings_dict.get('HOST'),
+                                        port=db_conn.settings_dict.get('PORT'),
+                                        database=db_conn.settings_dict.get('NAME'),
+                                        user=db_conn.settings_dict.get('USER'),
+                                        password=db_conn.settings_dict.get('PASSWORD'))
+
+
+def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None, fid=None):
+
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    if 'postgis' in db_conn.settings_dict.get('ENGINE') or 'postgres' in db_conn.settings_dict.get('ENGINE'):
+        db_format = 'PostgreSQL'
+        dest = "PG:{}".format(get_pg_conn_string(database_alias))
+    else:
+        db_format = 'SQLite'
+        sqlite_file = connection.settings_dict.get('NAME')
+        dest = '{}'.format(sqlite_file)
+
+    execute_append = ['',
+                      '-f', db_format,
+                      '-update',
                       '-append',
                       '-skipfailures',
-                      'PG:"{}"'.format(conn_string),
-                      temp_file,
+                      dest,
+                      '{}'.format(geojson_file),
                       '-nln', table]
 
-    if feature_data[0].get('properties').get('fulcrum_id'):
-        key_name = 'fulcrum_id'
+    ogr2ogr.main(execute_append)
+
+
+def add_unique_constraint(database_alias=None, table=None, key_name=None):
+    if not is_alnum(table):
+        return None
+
+    if database_alias:
+        db_conn = connections[database_alias]
     else:
-        key_name = 'id'
-    execute_alter = ['/usr/bin/psql', '-d', database, '-c', "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)]
+        db_conn = connection
+
+    cur = db_conn.cursor()
+
+    if 'sqlite' in db_conn.settings_dict.get('NAME'):
+        query = "CREATE UNIQUE INDEX unique_{key_name} on {table}({key_name})".format(table=table, key_name=key_name)
+    else:
+        query = "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)
+
     try:
-        DEVNULL = open(os.devnull, 'wb')
-        subprocess.Popen(' '.join(execute_append), shell=True, stdout=DEVNULL, stderr=DEVNULL)
-        subprocess.Popen(execute_alter, stdout=DEVNULL, stderr=DEVNULL)
+        with transaction.atomic():
+            cur.execute(query)
+    except ProgrammingError:
+        print("Unable to add a key because {} was not created yet.".format(table))
+    finally:
+        cur.close()
+
+
+def table_exists(database_alias=None, table=None):
+    if not is_alnum(table):
+        return None
+
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    cur = db_conn.cursor()
+
+    query = "select * from {};".format(table)
+
+    try:
+        with transaction.atomic():
+            cur.execute(query)
+        does_table_exist = True
+    except ProgrammingError:
+        does_table_exist = False
+    except OperationalError:
+        does_table_exist = False
+    finally:
+        cur.close()
+    return does_table_exist
+
+
+def check_db_for_features(features, table, database_alias=None):
+    if not features:
+        return None
+    db_features = get_all_db_features(table, database_alias=database_alias)
+    unique_features = []
+    non_unique_features = []
+    for feature in features:
+        checked_feature = check_db_for_feature(feature, db_features)
+        if checked_feature == 'reject':
+            continue
+        if checked_feature:
+            non_unique_features += [feature]
+        else:
+            unique_features += [feature]
+    return unique_features, non_unique_features
+
+
+def get_duplicate_features(features, properties_id=None):
+    if not features or not properties_id:
+        print "get_duplicate_features requires features and a properties_id"
+        return None, None
+    if len(features) == 1:
+        return features, None
+
+    sorted_features = sort_features(sort_features(features, 'version'), properties_id)
+
+    unique_features = [sorted_features[0]]
+    non_unique_features = []
+    if not sorted_features[1]:
+        return unique_features, non_unique_features
+    for feature in sorted_features[1:]:
+        if feature.get('properties').get(properties_id) == unique_features[-1].get('properties').get(properties_id):
+            non_unique_features += [feature]
+        else:
+            unique_features += [feature]
+    return unique_features, non_unique_features
+
+
+def sort_features(features, properties_key=None):
+    return sorted(features, key=lambda (feature): feature['properties'][properties_key])
+
+
+def check_db_for_feature(feature, db_features=None):
+    fulcrum_id = feature.get('properties').get('fulcrum_id')
+    if not db_features:
+        return None
+    if db_features.get(fulcrum_id):
+        # While it is unlikely that the database would have a newer version than the one being presented.
+        # Older versions should be rejected.  If they fail to be handled at least they won't overwrite a
+        # more current value.
+        if db_features.get(fulcrum_id).get('version') > feature.get('properties').get('version'):
+            return "reject"
+        feature['ogc_fid'] = db_features.get(fulcrum_id).get('ogc_fid')
+        return feature
+    return None
+
+
+def get_all_db_features(layer, database_alias=None):
+    if not is_alnum(layer):
+        return None
+
+    if database_alias:
+        cur = connections[database_alias].cursor()
+    else:
+        cur = connection.cursor()
+
+    query = "SELECT * FROM {};".format(layer)
+    try:
+        with transaction.atomic():
+            cur.execute(query)
+            features = {}
+            fulcrum_id_index = get_column_index('fulcrum_id', cur)
+            ogc_id_index = get_column_index('ogc_fid', cur)
+            version_id_index = get_column_index('version', cur)
+            for feature in cur:
+                features[feature[fulcrum_id_index]] = {'fulcrum_id': feature[fulcrum_id_index],
+                                                       'ogc_fid': feature[ogc_id_index],
+                                                       'version': feature[version_id_index],
+                                                       'feature_data': feature}
+    except ProgrammingError:
+        return None
+    finally:
+        cur.close()
+    return features
+
+
+def get_column_index(name, cursor):
+    if not cursor.description:
+        return
+    for ind, val in enumerate([desc[0] for desc in cursor.description]):
+        if val == name:
+            return ind
+
+
+def update_db_features(features, layer, database_alias=None):
+    if not features or not layer:
+        print("A feature or layer was not provided to update_db_features")
+        return
+    if type(features) != list:
+        features = [features]
+    for feature in features:
+        update_db_feature(feature,
+                          layer,
+                          database_alias=database_alias)
+
+
+def update_db_feature(feature, layer, database_alias=None):
+    if not is_alnum(layer):
+        return
+
+    if not feature:
+        return
+
+    if not feature.get('ogc_fid'):
+        check_feature = check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias))
+        if not check_feature:
+            print("WARNING: An attempted to update a feature that doesn't exist in the database.")
+            print(" A new entry will be created for the feature {}.".format(feature))
+        elif check_feature == 'reject':
+            print("WARNING: An attempt was made to update a feature with an older version. "
+                  "The feature {} was rejected.".format(feature))
+        else:
+            feature = check_feature
+
+    delete_db_feature(feature,
+                          layer=layer,
+                          database_alias=database_alias)
+
+    ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature),
+                          database_alias=database_alias,
+                          table=layer)
+
+
+def delete_db_feature(feature, layer, database_alias=None):
+    if not is_alnum(layer):
+        return
+
+    if not feature:
+        return
+
+    if not feature.get('ogc_fid'):
+        check_feature = check_db_for_feature(feature, get_all_db_features(layer, database_alias=database_alias))
+        if not check_feature:
+            print("WARNING: An attempt was made to delete a feature "
+                  "that doesn't exist in the database (or have an OGC_FID.")
+        elif check_feature == 'reject':
+            print("WARNING: An attempt was made to update a feature with an older version. "
+                  "The feature {} was rejected.".format(feature))
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    cur = db_conn.cursor()
+
+    query = "DELETE FROM {} WHERE fulcrum_id = '{}';".format(layer, feature.get('properties').get('fulcrum_id'))
+
+    try:
+        with transaction.atomic():
+            cur.execute(query)
+    except ProgrammingError:
+        print("Unable to delete the feature:")
+        print(str(feature))
+        print("It is most likely not in the database or missing a fulcrum_id.")
+    finally:
+        cur.close()
+
+
+
+def remove_items(iterable, remove=[]):
+    if type(iterable) == list:
+        items = []
+        for item in iterable:
+            if item not in remove:
+                items += [item]
+    else:
+        items = {}
+        for item in iterable:
+            if item not in remove:
+                items[item] = iterable[item]
+    return items
+
+
+def is_alnum(data):
+    """
+    Used to ensure that only 'safe' data can be used to query data.
+    This should never be a problem since Fulcrum implements the same restrictions.
+
+    Args:
+        data: String of data to be tested.
+
+    Returns:
+        True: if data is only alphanumeric or '_' chars.
+    """
+    if re.match(r'\w+$', data):
         return True
-    except subprocess.CalledProcessError:
-        return False
 
 
-def publish_layer(layer_name):
+def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
     """
     Args:
         layer_name: The name of the table that already exists in postgis,
@@ -710,13 +1083,21 @@ def publish_layer(layer_name):
         None
     """
 
-    url = "http://localhost:8080/geoserver/rest"
+    if not geoserver_base_url:
+        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+        # geoserver_base_url = "http://localhost:8080/geoserver"
+
+    url = "{}/rest".format(geoserver_base_url)
     workspace_name = "geonode"
     workspace_uri = "http://www.geonode.org/"
-    datastore_name = "{}".format(settings.FULCRUM_DATABASE_NAME)
+    if database_alias:
+        datastore_name = connections[database_alias].settings_dict.get('NAME')
+        database = connections[database_alias].settings_dict.get('NAME')
+    else:
+        datastore_name = connection.settings_dict.get('NAME')
+        database = connection.settings_dict.get('NAME')
     host = settings.DATABASE_HOST
     port = settings.DATABASE_PORT
-    database = settings.FULCRUM_DATABASE_NAME
     password = settings.DATABASE_PASSWORD
     db_type = "postgis"
     user = settings.DATABASE_USER
@@ -764,3 +1145,49 @@ def publish_layer(layer_name):
     if not layer:
         # Publish remote layer
         layer = cat.publish_featuretype(layer_name.lower(), datastore, srs, srs=srs)
+        return layer, True
+    else:
+        return layer, False
+    return None, False
+
+
+def dictfetchall(cursor):
+    "Return all rows from a cursor as a dict"
+    columns = [col[0] for col in cursor.description]
+    return [
+        dict(zip(columns, row))
+        for row in cursor.fetchall()
+    ]
+
+
+
+
+def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs):
+    #See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
+    #See also https://github.com/GeoNode/geonode/issues/1656
+    params = kwargs
+    params.setdefault("name", "geonode:{0}".format(layer_name))
+    params.setdefault("srs", {"number": srs})
+    params.setdefault("zoomStart", 0)
+    if srs == 4326:
+        params.setdefault("zoomStop", 21)
+    else:
+        params.setdefault("zoomStop", 31)
+    params.setdefault("format", "image/png")
+    params.setdefault("type", "truncate")
+    params.setdefault("threadCount", 4)
+
+    payload = json.dumps({"seedRequest": params})
+
+    if not geoserver_base_url:
+        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+
+    url = "{0}/gwc/rest/seed/geonode:{1}.json".format(geoserver_base_url, layer_name)
+
+    requests.post(url,
+                  auth=(settings.OGC_SERVER['default']['USER'],
+                        settings.OGC_SERVER['default']['PASSWORD'],
+                        ),
+                  headers={"content-type": "application/json"},
+                  data=payload,
+                  verify=False)

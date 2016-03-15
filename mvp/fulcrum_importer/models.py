@@ -18,8 +18,10 @@ from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
-
-fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
+try:
+    fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
+except AttributeError:
+    fs = FileSystemStorage(location=settings.MEDIA_ROOT)
 
 
 def get_asset_name(instance, filename):
@@ -50,9 +52,13 @@ class Layer(models.Model):
 
 
 class Feature(models.Model):
-    feature_uid = models.CharField(max_length=100, primary_key=True)
+    feature_uid = models.CharField(max_length=100)
+    feature_version = models.IntegerField(default=0)
     layer = models.ForeignKey(Layer,on_delete=models.CASCADE,default="")
     feature_data = models.CharField(max_length=10000)
+
+    class Meta:
+        unique_together = (("feature_uid", "feature_version"),)
 
 
 class Links(models.Model):

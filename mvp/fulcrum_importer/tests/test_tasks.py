@@ -14,11 +14,10 @@
 from __future__ import absolute_import
 
 from django.test import TestCase
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from ..fulcrum_importer import *
-import inspect
 from ..models import *
-from ..tasks import is_loaded
+from ..s3_downloader import is_loaded
 
 
 class TasksTests(TestCase):
