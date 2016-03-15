@@ -141,18 +141,6 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_unique_features, unique_features)
         self.assertEqual(expected_non_unique_features, non_unique_features)
 
-    def test_table_exist(self):
-        table_name = "test_table_exist"
-        self.assertFalse(table_exists(table=table_name))
-
-        cur = connection.cursor()
-        query = "CREATE TABLE {}(id integer);".format(table_name)
-
-        with transaction.atomic():
-            cur.execute(query)
-
-        self.assertTrue(table_exists(table=table_name))
-
     def test_features_to_file(self):
         test_dir = os.path.dirname(os.path.abspath( __file__ ))
         test_name = 'test_geojson.json'
@@ -183,6 +171,227 @@ class FulcrumImporterTests(TestCase):
         os.remove(test_path)
         self.assertEqual(expected_result, imported_geojson)
         self.assertFalse(os.path.isfile(test_path))
+
+    def test_convert_to_epoch_time(self):
+        date = "2016-01-28 14:36:59 UTC"
+        expected_time_stamp = 1453991819
+        returned_time = convert_to_epoch_time(date)
+        self.assertEqual(expected_time_stamp, returned_time)
+
+    def test_append_time_to_features(self):
+        test_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": 1,
+                            "fulcrum_id": "123",
+                            "updated_at": "2016-01-28 14:36:59 UTC",
+                          }
+                        }
+        expected_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": 1,
+                            "fulcrum_id": "123",
+                            "updated_at": "2016-01-28 14:36:59 UTC",
+                            "updated_at_time": 1453991819
+                          }
+                        }
+
+        results = append_time_to_features(test_feature, properties_key_of_date="updated_at")
+        assert_equal_
+
+    def append_time_to_features(features, properties_key_of_date=None):
+        if type(features) != list:
+            features = [features]
+
+        for feature in features:
+            feature['properties']['time'] = convert_to_epoch_time(feature.get('properties').get(properties_key_of_date))
+
+
+
+    def test_prepare_features_for_geoshape(self):
+
+        test_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": 1,
+                            "fulcrum_id": "123",
+                            "image": "test",
+                            "image_url": "image.jpg",
+                            "movie": "test",
+                            "movie_url": "movie.mp4",
+                            "sound": "test",
+                            "sound_url": "sound.m4a"
+                          }
+                        }
+
+        media_keys = {'image': 'photos', 'movie': 'videos', 'sound': 'audio'}
+
+        #Note that the expected feature contains json objects as strings, as opposed to an array of strings.
+        expected_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": 1,
+                            "fulcrum_id": "123",
+                            "photos_image": '["test.jpg"]',
+                            "videos_movie": '["test.mp4"]',
+                            "audios_sound": '["test.m4a"]',
+                            "image": "test",
+                            "movie": "test",
+                            "sound": "test",
+                          }
+                        }
+
+        returned_features = prepare_features_for_geoshape(test_feature, media_keys=media_keys)
+
+        self.assertEqual(expected_feature, returned_features[0])
+
+    def test_is_valid_photo(self):
+        import os
+        from PIL import Image
+
+        script_path = os.path.dirname(os.path.abspath( __file__ ))
+        file = os.path.join(script_path, 'good_photo.jpg')
+        good_photo = Image.open(file)
+        info = good_photo._getexif()
+        properties = get_gps_info(info)
+        self.assertNotIn("GPSInfo", properties)
+
+        file2 = os.path.join(script_path, 'bad_photo.jpg')
+        bad_photo = Image.open(file2)
+        info2 = bad_photo._getexif()
+        properties2 = get_gps_info(info2)
+        self.assertIn("GPSInfo", properties2)
+
+        coords = get_gps_coords(properties)
+        self.assertIsNone(coords)
+
+        coords2 = get_gps_coords(properties2)
+        self.assertEqual([38.889775, -77.456342], coords2)
+
+
+class FulcrumImporterDBTests(TransactionTestCase):
+
+    def test_table_exist(self):
+        table_name = "test_table_exist"
+        self.assertFalse(table_exists(table=table_name))
+
+        cur = connection.cursor()
+        query = "CREATE TABLE {}(id integer);".format(table_name)
+
+        with transaction.atomic():
+            cur.execute(query)
+
+        self.assertTrue(table_exists(table=table_name))
+
+    def test_upload_to_db(self):
+
+        table_name = "test_upload_to_db"
+
+        test_feature = {
+                          "type": "Feature",
+                          "geometry": {
+                            "type": "Point",
+                            "coordinates": [125.6, 10.1]
+                          },
+                          "properties": {
+                            "name": "Dinagat Islands",
+                            "version": 1,
+                            "fulcrum_id": "123",
+                            "meta": "OK"
+                          }
+                        }
+
+        media_keys = None
+
+        upload_to_db(test_feature, table_name, media_keys)
+
+        with transaction.atomic():
+            cur = connection.cursor()
+            cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
+            imported_feature = dictfetchall(cur)[0]
+
+        expected_version = 1
+
+        self.assertEqual("Dinagat Islands", imported_feature.get('name'))
+        self.assertEqual(expected_version, imported_feature.get('version'))
+        self.assertEqual("OK", imported_feature.get('meta'))
+
+        test_feature2 = {
+                      "type": "Feature",
+                      "geometry": {
+                        "type": "Point",
+                        "coordinates": [125.6, 10.1]
+                      },
+                      "properties": {
+                        "name": "Dinagat Islands",
+                        "version": 2,
+                        "fulcrum_id": "123",
+                        "meta": "GOOD"
+                      }
+                    }
+
+        upload_to_db(test_feature2, table_name, media_keys)
+
+        with transaction.atomic():
+            cur = connection.cursor()
+            cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
+            imported_feature = dictfetchall(cur)[0]
+
+        expected_version = 2
+
+        self.assertEqual("Dinagat Islands", imported_feature.get('name'))
+        self.assertEqual(expected_version, imported_feature.get('version'))
+        self.assertEqual("GOOD", imported_feature.get('meta'))
+
+        test_feature3 = {
+                      "type": "Feature",
+                      "geometry": {
+                        "type": "Point",
+                        "coordinates": [125.6, 10.1]
+                      },
+                      "properties": {
+                        "name": "Dinagat Islands",
+                        "version": 1,
+                        "fulcrum_id": "123",
+                        "meta": "BAD"
+                      }
+                    }
+
+        upload_to_db(test_feature3, table_name, media_keys)
+
+        with transaction.atomic():
+            cur = connection.cursor()
+            cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
+            imported_feature = dictfetchall(cur)[0]
+
+        # There should be no change because the server should reject an older version.
+        expected_version = 2
+
+        self.assertEqual("Dinagat Islands", imported_feature.get('name'))
+        self.assertEqual(expected_version, imported_feature.get('version'))
+        self.assertEqual("GOOD", imported_feature.get('meta'))
+
 
     def test_ogr2ogr_geojson_to_db(self):
         table_name = 'test_ogr2ogr_geojson_to_db'
@@ -295,7 +504,9 @@ class FulcrumImporterTests(TestCase):
 
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
 
-        imported_feature = dictfetchall(cur)[0]
+        results = dictfetchall(cur)
+        if results:
+            imported_feature = results[0]
 
         expected_version = 1
 
@@ -307,177 +518,13 @@ class FulcrumImporterTests(TestCase):
         update_db_feature(test_feature_2, layer=table_name)
 
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
-
-        imported_feature = dictfetchall(cur)[0]
-
-        expected_version = 2
-
-        self.assertEqual("Dinagat Islands", imported_feature.get('name'))
-        self.assertEqual(expected_version, imported_feature.get('version'))
-
-    def test_prepare_features_for_geoshape(self):
-
-        test_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "image": "test",
-                            "image_url": "image.jpg",
-                            "movie": "test",
-                            "movie_url": "movie.mp4",
-                            "sound": "test",
-                            "sound_url": "sound.m4a"
-                          }
-                        }
-
-        media_keys = {'image': 'photos', 'movie': 'videos', 'sound': 'audio'}
-
-        #Note that the expected feature contains json objects as strings, as opposed to an array of strings.
-        expected_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "photos_image": '["test.jpg"]',
-                            "videos_movie": '["test.mp4"]',
-                            "audios_sound": '["test.m4a"]',
-                            "image": "test",
-                            "movie": "test",
-                            "sound": "test",
-                          }
-                        }
-
-        returned_features = prepare_features_for_geoshape(test_feature, media_keys=media_keys)
-
-        self.assertEqual(expected_feature, returned_features[0])
-
-    def test_is_valid_photo(self):
-        import os
-        from PIL import Image
-
-        script_path = os.path.dirname(os.path.abspath( __file__ ))
-        file = os.path.join(script_path, 'good_photo.jpg')
-        good_photo = Image.open(file)
-        info = good_photo._getexif()
-        properties = get_gps_info(info)
-        self.assertNotIn("GPSInfo", properties)
-
-        file2 = os.path.join(script_path, 'bad_photo.jpg')
-        bad_photo = Image.open(file2)
-        info2 = bad_photo._getexif()
-        properties2 = get_gps_info(info2)
-        self.assertIn("GPSInfo", properties2)
-
-        coords = get_gps_coords(properties)
-        self.assertIsNone(coords)
-
-        coords2 = get_gps_coords(properties2)
-        self.assertEqual([38.889775, -77.456342], coords2)
-
-
-class FulcrumImporterDBTests(TransactionTestCase):
-
-    def test_upload_to_db(self):
-
-        table_name = "test_upload_to_db"
-
-        test_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "meta": "OK"
-                          }
-                        }
-
-        media_keys = None
-
-        upload_to_db(test_feature, table_name, media_keys)
-
-        cur = connection.cursor()
-
-        with transaction.atomic():
-            cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
-
-        imported_feature = dictfetchall(cur)[0]
-
-        expected_version = 1
-
-        self.assertEqual("Dinagat Islands", imported_feature.get('name'))
-        self.assertEqual(expected_version, imported_feature.get('version'))
-        self.assertEqual("OK", imported_feature.get('meta'))
-
-        test_feature2 = {
-                      "type": "Feature",
-                      "geometry": {
-                        "type": "Point",
-                        "coordinates": [125.6, 10.1]
-                      },
-                      "properties": {
-                        "name": "Dinagat Islands",
-                        "version": 2,
-                        "fulcrum_id": "123",
-                        "meta": "GOOD"
-                      }
-                    }
-
-        upload_to_db(test_feature2, table_name, media_keys)
-
-        with transaction.atomic():
-            cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
-
-        imported_feature = dictfetchall(cur)[0]
+        results = dictfetchall(cur)
+        if results:
+            imported_feature = results[0]
 
         expected_version = 2
 
         self.assertEqual("Dinagat Islands", imported_feature.get('name'))
         self.assertEqual(expected_version, imported_feature.get('version'))
-        self.assertEqual("GOOD", imported_feature.get('meta'))
-
-        test_feature3 = {
-                      "type": "Feature",
-                      "geometry": {
-                        "type": "Point",
-                        "coordinates": [125.6, 10.1]
-                      },
-                      "properties": {
-                        "name": "Dinagat Islands",
-                        "version": 1,
-                        "fulcrum_id": "123",
-                        "meta": "BAD"
-                      }
-                    }
-
-        upload_to_db(test_feature3, table_name, media_keys)
-
-        with transaction.atomic():
-            cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
-
-        imported_feature = dictfetchall(cur)[0]
-
-        # There should be no change because the server should reject an older version.
-        expected_version = 2
-
-        self.assertEqual("Dinagat Islands", imported_feature.get('name'))
-        self.assertEqual(expected_version, imported_feature.get('version'))
-        self.assertEqual("GOOD", imported_feature.get('meta'))
-
-
 
 

@@ -37,8 +37,19 @@ import re
 import ogr2ogr
 
 class FulcrumImporter:
-    def __init__(self):
-        self.conn = Fulcrum(key=settings.FULCRUM_API_KEY)
+
+    def __init__(self, fulcrum_api_key=None):
+        self.conn = self.get_fulcrum_connection(fulcrum_api_key)
+
+    def get_fulcrum_connection(self, fulcrum_api_key=None):
+        if not fulcrum_api_key:
+            try:
+                fulcrum_api_key = settings.FULCRUM_API_KEY
+            except AttributeError:
+                print("An API key was not provided to FulcrumImporter, points will not be imported.")
+        if fulcrum_api_key:
+            return Fulcrum(key=fulcrum_api_key)
+        return None
 
     def start(self, interval=30):
         from threading import Thread
@@ -109,7 +120,16 @@ class FulcrumImporter:
                         for id in feature.get('properties').get(asset_type):
                             print("Getting asset :{}".format(id))
                             feature['properties']['{}_url'.format(asset_type)] += [self.get_asset(id, asset_type)]
-                write_feature(feature.get('properties').get('id'), layer, feature)
+                if feature.get('properties').get('id'):
+                    feature['properties']['fulcrum_id'] = feature.get('properties').get('id')
+                    try:
+                        del feature['properties']['id']
+                    except KeyError:
+                        pass
+                write_feature(feature.get('properties').get('fulcrum_id'),
+                              feature.get('properties').get('version'),
+                              layer,
+                              feature)
                 uploads += [feature]
             try:
                 database_alias = 'fulcrum'
@@ -127,6 +147,9 @@ class FulcrumImporter:
             print("Total Records Pulled: {}".format(pulled_record_count))
             print("Total Records Passed Filter: {}".format(filtered_feature_count))
         return
+
+
+
 
     def get_latest_time(self, new_features, old_layer_time):
         layer_time = old_layer_time
@@ -198,6 +221,15 @@ class FulcrumImporter:
     def __del__(self):
         cache.set(settings.FULCRUM_API_KEY, False)
 
+def convert_to_epoch_time(date):
+    return time.mktime(parser.parse(date).timetuple())
+
+def append_time_to_features(features, properties_key_of_date=None):
+    if type(features) != list:
+        features = [features]
+
+    for feature in features:
+        feature['properties']["{}_time".get(properties_key_of_date)] = convert_to_epoch_time(feature.get('properties').get(properties_key_of_date))
 
 def process_fulcrum_data(f):
     layers = []
@@ -665,6 +697,9 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     if not feature_data:
         return False
 
+    if type(feature_data) != list:
+        feature_data = [feature_data]
+
     try:
         sitename = settings.SITENAME
     except AttributeError:
@@ -686,7 +721,7 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     # Sort the data in memory before making a ton of calls to the server.
     feature_data, non_unique_features = get_duplicate_features(features=feature_data, properties_id='fulcrum_id')
 
-    # Try to upload the presumed unique values in bulk, repeatedly.
+    # Try to upload the presumed unique values in bulk.
     uploaded = False
     while not uploaded:
         if not feature_data:
@@ -965,7 +1000,7 @@ def get_column_index(name, cursor):
     if not cursor.description:
         return
     for ind, val in enumerate([desc[0] for desc in cursor.description]):
-        if val == name:
+        if val.lower() == name.lower():
             return ind
 
 
