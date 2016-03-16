@@ -47,7 +47,7 @@ class FulcrumImporterTests(TestCase):
         self.assertNotEqual(find_media_keys([bad_geojson], example_layer), expected_keymap)
         self.assertEqual(find_media_keys([good_geojson], example_layer), expected_keymap)
 
-    def test_layer_media_keys_update(self):
+    def test_update_layer_media_keys(self):
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
         expected_keymap = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
         bad_geojson = {'type': 'feature',
@@ -58,12 +58,14 @@ class FulcrumImporterTests(TestCase):
                         'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
                                        'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
                                        'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
-        example_layer.layer_media_keys = find_media_keys([bad_geojson], example_layer)
-        example_layer.save()
+        update_layer_media_keys(media_keys=find_media_keys([bad_geojson],
+                                                           example_layer),
+                                layer=example_layer)
         self.assertNotEqual(example_layer.layer_media_keys, "{}")
-        example_layer.layer_media_keys = find_media_keys([good_geojson], example_layer)
-        example_layer.save()
-        self.assertEqual(example_layer.layer_media_keys, expected_keymap)
+        update_layer_media_keys(media_keys=find_media_keys([good_geojson],
+                                                           example_layer),
+                                layer=example_layer)
+        self.assertEqual(example_layer.layer_media_keys, json.dumps(expected_keymap))
 
     def test_feature_model_for_duplicates(self):
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
@@ -142,19 +144,19 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_non_unique_features, non_unique_features)
 
     def test_features_to_file(self):
-        test_dir = os.path.dirname(os.path.abspath( __file__ ))
+        test_dir = os.path.dirname(os.path.abspath(__file__))
         test_name = 'test_geojson.json'
         test_path = os.path.join(test_dir, test_name)
         test_features = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands"
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands"
+            }
+        }
         expected_result = {"type": "FeatureCollection", "features": [test_features]}
         try:
             self.assertFalse(os.path.isfile(test_path))
@@ -165,7 +167,7 @@ class FulcrumImporterTests(TestCase):
 
         self.assertTrue(os.path.isfile(test_path))
 
-        with open(test_path,'r') as test_file:
+        with open(test_path, 'r') as test_file:
             imported_geojson = json.load(test_file)
 
         os.remove(test_path)
@@ -180,87 +182,254 @@ class FulcrumImporterTests(TestCase):
 
     def test_append_time_to_features(self):
         test_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "updated_at": "2016-01-28 14:36:59 UTC",
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "updated_at": "2016-01-28 14:36:59 UTC",
+            }
+        }
         expected_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "updated_at": "2016-01-28 14:36:59 UTC",
-                            "updated_at_time": 1453991819
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "updated_at": "2016-01-28 14:36:59 UTC",
+                "updated_at_time": 1453991819
+            }
+        }
 
         results = append_time_to_features(test_feature, properties_key_of_date="updated_at")
-        assert_equal_
+        self.assertEqual(expected_feature, results[0])
 
-    def append_time_to_features(features, properties_key_of_date=None):
-        if type(features) != list:
-            features = [features]
+    def test_get_element_map(self):
+        fi = FulcrumImporter(fulcrum_api_key='1234')
+        form = {'elements': [{
+            "type": "TextField",
+            "key": "3320",
+            "label": "Name",
+            "data_name": "name",
+        }, {
+            "type": "PhotoField",
+            "key": "a1b0",
+            "label": "Photos",
+            "data_name": "photos",
+        }, {
+            "type": "VideoField",
+            "key": "5834",
+            "label": "Videos",
+            "data_name": "videos",
+        }, {
+            "type": "AudioField",
+            "key": "2f32",
+            "label": "Audio",
+            "data_name": "audio",
+        }
+        ]}
+        expected_element_map = {'3320': 'name',
+                                'a1b0': 'photos',
+                                '5834': 'videos',
+                                '2f32': 'audio'}
+        result_element_map = fi.get_element_map(form)
+        self.assertEqual(expected_element_map, result_element_map)
 
-        for feature in features:
-            feature['properties']['time'] = convert_to_epoch_time(feature.get('properties').get(properties_key_of_date))
+    def test_get_media_map(self):
+        fi = FulcrumImporter(fulcrum_api_key='1234')
+        form = {'elements': [{
+            "type": "TextField",
+            "key": "3320",
+            "label": "Name",
+            "data_name": "name",
+        }, {
+            "type": "PhotoField",
+            "key": "a1b0",
+            "label": "Photos",
+            "data_name": "pics",
+        }, {
+            "type": "VideoField",
+            "key": "5834",
+            "label": "Videos",
+            "data_name": "vids",
+        }, {
+            "type": "AudioField",
+            "key": "2f32",
+            "label": "Audio",
+            "data_name": "sounds",
+        }
+        ]}
+        element_map = {'3320': 'name',
+                       'a1b0': 'pics',
+                       '5834': 'vids',
+                       '2f32': 'sounds'}
+        expected_media_map = {'pics': 'photos',
+                              'vids': 'videos',
+                              'sounds': 'audio'}
+        result_element_map = fi.get_media_map(form, element_map)
+        self.assertEqual(expected_media_map, result_element_map)
 
+        form2 = {'elements': [{
+            "type": "TextField",
+            "key": "3320",
+            "label": "Name",
+            "data_name": "name",
+        }, {
+            "type": "PhotoField",
+            "key": "a1b0",
+            "label": "Photos",
+            "data_name": "photos",
+        }, {
+            "type": "VideoField",
+            "key": "5834",
+            "label": "Videos",
+            "data_name": "videos",
+        }, {
+            "type": "AudioField",
+            "key": "2f32",
+            "label": "Audio",
+            "data_name": "audio",
+        }
+        ]}
+        element_map2 = {'3320': 'name',
+                        'a1b0': 'photos',
+                        '5834': 'videos',
+                        '2f32': 'audio'}
+        expected_media_map2 = {'photos': 'photos',
+                               'videos': 'videos',
+                               'audio': 'audio'}
 
+        result_element_map2 = fi.get_media_map(form2, element_map2)
+        self.assertEqual(expected_media_map2, result_element_map2)
+
+    def test_convert_to_geojson(self):
+        fi = FulcrumImporter(fulcrum_api_key='1234')
+
+        element_map = {'3320': 'name',
+                       'a1b0': 'pics',
+                       '5834': 'vids',
+                       '2f32': 'sounds'}
+        expected_media_map = {'pics': 'photos',
+                              'vids': 'videos',
+                              'sounds': 'audio'}
+
+        records = [{
+            "status": None,
+            "version": 1,
+            "id": "b5da0b90-d325-4299-b6cd-0d0baacc0c62",
+            "created_at": "2016-01-21T15:18:28Z",
+            "updated_at": "2016-01-21T15:18:28Z",
+            "client_created_at": "2016-01-21T15:18:28Z",
+            "client_updated_at": "2016-01-21T15:18:28Z",
+            "created_by": "Luke Rees",
+            "created_by_id": "bbf56001-a5b0-40a6-9ae6-607771983c62",
+            "updated_by": "Luke Rees",
+            "updated_by_id": "bbf56001-a5b0-40a6-9ae6-607771983c62",
+            "form_id": "d82f38c2-4ecd-400a-a4cc-7c2c93427d1e",
+            "project_id": None,
+            "assigned_to": None,
+            "assigned_to_id": None,
+            "form_values": {
+                "3320": "Example",
+                "a1b0": ["561bb279-d9f7-486a-a4b8-dd34d820b003.jpg"],
+                "5834": [{"caption": None, "video_id": "bbae4aed-48ac-48f4-8f85-d9f3ada7a942"}],
+                "2f32": ["5dcd8385-d46c-4856-a689-6ce3ec8da8ed.m4a"],
+            },
+            "latitude": 18.5177634347377,
+            "longitude": -69.8680442584387,
+            "altitude": None,
+            "speed": None,
+            "course": None,
+            "horizontal_accuracy": None,
+            "vertical_accuracy": None
+        }]
+
+        print fi.convert_to_geojson(records, element_map, expected_media_map)
+
+        # expected_geojson =
+
+    def test_append_time_to_features(self):
+        test_feature = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "updated_at": "2016-01-28 14:36:59 UTC",
+            }
+        }
+        expected_feature = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "updated_at": "2016-01-28 14:36:59 UTC",
+                "updated_at_time": 1453991819
+            }
+        }
+
+        results = append_time_to_features(test_feature, properties_key_of_date="updated_at")
+        self.assertEqual(expected_feature, results[0])
 
     def test_prepare_features_for_geoshape(self):
 
         test_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "image": "test",
-                            "image_url": "image.jpg",
-                            "movie": "test",
-                            "movie_url": "movie.mp4",
-                            "sound": "test",
-                            "sound_url": "sound.m4a"
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "image": "test",
+                "image_url": "image.jpg",
+                "movie": "test",
+                "movie_url": "movie.mp4",
+                "sound": "test",
+                "sound_url": "sound.m4a"
+            }
+        }
 
         media_keys = {'image': 'photos', 'movie': 'videos', 'sound': 'audio'}
 
-        #Note that the expected feature contains json objects as strings, as opposed to an array of strings.
+        # Note that the expected feature contains json objects as strings, as opposed to an array of strings.
         expected_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "photos_image": '["test.jpg"]',
-                            "videos_movie": '["test.mp4"]',
-                            "audios_sound": '["test.m4a"]',
-                            "image": "test",
-                            "movie": "test",
-                            "sound": "test",
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "photos_image": '["test.jpg"]',
+                "videos_movie": '["test.mp4"]',
+                "audios_sound": '["test.m4a"]',
+                "image": "test",
+                "movie": "test",
+                "sound": "test",
+            }
+        }
 
         returned_features = prepare_features_for_geoshape(test_feature, media_keys=media_keys)
 
@@ -270,7 +439,7 @@ class FulcrumImporterTests(TestCase):
         import os
         from PIL import Image
 
-        script_path = os.path.dirname(os.path.abspath( __file__ ))
+        script_path = os.path.dirname(os.path.abspath(__file__))
         file = os.path.join(script_path, 'good_photo.jpg')
         good_photo = Image.open(file)
         info = good_photo._getexif()
@@ -291,7 +460,6 @@ class FulcrumImporterTests(TestCase):
 
 
 class FulcrumImporterDBTests(TransactionTestCase):
-
     def test_table_exist(self):
         table_name = "test_table_exist"
         self.assertFalse(table_exists(table=table_name))
@@ -309,18 +477,18 @@ class FulcrumImporterDBTests(TransactionTestCase):
         table_name = "test_upload_to_db"
 
         test_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id": "123",
-                            "meta": "OK"
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "meta": "OK"
+            }
+        }
 
         media_keys = None
 
@@ -338,18 +506,18 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertEqual("OK", imported_feature.get('meta'))
 
         test_feature2 = {
-                      "type": "Feature",
-                      "geometry": {
-                        "type": "Point",
-                        "coordinates": [125.6, 10.1]
-                      },
-                      "properties": {
-                        "name": "Dinagat Islands",
-                        "version": 2,
-                        "fulcrum_id": "123",
-                        "meta": "GOOD"
-                      }
-                    }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 2,
+                "fulcrum_id": "123",
+                "meta": "GOOD"
+            }
+        }
 
         upload_to_db(test_feature2, table_name, media_keys)
 
@@ -365,18 +533,18 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertEqual("GOOD", imported_feature.get('meta'))
 
         test_feature3 = {
-                      "type": "Feature",
-                      "geometry": {
-                        "type": "Point",
-                        "coordinates": [125.6, 10.1]
-                      },
-                      "properties": {
-                        "name": "Dinagat Islands",
-                        "version": 1,
-                        "fulcrum_id": "123",
-                        "meta": "BAD"
-                      }
-                    }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123",
+                "meta": "BAD"
+            }
+        }
 
         upload_to_db(test_feature3, table_name, media_keys)
 
@@ -392,23 +560,22 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertEqual(expected_version, imported_feature.get('version'))
         self.assertEqual("GOOD", imported_feature.get('meta'))
 
-
     def test_ogr2ogr_geojson_to_db(self):
         table_name = 'test_ogr2ogr_geojson_to_db'
         test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         test_name = 'test_geojson.json'
         test_path = os.path.join(test_dir, test_name)
         test_features = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "fulcrum_id": "123"
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "fulcrum_id": "123"
+            }
+        }
 
         self.assertFalse(table_exists(table=table_name))
 
@@ -468,37 +635,37 @@ class FulcrumImporterDBTests(TransactionTestCase):
         test_path = os.path.join(test_dir, test_name)
 
         test_feature = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 1,
-                            "fulcrum_id":"123"
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 1,
+                "fulcrum_id": "123"
+            }
+        }
 
         test_feature_2 = {
-                          "type": "Feature",
-                          "geometry": {
-                            "type": "Point",
-                            "coordinates": [125.6, 10.1]
-                          },
-                          "properties": {
-                            "name": "Dinagat Islands",
-                            "version": 2,
-                            "fulcrum_id":"123"
-                          }
-                        }
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [125.6, 10.1]
+            },
+            "properties": {
+                "name": "Dinagat Islands",
+                "version": 2,
+                "fulcrum_id": "123"
+            }
+        }
         self.assertFalse(table_exists(table=table_name))
 
         geojson_file = features_to_file(test_feature, file_path=test_path)
         self.assertTrue(os.path.isfile(geojson_file))
 
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
-                                  table=table_name)
+                              table=table_name)
 
         cur = connection.cursor()
 
@@ -526,5 +693,3 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
         self.assertEqual("Dinagat Islands", imported_feature.get('name'))
         self.assertEqual(expected_version, imported_feature.get('version'))
-
-

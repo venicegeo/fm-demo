@@ -66,14 +66,17 @@ def pull_all_s3_data():
     try:
         S3_KEY = settings.S3_KEY
         S3_SECRET = settings.S3_SECRET
+        S3_GPG = settings.S3_GPG
     except AttributeError:
         S3_KEY = None
         S3_SECRET = None
+        S3_GPG = None
 
     try:
-        S3_GPG = settings.S3_GPG
+        S3_CFG = settings.S3_CFG
     except AttributeError:
-        S3_GPG = None
+        print("Cannot update from S3 without S3_CFG file defined in the settings.")
+        return
 
     cfg = Config(configfile=settings.S3_CFG, access_key=S3_KEY, secret_key=S3_SECRET)
     if S3_GPG:
@@ -89,6 +92,8 @@ def pull_all_s3_data():
         try:
             for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
                 handle_file(s3, file_name, file_size)
+        except:
+            pass
         finally:
             release_lock()
 
