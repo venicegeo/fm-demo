@@ -47,6 +47,8 @@ def task_update_layers():
         try:
             fulcrum_importer = FulcrumImporter()
             fulcrum_importer.update_all_layers()
+        except:
+            pass
         finally:
             release_lock()
 
