@@ -223,35 +223,36 @@ def process_fulcrum_data(f):
 
 
 def filter_features(features):
-    try:
-        DATA_FILTERS = settings.DATA_FILTERS
-    except AttributeError:
-        DATA_FILTERS = []
-        pass
-
-    filtered_features = features
-
-    if not DATA_FILTERS:
-        return filtered_features, 0
-    if filtered_features.get('features'):
-        for filter in DATA_FILTERS:
-            try:
-                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-            except ValueError:
-                print("Failed to decode json")
-            if filtered_results.get('failed').get('features'):
-                print("Some features failed the {} filter.".format(filter))
-                # with open('./failed_features.geojson', 'a') as failed_features:
-                #     failed_features.write(json.dumps(filtered_results.get('failed')))
-            if filtered_results.get('passed').get('features'):
-                filtered_features = filtered_results.get('passed')
-                filtered_feature_count = len(filtered_results.get('passed').get('features'))
-            else:
-                filtered_features = None
-    else:
-        filtered_features = None
-        filtered_feature_count = 0
-
+    from filters import run_filters
+    # try:
+    #     DATA_FILTERS = settings.DATA_FILTERS
+    # except AttributeError:
+    #     DATA_FILTERS = []
+    #     pass
+    #
+    # filtered_features = features
+    #
+    # if not DATA_FILTERS:
+    #     return filtered_features, 0
+    # if filtered_features.get('features'):
+    #     for filter in DATA_FILTERS:
+    #         try:
+    #             filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+    #         except ValueError:
+    #             print("Failed to decode json")
+    #         if filtered_results.get('failed').get('features'):
+    #             print("Some features failed the {} filter.".format(filter))
+    #             # with open('./failed_features.geojson', 'a') as failed_features:
+    #             #     failed_features.write(json.dumps(filtered_results.get('failed')))
+    #         if filtered_results.get('passed').get('features'):
+    #             filtered_features = filtered_results.get('passed')
+    #             filtered_feature_count = len(filtered_results.get('passed').get('features'))
+    #         else:
+    #             filtered_features = None
+    # else:
+    #     filtered_features = None
+    #     filtered_feature_count = 0
+    filtered_features, filtered_feature_count = run_filters.filter(features)
     return filtered_features, filtered_feature_count
 
 
