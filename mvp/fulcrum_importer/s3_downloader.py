@@ -92,8 +92,8 @@ def pull_all_s3_data():
         try:
             for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
                 handle_file(s3, file_name, file_size)
-        except:
-            pass
+        except Exception as e:
+            print(repr(e))
         finally:
             release_lock()
 

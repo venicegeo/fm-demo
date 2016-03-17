@@ -30,42 +30,45 @@ class FulcrumImporterTests(TestCase):
 
         Returns:Given a geojson containing a Fulcrum API media url,
         a json should be returned with those keys and types.
-        This assumes that 'photos', 'videos', or 'audio' is in the media url.
+        This assumes that 'photos', 'videos', or 'audio' is in the media url. If not it assumes photo.
         The test proves that even if the key is arbitrary the url will prove valid.
 
         """
-        example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
-        expected_keymap = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
-        bad_geojson = {'type': 'feature',
+
+        geojson1 = {'type': 'feature',
                        'properties': {'pics_url': '',
                                       'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
                                       'sounds_url': ''}}
-        good_geojson = {'type': 'feature',
+        expected_keymap1 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'photos'}
+        geojson2 = {'type': 'feature',
                         'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
                                        'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
                                        'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
-        self.assertNotEqual(find_media_keys([bad_geojson], example_layer), expected_keymap)
-        self.assertEqual(find_media_keys([good_geojson], example_layer), expected_keymap)
+        expected_keymap2 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
+
+        self.assertEqual(find_media_keys([geojson1]), expected_keymap1)
+        self.assertEqual(find_media_keys([geojson2]), expected_keymap2)
 
     def test_update_layer_media_keys(self):
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
-        expected_keymap = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
-        bad_geojson = {'type': 'feature',
+        geojson1 = {'type': 'feature',
                        'properties': {'pics_url': '',
                                       'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
                                       'sounds_url': ''}}
-        good_geojson = {'type': 'feature',
+        expected_keymap1 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'photos'}
+        geojson2 = {'type': 'feature',
                         'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
                                        'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
                                        'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
-        update_layer_media_keys(media_keys=find_media_keys([bad_geojson],
-                                                           example_layer),
-                                layer=example_layer)
+        expected_keymap2 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
+
+        get_update_layer_media_keys(media_keys=find_media_keys([geojson1]),
+                                    layer=example_layer)
         self.assertNotEqual(example_layer.layer_media_keys, "{}")
-        update_layer_media_keys(media_keys=find_media_keys([good_geojson],
-                                                           example_layer),
-                                layer=example_layer)
-        self.assertEqual(example_layer.layer_media_keys, json.dumps(expected_keymap))
+        self.assertEqual(example_layer.layer_media_keys, json.dumps(expected_keymap1))
+        get_update_layer_media_keys(media_keys=find_media_keys([geojson2]),
+                                    layer=example_layer)
+        self.assertEqual(example_layer.layer_media_keys, json.dumps(expected_keymap2))
 
     def test_feature_model_for_duplicates(self):
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
@@ -432,7 +435,8 @@ class FulcrumImporterTests(TestCase):
         }
 
         returned_features = prepare_features_for_geoshape(test_feature, media_keys=media_keys)
-
+        print(json.dumps(test_feature))
+        print(json.dumps(expected_feature))
         self.assertEqual(expected_feature, returned_features[0])
 
     def test_is_valid_photo(self):
