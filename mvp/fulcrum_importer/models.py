@@ -17,6 +17,7 @@ from __future__ import unicode_literals
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
+from django.contrib import admin
 
 try:
     fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
@@ -32,7 +33,8 @@ def get_type_extension(type):
     asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
     if asset_types.get(type):
         return asset_types.get(type)
-    else: return None
+    else:
+        return None
 
 
 class Asset(models.Model):
@@ -46,7 +48,7 @@ class Layer(models.Model):
     layer_uid = models.CharField(max_length=100)
     layer_date = models.IntegerField(default=0)
     layer_media_keys = models.CharField(max_length=2000,default="{}")
-    
+
     class Meta:
         unique_together = (("layer_name", "layer_uid"),)
 
@@ -54,7 +56,7 @@ class Layer(models.Model):
 class Feature(models.Model):
     feature_uid = models.CharField(max_length=100)
     feature_version = models.IntegerField(default=0)
-    layer = models.ForeignKey(Layer,on_delete=models.CASCADE,default="")
+    layer = models.ForeignKey(Layer,on_delete=models.CASCADE, default="")
     feature_data = models.CharField(max_length=10000)
 
     class Meta:
@@ -63,8 +65,27 @@ class Feature(models.Model):
 
 class Links(models.Model):
     asset = models.ForeignKey(Asset,on_delete=models.CASCADE,default="")
-    feature = models.ForeignKey(Feature,on_delete=models.CASCADE,default="")
+    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, default="")
 
 
 class S3Sync(models.Model):
     s3_filename = models.CharField(max_length=500, primary_key=True)
+
+
+class S3Credential(models.Model):
+    s3_key = models.CharField(max_length=100)
+    s3_secret = models.CharField(max_length=255)
+    s3_gpg = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = (("s3_admin_key", "s3_admin_secret"),)
+
+
+class S3Bucket(models.Model):
+    s3_bucket = models.CharField(max_length=511)
+    s3_credential = models.ForeignKey(S3Credential, on_delete=models.CASCADE, default="")
+
+
+class FulcrumApi(models.Model):
+    fulcrum_api_key = models.CharField(max_length=255, default="", primary_key=True)
+

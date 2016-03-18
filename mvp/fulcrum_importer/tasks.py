@@ -24,6 +24,7 @@ from django.core.cache import cache
 from celery import shared_task
 from hashlib import md5
 from .s3_downloader import pull_all_s3_data
+from .models import FulcrumApi
 
 
 @shared_task(name="fulcrum_importer.tasks.task_update_layers")
@@ -32,10 +33,16 @@ def task_update_layers():
     LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
 
     try:
-        settings.FULCRUM_API_KEY
+        fulcrum_api_keys = settings.FULCRUM_API_KEY
     except AttributeError:
         print("Cannot update layers without a FULCRUM_API_KEY.")
         return
+
+    if type(fulcrum_api_keys) != list:
+        fulcrum_api_keys = [fulcrum_api_keys]
+
+    for api_key in FulcrumApi.objects.all():
+        fulcrum_api_keys += [api_key.fulcrum_api_key]
 
     name = "fulcrum_importer.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
@@ -45,10 +52,11 @@ def task_update_layers():
     release_lock = lambda: cache.delete(lock_id)
     if acquire_lock():
         try:
-            fulcrum_importer = FulcrumImporter()
-            fulcrum_importer.update_all_layers()
-        except:
-            pass
+            for fulcrum_api_key in fulcrum_api_keys:
+                fulcrum_importer = FulcrumImporter(fulcrum_api_key=fulcrum_api_key)
+                fulcrum_importer.update_all_layers()
+        except Exception as e:
+            print repr(e)
         finally:
             release_lock()
 

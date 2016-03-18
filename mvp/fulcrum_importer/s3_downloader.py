@@ -17,7 +17,7 @@
 # Note that django locmem (the default), is NOT multiprocess safe.
 from __future__ import absolute_import
 
-from .models import S3Sync
+from .models import S3Sync, S3Bucket
 import os
 from django.conf import settings
 from django.core.cache import cache
@@ -64,24 +64,14 @@ def pull_all_s3_data():
 
     name = "fulcrum_importer.tasks.pull_s3_data"
     try:
-        S3_KEY = settings.S3_KEY
-        S3_SECRET = settings.S3_SECRET
-        S3_GPG = settings.S3_GPG
+        s3_credentials = settings.S3_CREDENTIALS
     except AttributeError:
-        S3_KEY = None
-        S3_SECRET = None
-        S3_GPG = None
+        s3_credentials = []
 
     try:
-        S3_CFG = settings.S3_CFG
+        s3_cfg = settings.S3_CFG
     except AttributeError:
-        print("Cannot update from S3 without S3_CFG file defined in the settings.")
-        return
-
-    cfg = Config(configfile=settings.S3_CFG, access_key=S3_KEY, secret_key=S3_SECRET)
-    if S3_GPG:
-        cfg.gpg_passphrase = S3_GPG
-    s3 = S3(cfg)
+        s3_cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.s3cfg')
 
     function_name_hexdigest = md5(name).hexdigest()
     lock_id = '{0}-lock-{1}'.format(name, function_name_hexdigest)
@@ -90,8 +80,30 @@ def pull_all_s3_data():
 
     if acquire_lock():
         try:
-            for file_name, file_size in list_bucket_files(s3, settings.S3_BUCKET):
-                handle_file(s3, file_name, file_size)
+            if type(s3_credentials) != list:
+                s3_credentials = [s3_credentials]
+
+            for s3_bucket in S3Bucket.objects.all():
+                cred = dict()
+                cred['s3_bucket'] = s3_bucket.s3_bucket
+                cred['s3_key'] = s3_bucket.s3_credential.s3_key
+                cred['s3_secret'] = s3_bucket.s3_credential.s3_secret
+                cred['s3_gpg'] = s3_bucket.s3_credential.s3_gpg
+                s3_credentials += [cred]
+
+            for s3_credential in s3_credentials:
+
+                cfg = Config(configfile=s3_cfg,
+                             access_key=s3_credential.s3_key,
+                             secret_key=s3_credential.s3_secret)
+                if s3_credential.s3_gpg:
+                    cfg.gpg_passphrase = s3_credential.s3_gpg
+                s3 = S3(cfg)
+
+                for bucket in s3_credential.s3_bucket:
+                    for file_name, file_size in list_bucket_files(s3, bucket):
+                        handle_file(s3, file_name, file_size)
+
         except Exception as e:
             print(repr(e))
         finally:

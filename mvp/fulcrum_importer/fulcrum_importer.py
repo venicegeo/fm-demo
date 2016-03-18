@@ -975,6 +975,8 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
 
     for feature in feature_data:
         for prop in feature.get('properties'):
+            if not prop:
+                continue
             delete_prop = []
             new_props = {}
             if not feature.get('properties').get(prop):
