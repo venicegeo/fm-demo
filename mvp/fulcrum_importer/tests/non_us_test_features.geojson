@@ -3,7 +3,7 @@
   "features": [
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {"number": "443-908-8888"},
       "geometry": {
         "type": "Point",
         "coordinates": [
@@ -14,7 +14,7 @@
     },
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {"number": "(443)-908-8888"},
       "geometry": {
         "type": "Point",
         "coordinates": [
@@ -25,7 +25,7 @@
     },
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {"number": "888-908-8888"},
       "geometry": {
         "type": "Point",
         "coordinates": [
@@ -36,7 +36,7 @@
     },
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {"number": "443-908-8tt8"},
       "geometry": {
         "type": "Point",
         "coordinates": [
@@ -47,7 +47,7 @@
     },
     {
       "type": "Feature",
-      "properties": {},
+      "properties": {"number": "4439088888"},
       "geometry": {
         "type": "Point",
         "coordinates": [

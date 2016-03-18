@@ -16,6 +16,7 @@ from __future__ import absolute_import
 from django.test import TestCase
 from ..filters.geospatial_filter import *
 from ..filters.phone_number_filter import *
+from ..filters.run_filters import filter
 import os
 import json
 from shapely.geometry import shape
@@ -184,3 +185,19 @@ class FilterTests(TestCase):
         filtered_features = filter_number_features(my_features)
         self.assertEqual(len(filtered_features.get('passed').get('features')), 4)
         self.assertEqual(len(filtered_features.get('failed').get('features')), 4)
+
+
+    def test_run_filters(self):
+        with open(os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'non_us_test_features.geojson')) as testfile:
+            features = json.load(testfile)
+            testfile.close()
+        filtered_results, filtered_results_count = filter(features)
+        self.assertIsNotNone(filtered_results)
+        self.assertEqual(filtered_results_count, 3)
+
+        with open(os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'us_test_features.geojson')) as testfile2:
+            features2 = json.load(testfile2)
+            testfile2.close()
+        filtered_results2, filtered_results_count2 = filter(features2)
+        self.assertIsNone(filtered_results2)
+        self.assertEqual(filtered_results_count2, 0)

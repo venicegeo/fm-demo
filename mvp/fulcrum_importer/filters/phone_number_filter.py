@@ -5,9 +5,15 @@ import re
 
 
 def filter(input):
+    """
+    Args:
+         input: A Geojson feature collection
 
-        passed_failed = filter_number_features(input)
-        return passed_failed
+    Returns:
+        A json of two geojson feature collections: passed and failed
+    """
+    passed_failed = filter_number_features(input)
+    return passed_failed
 
 
 def filter_number_features(input_features):
@@ -24,6 +30,13 @@ def filter_number_features(input_features):
 
 
 def iterate_geojson(input_features):
+    """
+    Args:
+         input: A Geojson feature collection
+
+    Returns:
+        A json of two geojson feature collections: passed and failed
+    """
     passed = []
     failed = []
     for feature in input_features.get("features"):
@@ -63,6 +76,14 @@ def iterate_array(input_features):
 
 
 def check_numbers(attributes):
+    """
+    Args:
+         attributes: Stringified properties of a geojson feature
+
+    Returns:
+        True if a US phone number is found in the string
+        False if there is no US phone number found in the string
+    """
     pattern = re.compile('([^0-9]+[(]?[2-9]\d{2}[)]?|^[(]?[2-9]\d{2}[)]?)[^a-zA-Z0-9][2-9]\d{2}(\s|-|[.])(\d{4}[^0-9]+|\d{4}$)')
     phone_number = pattern.search(attributes)
     if phone_number:
@@ -78,6 +99,13 @@ def check_numbers(attributes):
 
 
 def get_area_codes():
+    """
+    Args:
+        None
+
+    Returns:
+         An array of US phone area codes
+    """
 
     area_codes = [
         205, 251, 256, 334, 938,  # Alabama

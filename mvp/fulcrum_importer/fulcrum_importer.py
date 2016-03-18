@@ -223,6 +223,11 @@ def process_fulcrum_data(f):
 
 
 def filter_features(features):
+    """
+
+    :param features:
+    :return:
+    """
     from filters import run_filters
     # try:
     #     DATA_FILTERS = settings.DATA_FILTERS
@@ -524,6 +529,14 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
 
 
 def is_valid_photo(photo_file):
+    """
+    Args:
+        photo_file: A File object of a photo:
+
+    Returns:
+         True if the photo does not contain us-coords.
+         False if the photo does contain us-coords.
+    """
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
     from PIL import Image
 
@@ -558,6 +571,13 @@ def is_valid_photo(photo_file):
 
 
 def get_gps_info(info):
+    """
+    Args:
+         info: A json object of exif photo data
+
+    Returns:
+        A json object of exif photo data with decoded gps_data:
+    """
     from PIL.ExifTags import TAGS, GPSTAGS
     properties = {}
     for tag, value in info.items():
@@ -574,29 +594,43 @@ def get_gps_info(info):
     return properties
 
 def get_gps_coords(properties):
-        try:
-            gps_info = properties["GPSInfo"]
-            gps_lat = gps_info["GPSLatitude"]
-            gps_lat_ref = gps_info["GPSLatitudeRef"]
-            gps_long = gps_info["GPSLongitude"]
-            gps_long_ref = gps_info["GPSLongitudeRef"]
-        except:
-            print "Could not get lat/long"
-            return None
+    """
+    Args:
+         properties: A json containing decoded exif gps data:
 
-        lat = convert_to_degrees(gps_lat)
-        if gps_lat_ref != "N":
-            lat = 0 - lat
+    Returns:
+         An array of coordinates in Decimal Degrees:
+    """
+    try:
+        gps_info = properties["GPSInfo"]
+        gps_lat = gps_info["GPSLatitude"]
+        gps_lat_ref = gps_info["GPSLatitudeRef"]
+        gps_long = gps_info["GPSLongitude"]
+        gps_long_ref = gps_info["GPSLongitudeRef"]
+    except:
+        print "Could not get lat/long"
+        return None
 
-        long = convert_to_degrees(gps_long)
-        if gps_lat_ref != "E":
-            long = 0 - long
+    lat = convert_to_degrees(gps_lat)
+    if gps_lat_ref != "N":
+        lat = 0 - lat
 
-        coords = [round(lat, 6), round(long, 6)]
-        return coords
+    long = convert_to_degrees(gps_long)
+    if gps_lat_ref != "E":
+        long = 0 - long
+
+    coords = [round(lat, 6), round(long, 6)]
+    return coords
 
 
 def convert_to_degrees(value):
+    """
+    Args:
+        Value: An exif format coordinate:
+
+    Returns:
+        Float value of a coordinate in Decimal Degree format
+    """
     d0 = value[0][0]
     d1 = value[0][1]
     d = float(d0) / float(d1)

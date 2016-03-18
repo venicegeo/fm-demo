@@ -6,10 +6,16 @@ import copy
 
 
 def filter(input):
+    """
+    Args:
+         input: A Geojson feature collection
 
-        boundary_features = get_boundary_features()
-        passed_failed = filter_spatial_features(input, boundary_features)
-        return passed_failed
+    Returns:
+        A json of two geojson feature collections: passed and failed
+    """
+    boundary_features = get_boundary_features()
+    passed_failed = filter_spatial_features(input, boundary_features)
+    return passed_failed
 
 def filter_spatial_features(input_features, boundary_features):
     if type(input_features) is DictType:
@@ -24,6 +30,14 @@ def filter_spatial_features(input_features, boundary_features):
         return None
 
 def iterate_geojson(input_features, boundary_features):
+    """
+    Args:
+         input_features: A Geojson feature collection
+         boundary_features: An array of shapely Polygons/MultiPolygons used to filter features
+
+    Returns:
+        A json of two geojson feature collections: passed and failed
+    """
     passed = []
     failed = []
     for feature in input_features.get("features"):
@@ -76,6 +90,15 @@ def iterate_array(input_features, boundary_features):
     return {'passed': passed, 'failed': failed}
 
 def check_geometry(coords, boundary_features):
+    """
+    Args:
+        coords: Array of coordinates
+        boundary_features: An array of shapely Polygons/MultiPolygons used to filter features
+
+    Returns:
+         True if coordinates lie within any boundary_features
+         False if coordinate do not lie within any boundary_features
+    """
     point = Point(coords[0], coords[1])
     for index, boundary in enumerate(boundary_features):
         if boundary_features[index].contains(point):
@@ -83,6 +106,13 @@ def check_geometry(coords, boundary_features):
     return False
 
 def get_boundary_features():
+    """
+    Args:
+        None
+
+    Returns:
+         An array of shapely Polygons or MultiPolygons from the boundary_polygon file which should contain geojson files
+    """
     polygons = []
     filepath = os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'boundary_polygons')
     files = os.listdir(filepath)
@@ -100,15 +130,6 @@ def get_boundary_features():
                     print "Error getting polygon data"
                     file_data.close()
     return polygons
-
-# def coords_array_to_tuple(feature):
-#     for ind, val in enumerate(feature.get('geometry').get('coordinates')):
-#         for ind2, val2 in enumerate(val):
-#             for ind3, val3 in enumerate(val2):
-#                 feature['geometry']['coordinates'][ind][ind2][ind3] = tuple(val3)
-#             feature['geometry']['coordinates'][ind][ind2] = tuple(val2)
-#         feature['geometry']['coordinates'][ind] = tuple(val)
-#     return feature
 
 
 def main():
