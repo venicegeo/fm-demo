@@ -30,7 +30,7 @@ class FulcrumImporterConfig(AppConfig):
         # #     fulcrum = Fulcrum_Importer()
         # #     # fulcrum.start()
         # except OperationalError:
-        #     print("Data has not yet been migrated.")
+        #     print("Schema is not reconciled (migrate/syncdb).")
         #     return
         # return
         pass

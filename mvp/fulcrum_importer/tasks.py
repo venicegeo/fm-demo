@@ -32,17 +32,22 @@ def task_update_layers():
 
     LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
 
+    fulcrum_api_keys = []
+
     try:
-        fulcrum_api_keys = settings.FULCRUM_API_KEY
+        fulcrum_api_keys = settings.FULCRUM_API_KEYS
     except AttributeError:
-        print("Cannot update layers without a FULCRUM_API_KEY.")
-        return
+        pass
 
     if type(fulcrum_api_keys) != list:
         fulcrum_api_keys = [fulcrum_api_keys]
 
     for api_key in FulcrumApi.objects.all():
         fulcrum_api_keys += [api_key.fulcrum_api_key]
+
+    if not fulcrum_api_keys:
+        print("Cannot update layers from fulcrum without an API key added to the admin page, "
+              "or FULCRUM_API_KEYS = ['some_key'] defined in settings.")
 
     name = "fulcrum_importer.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time

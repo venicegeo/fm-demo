@@ -697,3 +697,23 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
         self.assertEqual("Dinagat Islands", imported_feature.get('name'))
         self.assertEqual(expected_version, imported_feature.get('version'))
+
+    def test_s3_credentials_admin(self):
+        s3_cred = S3Credential.objects.create(s3_key='key',
+                                              s3_secret='secret',
+                                              s3_gpg='encrypt')
+        s3_bucket = S3Bucket.objects.create(s3_bucket='bucket',s3_credential=s3_cred)
+        expected_bucket_dict = {'s3_bucket': ['bucket'],
+                                's3_key': 'key',
+                                's3_secret': 'secret',
+                                's3_gpg': 'encrypt'}
+
+        cred = dict()
+        cred['s3_bucket'] = [s3_bucket.s3_bucket]
+        cred['s3_key'] = s3_bucket.s3_credential.s3_key
+        cred['s3_secret'] = s3_bucket.s3_credential.s3_secret
+        cred['s3_gpg'] = s3_bucket.s3_credential.s3_gpg
+        print str(cred)
+
+        self.assertEqual(expected_bucket_dict, cred)
+

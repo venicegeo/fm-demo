@@ -17,7 +17,6 @@ from __future__ import unicode_literals
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-from django.contrib import admin
 
 try:
     fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
@@ -73,19 +72,33 @@ class S3Sync(models.Model):
 
 
 class S3Credential(models.Model):
+    s3_name = models.CharField(max_length=100)
     s3_key = models.CharField(max_length=100)
     s3_secret = models.CharField(max_length=255)
     s3_gpg = models.CharField(max_length=255)
 
     class Meta:
-        unique_together = (("s3_admin_key", "s3_admin_secret"),)
+        unique_together = (("s3_key", "s3_secret"),)
+
+    def __unicode__(self):
+       return "{}({})".format(self.s3_name, self.s3_key)
 
 
 class S3Bucket(models.Model):
     s3_bucket = models.CharField(max_length=511)
     s3_credential = models.ForeignKey(S3Credential, on_delete=models.CASCADE, default="")
 
+    def __unicode__(self):
+       return self.s3_bucket
+
 
 class FulcrumApi(models.Model):
+    fulcrum_api_name = models.CharField(max_length=100)
     fulcrum_api_key = models.CharField(max_length=255, default="", primary_key=True)
 
+    def __unicode__(self):
+       return self.fulcrum_api_name
+
+class Filters(models.Model):
+    filter_name = models.CharField(max_length=255)
+    filter_active = models.BooleanField(default=False)

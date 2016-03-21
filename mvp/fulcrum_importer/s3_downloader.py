@@ -21,19 +21,16 @@ from .models import S3Sync, S3Bucket
 import os
 from django.conf import settings
 from django.core.cache import cache
-from S3.Exceptions import *
-from S3.S3 import S3
-from S3.Config import Config
-from S3.S3Uri import S3Uri
+from django.db import ProgrammingError
+import boto3
 from .fulcrum_importer import process_fulcrum_data
 from hashlib import md5
+import glob
 
-
-def list_bucket_files(s3, bucket):
-    response = s3.bucket_list(bucket)
-    for key in response["list"]:
-        yield key["Key"], key["Size"]
-
+#
+# def list_bucket_files(bucket):
+#     for file in bucket.objects.all():
+#         return file.key, file.size
 
 def is_loaded(file_name):
     s3_file = S3Sync.objects.filter(s3_filename=file_name)
@@ -42,18 +39,23 @@ def is_loaded(file_name):
     return False
 
 
-def s3_download(s3, uri, file_name, file_size):
-    start_pos = 0
-    print "File Size Reported: {}".format(int(file_size))
-    if os.path.exists(os.path.join(settings.FULCRUM_UPLOAD, file_name)):
-        start_pos = int(os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name)))
-        print("Starting Position Reported for {}: {}".format(os.path.join(settings.FULCRUM_UPLOAD, file_name), start_pos))
-        if start_pos == int(file_size):
+def s3_download(s3_bucket_object, s3_file):
+    if os.path.exists(os.path.join(settings.FULCRUM_UPLOAD, s3_file.key)):
+        if s3_file.size == int(os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, s3_file.key))):
             return True
-    print("Downloading from S3: {}".format(file_name))
-    with open(os.path.join(settings.FULCRUM_UPLOAD, file_name), 'wb') as download:
-        response = s3.object_get(uri, download, file_name, start_position=start_pos-8)
-    return response
+    s3_bucket_object.download_file(s3_file.key, os.path.join(settings.FULCRUM_UPLOAD, s3_file.key))
+    return True
+    # start_pos = 0
+    # print "File Size Reported: {}".format(int(file_size))
+    # if os.path.exists(os.path.join(settings.FULCRUM_UPLOAD, file_name)):
+    #     start_pos = int(os.path.getsize(os.path.join(settings.FULCRUM_UPLOAD, file_name)))
+    #     print("Starting Position Reported for {}: {}".format(os.path.join(settings.FULCRUM_UPLOAD, file_name), start_pos))
+    #     if start_pos == int(file_size):
+    #         return True
+    # print("Downloading from S3: {}".format(file_name))
+    # with open(os.path.join(settings.FULCRUM_UPLOAD, file_name), 'wb') as download:
+    #     response = s3.object_get(uri, download, file_name, start_position=start_pos-8)
+    # return response
 
 
 def pull_all_s3_data():
@@ -68,10 +70,10 @@ def pull_all_s3_data():
     except AttributeError:
         s3_credentials = []
 
-    try:
-        s3_cfg = settings.S3_CFG
-    except AttributeError:
-        s3_cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.s3cfg')
+    # try:
+    #     s3_cfg = settings.S3_CFG
+    # except AttributeError:
+    #     s3_cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.s3cfg')
 
     function_name_hexdigest = md5(name).hexdigest()
     lock_id = '{0}-lock-{1}'.format(name, function_name_hexdigest)
@@ -83,37 +85,57 @@ def pull_all_s3_data():
             if type(s3_credentials) != list:
                 s3_credentials = [s3_credentials]
 
-            for s3_bucket in S3Bucket.objects.all():
-                cred = dict()
-                cred['s3_bucket'] = s3_bucket.s3_bucket
-                cred['s3_key'] = s3_bucket.s3_credential.s3_key
-                cred['s3_secret'] = s3_bucket.s3_credential.s3_secret
-                cred['s3_gpg'] = s3_bucket.s3_credential.s3_gpg
-                s3_credentials += [cred]
+            try:
+                for s3_bucket in S3Bucket.objects.all():
+                    cred = dict()
+                    cred['s3_bucket'] = s3_bucket.s3_bucket
+                    cred['s3_key'] = s3_bucket.s3_credential.s3_key
+                    cred['s3_secret'] = s3_bucket.s3_credential.s3_secret
+                    cred['s3_gpg'] = s3_bucket.s3_credential.s3_gpg
+                    s3_credentials += [cred]
+            except ProgrammingError:
+                pass
 
             for s3_credential in s3_credentials:
 
-                cfg = Config(configfile=s3_cfg,
-                             access_key=s3_credential.s3_key,
-                             secret_key=s3_credential.s3_secret)
-                if s3_credential.s3_gpg:
-                    cfg.gpg_passphrase = s3_credential.s3_gpg
-                s3 = S3(cfg)
+                # cfg = Config(configfile=s3_cfg,
+                #              access_key=s3_credential.get('s3_key'),
+                #              secret_key=s3_credential.get('s3_secret'))
+                # if s3_credential.get('s3_gpg'):
+                #     cfg.gpg_passphrase = s3_credential.get('s3_gpg')
+                # s3 = S3(cfg)
+                session = boto3.session.Session()
+                s3 = session.resource('s3',
+                                      aws_access_key_id=s3_credential.get('s3_key'),
+                                      aws_secret_access_key=s3_credential.get('s3_secret'))
 
-                for bucket in s3_credential.s3_bucket:
-                    for file_name, file_size in list_bucket_files(s3, bucket):
-                        handle_file(s3, file_name, file_size)
-
+                buckets = s3_credential.get('s3_bucket')
+                if type(buckets) != list: buckets = [buckets]
+                for bucket in buckets:
+                    print("Getting files from {}".format(bucket))
+                    s3_bucket_obj = s3.Bucket(bucket)
+                    for s3_file in s3_bucket_obj.objects.all():
+                        print str(s3_file.key) + " " + str(s3_file.size)
+                        handle_file(s3_bucket_obj, s3_file)
         except Exception as e:
             print(repr(e))
         finally:
             release_lock()
 
 
-def handle_file(s3, file_name, file_size):
-    if is_loaded(file_name):
+def clean_up_partials(file_name):
+    dirs = glob.glob('{}.*'.format(file_name))
+    if not dirs:
         return
-    if s3_download(s3, S3Uri("s3://{}/{}".format(settings.S3_BUCKET,file_name)), file_name, file_size):
-        print("Processing: {}".format(file_name))
-        process_fulcrum_data(file_name)
-        S3Sync.objects.create(s3_filename=file_name)
+    for dir in dirs:
+        os.remove(dir)
+
+
+def handle_file(s3_bucket_obj, s3_file):
+    if is_loaded(s3_file.key):
+        return
+    s3_download(s3_bucket_obj, s3_file)
+    clean_up_partials(s3_file.key)
+    print("Processing: {}".format(s3_file.key))
+    process_fulcrum_data(s3_file.key)
+    S3Sync.objects.create(s3_filename=s3_file.key)
