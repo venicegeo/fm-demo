@@ -11,7 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import absolute_import
 
 from django.contrib import admin
+from .models import S3Credential, S3Bucket, FulcrumApi
 
-# Register your models here.
+
+class S3BucketInline(admin.TabularInline):
+    model = S3Bucket
+
+
+class S3Admin(admin.ModelAdmin):
+    inlines = [
+        S3BucketInline
+    ]
+
+admin.site.register(S3Credential, S3Admin)
+admin.site.register(FulcrumApi)
+
+
+

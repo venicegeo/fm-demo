@@ -35,7 +35,7 @@ from django.db import connection, connections, ProgrammingError, OperationalErro
 from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
-from itertools import izip_longest
+from itertools import izip
 import shutil
 
 
@@ -47,15 +47,11 @@ class FulcrumImporter:
 
         Returns: The FulcrumImporter Object.
         """
+        self.fulcrum_api_key = fulcrum_api_key
         self.conn = self.get_fulcrum_connection(fulcrum_api_key)
 
     def get_fulcrum_connection(self, fulcrum_api_key=None):
         """Handles getting the Fulcrum object."""
-        if not fulcrum_api_key:
-            try:
-                fulcrum_api_key = settings.FULCRUM_API_KEY
-            except AttributeError:
-                print("An API key was not provided to FulcrumImporter, points will not be imported.")
         if fulcrum_api_key:
             return Fulcrum(key=fulcrum_api_key)
         return None
@@ -63,23 +59,23 @@ class FulcrumImporter:
     def start(self, interval=30):
         """Calls Run() sets an interval time"""
         from threading import Thread
-        if cache.get(settings.FULCRUM_API_KEY):
+        if cache.get(self.fulcrum_api_key):
             return
         else:
-            cache.set(settings.FULCRUM_API_KEY, True)
+            cache.set(self.fulcrum_api_key, True)
             thread = Thread(target=self.run, args=[interval])
             thread.daemon = True
             thread.start()
 
     def run(self, interval):
         """Checks the 'lock' from the cache if using threading module, update if it exists."""
-        while cache.get(settings.FULCRUM_API_KEY):
+        while cache.get(self.fulcrum_api_key):
             self.update_all_layers()
             time.sleep(interval)
 
     def stop(self):
         """Removes the 'lock' from the cache if using threading module."""
-        cache.set(settings.FULCRUM_API_KEY, False)
+        cache.set(self.fulcrum_api_key, False)
 
     def get_forms(self):
         """A wrapper for getting Fulcrum froms from the API"""
@@ -146,13 +142,14 @@ class FulcrumImporter:
 
         imported_features = sort_features(imported_features, time_field)
 
-        for grouped_features in grouper(imported_features, 100, fillvalue=None):
+        for grouped_features in grouper(imported_features, 100):
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
 
             uploads = []
 
             if filtered_features:
+                latest_time = 0
                 for feature in filtered_features.get('features'):
                     if not feature:
                         continue
@@ -193,7 +190,8 @@ class FulcrumImporter:
                 publish_layer(layer.layer_name, database_alias=database_alias)
                 update_geoshape_layers()
                 send_task('fulcrum_importer.tasks.task_update_tiles', (uploads, layer.layer_name))
-                layer.layer_date = latest_time
+                if latest_time > layer.layer_date:
+                    layer.layer_date = latest_time
                 layer.save()
             print("RESULTS\n---------------")
             print("Total Records Pulled: {}".format(pulled_record_count))
@@ -333,14 +331,14 @@ class FulcrumImporter:
     def get_asset(self, asset_id, asset_type):
         """A wrapper for write asset in case customization is needed."""
         if asset_id:
-            return write_asset_from_url(asset_id, asset_type)
+            return write_asset_from_url(asset_id, asset_type, fulcrum_api_key=self.fulcrum_api_key)
         else:
             print "An asset_id must be provided."
             return None
 
     def __del__(self):
         """Used to remove the placehoder on the cache if using the threading module."""
-        cache.set(settings.FULCRUM_API_KEY, False)
+        cache.set(self.fulcrum_api_key, False)
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -355,7 +353,7 @@ def grouper(iterable, n, fillvalue=None):
         An iterable containing tuples of the desired size.
     """
     args = [iter(iterable)] * n
-    return izip_longest(*args, fillvalue=fillvalue)
+    return izip(*args)
 
 
 def convert_to_epoch_time(date):
@@ -591,6 +589,7 @@ def upload_geojson(file_path=None, geojson=None):
         update_geoshape_layers()
     return True
 
+
 def find_media_keys(features):
     """
     Args:
@@ -678,7 +677,7 @@ def write_feature(key, version, layer, feature_data):
     return feature
 
 
-def write_asset_from_url(asset_uid, asset_type, url=None):
+def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
     """
 
     Args:
@@ -699,7 +698,7 @@ def write_asset_from_url(asset_uid, asset_type, url=None):
             if not url:
                 url = 'https://api.fulcrumapp.com/api/v2/{}/{}.{}'.format(asset.asset_type, asset.asset_uid,
                                                                           get_type_extension(asset_type))
-            response = requests.get(url, headers={'X-ApiToken': settings.FULCRUM_API_KEY})
+            response = requests.get(url, headers={'X-ApiToken': fulcrum_api_key})
             for content in response.iter_content(chunk_size=1028):
                 temp.write(content)
             temp.flush()
@@ -975,6 +974,8 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
 
     for feature in feature_data:
         for prop in feature.get('properties'):
+            if not prop:
+                continue
             delete_prop = []
             new_props = {}
             if not feature.get('properties').get(prop):
@@ -985,7 +986,7 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
                     delete_prop += [prop]
         feature['properties'].update(new_props)
         for media_key, media_val in media_keys.iteritems():
-            if feature['properties'].get('{}_caption'.format(media_key)):
+            if ('{}_caption'.format(media_key)) in feature.get('properties'):
                 feature['properties']['caption_{}'.format(media_key)] = \
                         feature['properties'].get('{}_caption'.format(media_key))
                 try:
@@ -1005,7 +1006,6 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
                 new_key = '{}_{}'.format(media_val, media_key)
             else:
                 new_key = media_val
-
 
             if feature.get('properties').get(media_key):
                 media_assets = feature.get('properties').get(media_key)
