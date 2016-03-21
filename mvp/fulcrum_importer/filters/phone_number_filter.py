@@ -20,12 +20,14 @@ def filter_number_features(input_features):
     if type(input_features) is DictType:
         if input_features.get("features"):
             return iterate_geojson(input_features)
-        else:
-            return iterate_json(input_features)
-
-    elif type(input_features) is ListType:
-        return iterate_array(input_features)
+    #     else:
+    #         return iterate_json(input_features)
+    #
+    # elif type(input_features) is ListType:
+    #     return iterate_array(input_features)
     else:
+        print "Returning none"
+        print type(input_features)
         return None
 
 
@@ -40,6 +42,8 @@ def iterate_geojson(input_features):
     passed = []
     failed = []
     for feature in input_features.get("features"):
+        if not feature:
+            continue
         if check_numbers(json.dumps(feature.get('properties'))):
             failed.append(feature)
         else:
@@ -53,26 +57,26 @@ def iterate_geojson(input_features):
     return {'passed': passed_features, 'failed': failed_features}
 
 
-def iterate_json(input_features):
-    passed = []
-    failed = []
-    if check_numbers(input_features):
-        failed.append(input_features)
-    else:
-        passed.append(input_features)
-
-    return {'passed': passed, 'failed': failed}
-
-
-def iterate_array(input_features):
-    passed = []
-    failed = []
-    for feature in input_features:
-        if check_numbers(input_features[feature]):
-            failed.append(input_features[feature])
-        else:
-            passed.append(input_features[feature])
-    return {'passed': passed, 'failed': failed}
+# def iterate_json(input_features):
+#     passed = []
+#     failed = []
+#     if check_numbers(input_features):
+#         failed.append(input_features)
+#     else:
+#         passed.append(input_features)
+#
+#     return {'passed': passed, 'failed': failed}
+#
+#
+# def iterate_array(input_features):
+#     passed = []
+#     failed = []
+#     for feature in input_features:
+#         if check_numbers(input_features[feature]):
+#             failed.append(input_features[feature])
+#         else:
+#             passed.append(input_features[feature])
+#     return {'passed': passed, 'failed': failed}
 
 
 def check_numbers(attributes):
@@ -161,10 +165,3 @@ def get_area_codes():
         307  # Wyoming
     ]
     return area_codes
-
-
-def main():
-    print "hello"
-
-if __name__ == "__main__":
-    main()

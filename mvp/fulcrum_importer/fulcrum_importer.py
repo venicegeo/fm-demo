@@ -35,7 +35,7 @@ from django.db import connection, connections, ProgrammingError, OperationalErro
 from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
-from itertools import izip_longest
+from itertools import izip
 import shutil
 
 
@@ -146,13 +146,14 @@ class FulcrumImporter:
 
         imported_features = sort_features(imported_features, time_field)
 
-        for grouped_features in grouper(imported_features, 100, fillvalue=None):
+        for grouped_features in grouper(imported_features, 100):
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
-
+            print filtered_feature_count
             uploads = []
 
             if filtered_features:
+                print "Got the features back"
                 for feature in filtered_features.get('features'):
                     if not feature:
                         continue
@@ -343,7 +344,7 @@ class FulcrumImporter:
         cache.set(settings.FULCRUM_API_KEY, False)
 
 
-def grouper(iterable, n, fillvalue=None):
+def grouper(iterable, n):
     """
 
     Args:
@@ -355,7 +356,7 @@ def grouper(iterable, n, fillvalue=None):
         An iterable containing tuples of the desired size.
     """
     args = [iter(iterable)] * n
-    return izip_longest(*args, fillvalue=fillvalue)
+    return izip(*args)
 
 
 def convert_to_epoch_time(date):
@@ -427,35 +428,37 @@ def filter_features(features):
     Returns:
         The filtered features and the feature count as a tuple.
     """
-    try:
-        DATA_FILTERS = settings.DATA_FILTERS
-    except AttributeError:
-        DATA_FILTERS = []
-        pass
-
-    filtered_features = features
-
-    if not DATA_FILTERS:
-        return filtered_features, 0
-
-    if filtered_features.get('features'):
-        for filter in DATA_FILTERS:
-            try:
-                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-            except ValueError:
-                print("Failed to decode json")
-            if filtered_results.get('failed').get('features'):
-                print("Some features failed the {} filter.".format(filter))
-                # with open('./failed_features.geojson', 'a') as failed_features:
-                #     failed_features.write(json.dumps(filtered_results.get('failed')))
-            if filtered_results.get('passed').get('features'):
-                filtered_features = filtered_results.get('passed')
-                filtered_feature_count = len(filtered_results.get('passed').get('features'))
-            else:
-                filtered_features = None
-    else:
-        filtered_features = None
-        filtered_feature_count = 0
+    from .filters import run_filters
+    # try:
+    #     DATA_FILTERS = settings.DATA_FILTERS
+    # except AttributeError:
+    #     DATA_FILTERS = []
+    #     pass
+    #
+    # filtered_features = features
+    #
+    # if not DATA_FILTERS:
+    #     return filtered_features, 0
+    #
+    # if filtered_features.get('features'):
+    #     for filter in DATA_FILTERS:
+    #         try:
+    #             filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
+    #         except ValueError:
+    #             print("Failed to decode json")
+    #         if filtered_results.get('failed').get('features'):
+    #             print("Some features failed the {} filter.".format(filter))
+    #             # with open('./failed_features.geojson', 'a') as failed_features:
+    #             #     failed_features.write(json.dumps(filtered_results.get('failed')))
+    #         if filtered_results.get('passed').get('features'):
+    #             filtered_features = filtered_results.get('passed')
+    #             filtered_feature_count = len(filtered_results.get('passed').get('features'))
+    #         else:
+    #             filtered_features = None
+    # else:
+    #     filtered_features = None
+    #     filtered_feature_count = 0
+    filtered_features, filtered_feature_count = run_filters.filter(features)
     if not filtered_feature_count:
         print("All of the features were filtered. None remain.")
     return filtered_features, filtered_feature_count
@@ -922,7 +925,6 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
-
     if not feature_data:
         return False
 
@@ -1002,6 +1004,8 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
 
     for feature in feature_data:
         for prop in feature.get('properties'):
+            if not prop:
+                continue
             delete_prop = []
             new_props = {}
             if not feature.get('properties').get(prop):
