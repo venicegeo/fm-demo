@@ -145,13 +145,13 @@ class FulcrumImporter:
         for grouped_features in grouper(imported_features, 100):
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
-            print filtered_feature_count
             uploads = []
-
             if filtered_features:
                 latest_time = 0
                 for feature in filtered_features.get('features'):
                     if not feature:
+                        continue
+                    if not feature.get('geometry'):
                         continue
                     latest_time = feature.get('properties').get(time_field)
                     if feature.get('properties').get('id'):
@@ -541,6 +541,10 @@ def upload_geojson(file_path=None, geojson=None):
     layer, created = write_layer(name=file_basename)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
     for feature in features:
+        if not feature:
+            continue
+        if not feature.get('geometry'):
+            continue
         for media_key in media_keys:
             if from_file and feature.get('properties').get(media_key):
                 urls = []
