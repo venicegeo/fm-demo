@@ -35,7 +35,6 @@ from django.db import connection, connections, ProgrammingError, OperationalErro
 from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
-from itertools import izip
 import shutil
 
 
@@ -93,7 +92,6 @@ class FulcrumImporter:
         """
         return write_layer(name=layer_name, layer_id=layer_id)
 
-
     def update_records(self, form):
         """This is the main function to parse the form, request the records, and update the datastores.
 
@@ -104,35 +102,20 @@ class FulcrumImporter:
             None
         """
         layer = Layer.objects.get(layer_uid=form.get('id'))
-        if not layer:
-            print("Layer {} doesn't exist.".format(form.get('id')))
 
-        temp_features = []
-        if layer.layer_date:
-            url_params = {'form_id': layer.layer_uid, 'updated_since': layer.layer_date + 1}
+        if layer:
+            records = self.get_latest_records(layer)
         else:
-            url_params = {'form_id': layer.layer_uid}
-        imported_features = self.conn.records.search(url_params=url_params)
-        if imported_features.get('current_page') <= imported_features.get('total_pages'):
-            print("Received {} page {} of {}".format(layer.layer_name,
-                                                     imported_features.get('current_page'),
-                                                     imported_features.get('total_pages')))
-        temp_features += imported_features.get('records')
-        while imported_features.get('current_page') < imported_features.get('total_pages'):
-            url_params['page'] = imported_features.get('current_page') + 1
-            imported_features = self.conn.records.search(url_params=url_params)
-            print("Received {} page {} of {}".format(layer.layer_name,
-                                                     imported_features.get('current_page'),
-                                                     imported_features.get('total_pages')))
-            temp_features += imported_features.get('records')
+            print("A layer doesn't exist for {}".format(form.get('id')))
 
         element_map = self.get_element_map(form)
         media_map = self.get_media_map(form, element_map)
         get_update_layer_media_keys(media_keys=media_map, layer=layer)
-        imported_features = self.convert_to_geojson(temp_features, element_map, media_map).get('features')
+        imported_features = self.convert_to_geojson(records, element_map, media_map).get('features')
 
         if not imported_features:
             return
+
 
         pulled_record_count = len(imported_features)
 
@@ -142,16 +125,28 @@ class FulcrumImporter:
 
         imported_features = sort_features(imported_features, time_field)
 
-        for grouped_features in grouper(imported_features, 100):
+        latest_time = imported_features[-1].get('properties').get(time_field)
+
+        print("imported_features: {}".format(imported_features))
+        print("latest_time: {}".format(str(int(latest_time))))
+        for grouped_features in chunks(imported_features, 100):
+            if not grouped_features:
+                break
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
 
             uploads = []
 
+            print "Filtered Features: {}".format(filtered_features)
             if filtered_features:
-                latest_time = 0
+                latest_time = layer.layer_date
                 for feature in filtered_features.get('features'):
+                    print feature
                     if not feature:
+                        print("no feature")
+                        continue
+                    if not feature.get('geometry'):
+                        print("no geometry")
                         continue
                     latest_time = feature.get('properties').get(time_field)
                     if feature.get('properties').get('id'):
@@ -190,34 +185,76 @@ class FulcrumImporter:
                 publish_layer(layer.layer_name, database_alias=database_alias)
                 update_geoshape_layers()
                 send_task('fulcrum_importer.tasks.task_update_tiles', (uploads, layer.layer_name))
-                if latest_time > layer.layer_date:
-                    layer.layer_date = latest_time
-                layer.save()
-            print("RESULTS\n---------------")
-            print("Total Records Pulled: {}".format(pulled_record_count))
-            print("Total Records Passed Filter: {}".format(filtered_feature_count))
-            return
+                with transaction.atomic():
+                    print("UPDATING LAYER DATE:{}".format(int(latest_time)))
+                    layer.layer_date = int(latest_time)
+                    layer.save()
+        # This is added again after the loop because if the loop finishes all points would have been processed,
+        # however since some points may have been filtered we want their times to be included so as to not,
+        # continually request them, but only after we are sure that we got all valid points where they need to be.
+        with transaction.atomic():
+            print("UPDATING LAYER DATE:{}".format(int(latest_time)))
+            layer.layer_date = int(latest_time)
+            layer.save()
+        print("RESULTS\n---------------")
+        print("Total Records Pulled: {}".format(pulled_record_count))
+        print("Total Records Passed Filter: {}".format(filtered_feature_count))
+        return
 
-    def get_latest_time(self, new_features, old_layer_time, properties_key_of_time=None):
+    def get_latest_records(self, layer):
         """
 
         Args:
-            new_features: A dict structured like a geojson.
-            old_layer_time: A time pulled from the layer model.
-            properties_key_of_time: A string of the time field created in append_time_to_features.
+            layer: A django model representing the layer.
 
-        Returns:
-            The latest time as an integer.
+        Returns: A
 
         """
-        if not properties_key_of_time:
-            properties_key_of_time = new_features.get('properties').get('updated_at_time')
-        layer_time = old_layer_time
-        for new_feature in new_features:
-            feature_date = new_feature.get('properties').get(properties_key_of_time)
-            if feature_date > layer_time:
-                layer_time = feature_date
-        return layer_time
+        if not layer:
+            print("get_latest_records called without a layer provided.")
+            return
+
+        records = []
+        if layer.layer_date:
+            url_params = {'form_id': layer.layer_uid, 'updated_since': layer.layer_date + 1}
+        else:
+            url_params = {'form_id': layer.layer_uid}
+        imported_features = self.conn.records.search(url_params=url_params)
+        if imported_features.get('current_page') <= imported_features.get('total_pages'):
+            print("Received {} page {} of {}".format(layer.layer_name,
+                                                     imported_features.get('current_page'),
+                                                     imported_features.get('total_pages')))
+        records += imported_features.get('records')
+        while imported_features.get('current_page') < imported_features.get('total_pages'):
+            url_params['page'] = imported_features.get('current_page') + 1
+            imported_features = self.conn.records.search(url_params=url_params)
+            print("Received {} page {} of {}".format(layer.layer_name,
+                                                     imported_features.get('current_page'),
+                                                     imported_features.get('total_pages')))
+            records += imported_features.get('records')
+
+        return records
+
+    # def get_latest_time(self, new_features, old_layer_time, properties_key_of_time=None):
+    #     """
+    #
+    #     Args:
+    #         new_features: A dict structured like a geojson.
+    #         old_layer_time: A time pulled from the layer model.
+    #         properties_key_of_time: A string of the time field created in append_time_to_features.
+    #
+    #     Returns:
+    #         The latest time as an integer.
+    #
+    #     """
+    #     if not properties_key_of_time:
+    #         properties_key_of_time = new_features.get('properties').get('updated_at_time')
+    #     layer_time = old_layer_time
+    #     for new_feature in new_features:
+    #         feature_date = new_feature.get('properties').get(properties_key_of_time)
+    #         if feature_date > layer_time:
+    #             layer_time = feature_date
+    #     return layer_time
 
     def update_all_layers(self):
         """Gets all forms and tries to update the records."""
@@ -337,28 +374,19 @@ class FulcrumImporter:
             return None
 
     def __del__(self):
-        """Used to remove the placehoder on the cache if using the threading module."""
+        """Used to remove the placeholder on the cache if using the threading module."""
         cache.set(self.fulcrum_api_key, False)
 
 
-def grouper(iterable, n, fillvalue=None):
-    """
-
-    Args:
-        iterable: A dict or array.
-        n: The number of items in the group.
-        fillvalue: What should be added to the end to complete the 'n' values.
-
-    Returns:
-        An iterable containing tuples of the desired size.
-    """
-    args = [iter(iterable)] * n
-    return izip(*args)
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
 
 
 def convert_to_epoch_time(date):
     """Converts a 'date' string to an integer"""
-    return time.mktime(parser.parse(date).timetuple())
+    return int(time.mktime(parser.parse(date).timetuple()))
 
 
 def append_time_to_features(features, properties_key_of_date=None):
@@ -540,8 +568,12 @@ def upload_geojson(file_path=None, geojson=None):
     layer, created = write_layer(name=file_basename)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
     for feature in features:
+        if not feature:
+            continue
+        if not feature.get('geometry'):
+            continue
         for media_key in media_keys:
-            if from_file and feature.get('properties').get(media_key):
+            if feature.get('properties').get(media_key):
                 urls = []
                 if type(feature.get('properties').get(media_key)) == list:
                     asset_uids = feature.get('properties').get(media_key)
@@ -1578,6 +1610,21 @@ def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs)
                   headers={"content-type": "application/json"},
                   data=payload,
                   verify=False)
+
+def ensure_geogig_repo():
+    pass
+
+def create_geogig_repo(repo_name):
+
+    pass
+
+def get_geogig_repo():
+
+    pass
+
+def get_all_geogig_repos():
+
+    pass
 
 
 def merge_dicts(*dict_args):

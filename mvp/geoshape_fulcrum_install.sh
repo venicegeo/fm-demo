@@ -60,15 +60,15 @@ printf "CACHES = {\n\
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 
-grep -q '^FULCRUM_UPLOAD' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_UPLOAD.*/FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_UPLOAD='/var/lib/geonode/fulcrum_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^FULCRUM_DATABASE_NAME' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^FULCRUM_DATABASE_NAME.*/FULCRUM_DATABASE_NAME='geoshape_data'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "FULCRUM_DATABASE_NAME='geoshape_data'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^DATA_FILTERS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "DATA_FILTERS=['http://pzsvc-us-phone-number-filter.cf.piazzageo.io/filter', 'http://pzsvc-us-geospatial-filter.cf.piazzageo.io/filter']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^S3_BUCKET' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_BUCKET.*/S3_BUCKET=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_BUCKET=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^S3_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_KEY.*/S3_KEY=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_KEY=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^S3_SECRET' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_SECRET.*/S3_SECRET=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_SECRET=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^S3_GPG' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_GPG.*/S3_GPG=''/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_GPG=''" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-grep -q '^S3_CFG' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py && sed -i "s/^S3_CFG.*/S3_CFG='\/var\/lib\/geonode\/lib\/python2\.7\/site\-packages\/fulcrum_importer\/.s3cfg'/" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || echo "S3_CFG='/var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer/.s3cfg'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
-
+grep -q "^S3_CREDENTIALS =" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py ||
+printf "S3_CREDENTIALS = [{'s3_bucket': ['xxxxx'],\n\
+                   's3_key': 'xxxxx',\n\
+                   's3_secret': 'xxxxx',\n\
+                   's3_gpg': 'xxxxx'},\n\
+                   {'s3_bucket': ['xxxxx'],\n\
+                   's3_key': 'xxxxx',\n\
+                   's3_secret': 'xxxxx',\n\
+                   's3_gpg': 'xxxxx'}]\n">> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 
 function getFulcrumApiKey() {
 	echo "Enter Fulcrum Username:"
@@ -87,9 +87,9 @@ function getFulcrumApiKey() {
         fi
 
 	## if the token isn't found, it will just print blanks anyway
-	echo "FULCRUM_API_KEY='$apiToken'" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
+	echo "FULCRUM_API_KEYS=['$apiToken']" >> /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
 }
-#grep -q '^FULCRUM_API_KEY' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
+grep -q '^FULCRUM_API_KEYS' /var/lib/geonode/rogue_geonode/geoshape/local_settings.py || getFulcrumApiKey
 
 #add to /var/lib/geonode/rogue_geonode/geoshape/urls.py:
 grep -qF 'from fulcrum_importer.urls import urlpatterns as fulcrum_importer_urls' /var/lib/geonode/rogue_geonode/geoshape/urls.py || 

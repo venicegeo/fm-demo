@@ -60,8 +60,8 @@ def task_update_layers():
             for fulcrum_api_key in fulcrum_api_keys:
                 fulcrum_importer = FulcrumImporter(fulcrum_api_key=fulcrum_api_key)
                 fulcrum_importer.update_all_layers()
-        except Exception as e:
-            print repr(e)
+        # except Exception as e:
+        #     print repr(e)
         finally:
             release_lock()
 
