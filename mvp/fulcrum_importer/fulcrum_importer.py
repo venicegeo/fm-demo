@@ -145,10 +145,6 @@ class FulcrumImporter:
                 latest_time = layer.layer_date
                 for feature in filtered_features.get('features'):
                     if not feature:
-                        print("no feature")
-                        continue
-                    if not feature.get('geometry'):
-                        print("no geometry")
                         continue
                     if not feature.get('geometry'):
                         continue
