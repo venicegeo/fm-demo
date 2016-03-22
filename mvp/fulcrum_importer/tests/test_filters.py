@@ -28,12 +28,20 @@ class FilterTests(TestCase):
 
 
     def test_get_boundary_features(self):
+        """
+        Test boundary feature creation
+        boundary features should have on item of MultiPolygon type
+        """
         boundary_features = get_boundary_features()
         self.assertEqual(len(boundary_features), 1)
         self.assertEqual(boundary_features[0].geom_type, 'MultiPolygon')
 
 
     def test_check_geometry(self):
+        """
+        Test geometry checker
+        Coordinates in US should return true. Coordinates outside the us should return false
+        """
         boundary_features = get_boundary_features()
         us_in = [-82.96875, 37.996162679728116]
         self.assertTrue(check_geometry(us_in, boundary_features))
@@ -42,6 +50,11 @@ class FilterTests(TestCase):
 
 
     def test_full_geometry_filter(self):
+        """
+        Test geometry filter on geojson
+        Us_test_features.geojson should be filtered completely, no passed features, five failed features.
+        Non_us_test_features.geojson should not be filtered out, five passed features, no failed features.
+        """
         boundary_features = get_boundary_features()
         with open(os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'us_test_features.geojson')) as testfile:
             features = json.load(testfile)
@@ -65,11 +78,19 @@ class FilterTests(TestCase):
 
 
     def test_get_area_codes(self):
+        """
+        Test area code return
+        get_area_codes should return an array of 321 area codes
+        """
         area_codes = get_area_codes()
         self.assertEqual(len(area_codes), 321)
 
 
     def test_check_numbers(self):
+        """
+        Test number checker
+        Phone numbers in correct phone number format and containing a US area code should return true, others should return false
+        """
         us_number1 = '443-908-8888'
         us_number2 = '443.908.8888'
         us_number3 = '(443)908-8888'
@@ -89,6 +110,12 @@ class FilterTests(TestCase):
         self.assertFalse(check_numbers(non_us_number4))
 
     def test_full_phone_number_filters(self):
+        """
+        Test phone number in geojson filter
+        Half the features should be filtered out.
+        Passed should contain four features.
+        Failed should contain four features.
+        """
         my_features = {
           "type": "FeatureCollection",
           "features": [
@@ -188,6 +215,11 @@ class FilterTests(TestCase):
 
 
     def test_run_filters(self):
+        """
+        Test complete filtering process.
+        Non_us_test_features should have 3 features after filtering. (US phone numbers found)
+        Us_test_features should have 0 features after filtering. (Features located in the US)
+        """
         with open(os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'non_us_test_features.geojson')) as testfile:
             features = json.load(testfile)
             testfile.close()

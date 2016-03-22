@@ -18,6 +18,15 @@ def filter(input):
     return passed_failed
 
 def filter_spatial_features(input_features, boundary_features):
+    """
+    Args:
+         input:
+            input_features: A Geojson feature collection
+            boundary_features: An array of shapely polygons/multipolygons used to filter features
+
+    Returns:
+        A json of two geojson feature collections: passed and failed, or None if input is not geojson
+    """
     if type(input_features) is DictType:
         if input_features.get("features"):
             return iterate_geojson(input_features, boundary_features)

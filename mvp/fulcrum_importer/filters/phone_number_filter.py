@@ -17,6 +17,13 @@ def filter(input):
 
 
 def filter_number_features(input_features):
+    """
+    Args:
+         input: A Geojson feature collection
+
+    Returns:
+        A json of two geojson feature collections: passed and failed, or None if input is not geojson
+    """
     if type(input_features) is DictType:
         if input_features.get("features"):
             return iterate_geojson(input_features)
