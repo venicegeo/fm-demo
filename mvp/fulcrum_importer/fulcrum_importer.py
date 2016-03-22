@@ -50,13 +50,19 @@ class FulcrumImporter:
         self.conn = self.get_fulcrum_connection(fulcrum_api_key)
 
     def get_fulcrum_connection(self, fulcrum_api_key=None):
-        """Handles getting the Fulcrum object."""
+        """Handles getting the Fulcrum object.
+        Args:
+            fulcrum_api_key: A string for the fulcrum credentials.
+        """
         if fulcrum_api_key:
             return Fulcrum(key=fulcrum_api_key)
         return None
 
     def start(self, interval=30):
-        """Calls Run() sets an interval time"""
+        """Calls Run() sets an interval time
+        Args:
+            interval: An integer in seconds for the polling interval.
+        """
         from threading import Thread
         if cache.get(self.fulcrum_api_key):
             return
@@ -67,7 +73,10 @@ class FulcrumImporter:
             thread.start()
 
     def run(self, interval):
-        """Checks the 'lock' from the cache if using threading module, update if it exists."""
+        """Checks the 'lock' from the cache if using threading module, update if it exists.
+        Args:
+            interval: An integer in seconds for the polling interval.
+        """
         while cache.get(self.fulcrum_api_key):
             self.update_all_layers()
             time.sleep(interval)
@@ -131,9 +140,7 @@ class FulcrumImporter:
                 break
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
-
             uploads = []
-
             if filtered_features:
                 latest_time = layer.layer_date
                 for feature in filtered_features.get('features'):
@@ -142,6 +149,8 @@ class FulcrumImporter:
                         continue
                     if not feature.get('geometry'):
                         print("no geometry")
+                        continue
+                    if not feature.get('geometry'):
                         continue
                     latest_time = feature.get('properties').get(time_field)
                     if feature.get('properties').get('id'):
@@ -281,10 +290,10 @@ class FulcrumImporter:
             and the value is the actual name to be used in the geojson as the property name.
         """
         elements = form.get('elements')
-        map = {}
+        element_map = {}
         for element in elements:
-            map[element.get('key')] = element.get('data_name')
-        return map
+            element_map[element.get('key')] = element.get('data_name')
+        return element_map
 
     def get_media_map(self, form, element_map):
         """
@@ -299,14 +308,14 @@ class FulcrumImporter:
         """
         elements = form.get('elements')
         fieldType = {'PhotoField': 'photos', 'VideoField': 'videos', 'AudioField': 'audio'}
-        map = {}
+        field_map = {}
         media_map = {}
         for element in elements:
             if fieldType.get(element.get('type')):
-                map[element.get('key')] = fieldType.get(element.get('type'))
-        for key in map:
+                field_map[element.get('key')] = fieldType.get(element.get('type'))
+        for key in field_map:
             if element_map.get(key):
-                media_map[element_map[key]] = map.get(key)
+                media_map[element_map[key]] = field_map.get(key)
         return media_map
 
     def form_values_to_properties(self, form_values, element_map, media_map):
@@ -351,7 +360,7 @@ class FulcrumImporter:
 
 
 def chunks(l, n):
-    """Yield successive n-sized chunks from l."""
+    """Yield successive n-sized chunks from 1."""
     for i in xrange(0, len(l), n):
         yield l[i:i+n]
 
@@ -381,7 +390,7 @@ def append_time_to_features(features, properties_key_of_date=None):
 
     for feature in features:
         feature['properties']["{}_time".format(properties_key_of_date)] = convert_to_epoch_time(
-            feature.get('properties').get(properties_key_of_date))
+                feature.get('properties').get(properties_key_of_date))
 
     return features
 
@@ -419,44 +428,19 @@ def process_fulcrum_data(f):
 
 def filter_features(features):
     """
-
     Args:
         features: A dict formatted like a geojson, containing features to be passed through various filters.
 
     Returns:
         The filtered features and the feature count as a tuple.
     """
-    try:
-        DATA_FILTERS = settings.DATA_FILTERS
-    except AttributeError:
-        DATA_FILTERS = []
-        pass
+    from .filters import run_filters
 
-    filtered_features = features
+    filtered_features, filtered_feature_count = run_filters.filter(features)
 
-    if not DATA_FILTERS:
-        return filtered_features, 0
-
-    if filtered_features.get('features'):
-        for filter in DATA_FILTERS:
-            try:
-                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-            except ValueError:
-                print("Failed to decode json")
-            if filtered_results.get('failed').get('features'):
-                print("Some features failed the {} filter.".format(filter))
-                # with open('./failed_features.geojson', 'a') as failed_features:
-                #     failed_features.write(json.dumps(filtered_results.get('failed')))
-            if filtered_results.get('passed').get('features'):
-                filtered_features = filtered_results.get('passed')
-                filtered_feature_count = len(filtered_results.get('passed').get('features'))
-            else:
-                filtered_features = None
-    else:
-        filtered_features = None
-        filtered_feature_count = 0
     if not filtered_feature_count:
         print("All of the features were filtered. None remain.")
+
     return filtered_features, filtered_feature_count
 
 
@@ -626,18 +610,19 @@ def get_update_layer_media_keys(media_keys=None, layer=None):
         layer: A django model object representing the layer
 
     Returns:
-        None
+        The Layer media keys.
     """
-    layer_media_keys = json.loads(layer.layer_media_keys)
-    for media_key in media_keys:
-        if not layer_media_keys.get(media_key):
-            layer_media_keys[media_key] = media_keys.get(media_key)
-        #Since photos is the default for a media key of unknown format, we should update it given the chance.
-        elif layer_media_keys.get(media_key) == 'photos':
-            layer_media_keys[media_key] = media_keys.get(media_key)
-    layer.layer_media_keys = json.dumps(layer_media_keys)
-    layer.save()
-    return layer_media_keys
+    with transaction.atomic():
+        layer_media_keys = json.loads(layer.layer_media_keys)
+        for media_key in media_keys:
+            if not layer_media_keys.get(media_key):
+                layer_media_keys[media_key] = media_keys.get(media_key)
+            # Since photos is the default for a media key of unknown format, we should update it given the chance.
+            elif layer_media_keys.get(media_key) == 'photos':
+                layer_media_keys[media_key] = media_keys.get(media_key)
+        layer.layer_media_keys = json.dumps(layer_media_keys)
+        layer.save()
+        return layer_media_keys
 
 
 def write_layer(name, layer_id='', date=0, media_keys={}):
@@ -646,12 +631,11 @@ def write_layer(name, layer_id='', date=0, media_keys={}):
         name: An SQL compatible string.
         layer_id: A unique ID for the layer
         date: An integer representing the date
+        media_keys: See FulcrumImporter.get_media_map
 
     Returns:
         The layer model object.
     """
-    # if not date:
-    #     date = time.mktime(datetime.now().timetuple())
     layer_name = 'fulcrum_{}'.format(name.lower())
     layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
                                                        layer_uid=layer_id,
@@ -666,7 +650,7 @@ def write_feature(key, version, layer, feature_data):
     Args:
         key: A unique key as a string, presumably the Fulcrum UID.
         version: A version number for the feature as an integer, usually provided by Fulcrum.
-        app: The layer model object, which represents the Fulcrum App (AKA the layer).
+        layer: The layer model object, which represents the Fulcrum App (AKA the layer).
         feature_data: The actual feature data as a dict, mapped like a geojson.
 
     Returns:
@@ -689,6 +673,7 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
         asset_type: A string of 'Photos', 'Videos', or 'Audio'.
         url: A Url where the asset can be downloaded, if blank it tries to download
         from the fulcrum site based on the UID and type.
+        fulcrum_api_key: A string for the fulcrum credentials.
 
     Returns:
         The new url (provided by the django model FileField) for the asset.
@@ -719,8 +704,8 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
     if asset.asset_data:
         if settings.FILESERVICE_CONFIG.get('url_template'):
             return '{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),
-                                      asset_uid,
-                                      get_type_extension(asset.asset_type))
+                                    asset_uid,
+                                    get_type_extension(asset.asset_type))
         else:
             return asset.asset_data.url
 
@@ -731,8 +716,8 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
     Args:
         asset_uid: The assigned ID from Fulcrum.
         asset_type: A string of 'Photos', 'Videos', or 'Audio'.
-        url: A Url where the asset can be downloaded, if blank it tries to download
         from the fulcrum site based on the UID and type.
+        file_dir: A string for the file directory.
 
     Returns:
         A tuple of the asset model object, and a boolean representing 'was created'.
@@ -758,6 +743,14 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
 
 
 def is_valid_photo(photo_file):
+    """
+    Args:
+        photo_file: A File object of a photo:
+
+    Returns:
+         True if the photo does not contain us-coords.
+         False if the photo does contain us-coords.
+    """
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
     from PIL import Image
 
@@ -792,6 +785,13 @@ def is_valid_photo(photo_file):
 
 
 def get_gps_info(info):
+    """
+    Args:
+         info: A json object of exif photo data
+
+    Returns:
+        A json object of exif photo data with decoded gps_data:
+    """
     from PIL.ExifTags import TAGS, GPSTAGS
     properties = {}
     for tag, value in info.items():
@@ -809,6 +809,13 @@ def get_gps_info(info):
 
 
 def get_gps_coords(properties):
+    """
+    Args:
+         properties: A json containing decoded exif gps data:
+
+    Returns:
+         An array of coordinates in Decimal Degrees:
+    """
     try:
         gps_info = properties["GPSInfo"]
         gps_lat = gps_info["GPSLatitude"]
@@ -832,7 +839,13 @@ def get_gps_coords(properties):
 
 
 def convert_to_degrees(value):
+    """
+    Args:
+        Value: An exif format coordinate:
 
+    Returns:
+        Float value of a coordinate in Decimal Degree format
+    """
     d0 = value[0][0]
     d1 = value[0][1]
     d = float(d0) / float(d1)
@@ -898,7 +911,6 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
-
     if not feature_data:
         return False
 
@@ -992,7 +1004,7 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
         for media_key, media_val in media_keys.iteritems():
             if ('{}_caption'.format(media_key)) in feature.get('properties'):
                 feature['properties']['caption_{}'.format(media_key)] = \
-                        feature['properties'].get('{}_caption'.format(media_key))
+                    feature['properties'].get('{}_caption'.format(media_key))
                 try:
                     del feature['properties']['{}_caption'.format(media_key)]
                 except KeyError:
@@ -1140,7 +1152,7 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None):
 
 
 def add_unique_constraint(database_alias=None, table=None, key_name=None):
-    """Adds a unique contraint to a table.
+    """Adds a unique constraint to a table.
 
     Args:
         database_alias: Database dict from the django settings.
@@ -1214,7 +1226,8 @@ def check_db_for_features(features, table, database_alias=None):
 
     Args:
         features: A dict structured like a geojson of features.
-        properties_id: The string representing the properties key of the feature UID.
+        table: The string representing the database table.
+        database_alias: A string which references the django database model in the settings file.
 
     Returns:
         A dict of unique features, and a dict of non unique features as a tuple.
@@ -1351,7 +1364,7 @@ def update_db_features(features, layer, database_alias=None):
     """A wrapper to repeatedly call update_db_feature.
 
     Args:
-        feature: A feature whose id exists in the database, to be updated.
+        features: A feature whose id exists in the database, to be updated.
         layer: The name of the database table.
         database_alias: The django database structure defined in settings.
 
@@ -1471,6 +1484,8 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
     Args:
         layer_name: The name of the table that already exists in postgis,
          to be published as a layer in geoserver.
+        geoserver_base_url: A string where geoserver is accessed(i.e. "http://localhost:8080/geoserver")
+        database_alias:
 
     Returns:
         None
@@ -1478,7 +1493,6 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
 
     if not geoserver_base_url:
         geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
-        # geoserver_base_url = "http://localhost:8080/geoserver"
 
     url = "{}/rest".format(geoserver_base_url)
     workspace_name = "geonode"
@@ -1545,7 +1559,15 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
 
 
 def dictfetchall(cursor):
-    "Return all rows from a cursor as a dict"
+    """
+
+    Args:
+        cursor: A python database cursor.
+
+    Returns:
+        A dict of the information in the cursor object.
+
+    """
     columns = [col[0] for col in cursor.description]
     return [
         dict(zip(columns, row))
@@ -1553,7 +1575,18 @@ def dictfetchall(cursor):
         ]
 
 
-def truncate_tiles(layer_name=None, srs=None, geoserver_base_url=None, **kwargs):
+def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs):
+    """
+
+    Args:
+        layer_name: The GWC layer to remove tiles from.
+        srs: The projection default is 4326.
+        geoserver_base_url: A string where geoserver is accessed(i.e. "http://localhost:8080/geoserver")
+        **kwargs:
+
+    Returns:
+        None
+    """
     # See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
     # See also https://github.com/GeoNode/geonode/issues/1656
     params = kwargs
@@ -1598,13 +1631,3 @@ def get_all_geogig_repos():
 
     pass
 
-
-def merge_dicts(*dict_args):
-    """
-    Given any number of dicts, shallow copy and merge into a new dict,
-    precedence goes to key value pairs in latter dicts.
-    """
-    result = {}
-    for dictionary in dict_args:
-        result.update(dictionary)
-    return result
