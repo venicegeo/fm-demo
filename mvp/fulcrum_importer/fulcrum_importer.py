@@ -235,27 +235,6 @@ class FulcrumImporter:
 
         return records
 
-    # def get_latest_time(self, new_features, old_layer_time, properties_key_of_time=None):
-    #     """
-    #
-    #     Args:
-    #         new_features: A dict structured like a geojson.
-    #         old_layer_time: A time pulled from the layer model.
-    #         properties_key_of_time: A string of the time field created in append_time_to_features.
-    #
-    #     Returns:
-    #         The latest time as an integer.
-    #
-    #     """
-    #     if not properties_key_of_time:
-    #         properties_key_of_time = new_features.get('properties').get('updated_at_time')
-    #     layer_time = old_layer_time
-    #     for new_feature in new_features:
-    #         feature_date = new_feature.get('properties').get(properties_key_of_time)
-    #         if feature_date > layer_time:
-    #             layer_time = feature_date
-    #     return layer_time
-
     def update_all_layers(self):
         """Gets all forms and tries to update the records."""
         for form in self.get_forms():
