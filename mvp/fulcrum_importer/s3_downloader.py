@@ -90,6 +90,8 @@ def pull_all_s3_data():
                         print str(s3_file.key) + " " + str(s3_file.size)
                         handle_file(s3_bucket_obj, s3_file)
         except Exception as e:
+            # This exception catches everything, which is bad for debugging, but if it isn't here
+            # the lock is not released which makes it challenging to restore the proper state.
             print(repr(e))
         finally:
             release_lock()

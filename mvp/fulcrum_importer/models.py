@@ -25,24 +25,44 @@ except AttributeError:
 
 
 def get_asset_name(instance, filename):
+    """
+
+    Args:
+        instance: The model instance.
+        filename: The file name.
+
+    Returns:
+        a string representing the file with an extension.
+
+    """
     return './{}.{}'.format(instance.asset_uid, get_type_extension(instance.asset_type))
 
 
-def get_type_extension(type):
+def get_type_extension(file_type):
+    """
+
+    Args:
+        file_type: A generic for the file (e.g. photos, videos, audio).
+
+    Returns:
+        The mapped extension (e.g. jpg, mp4, m4a).
+    """
     asset_types = {'photos': 'jpg', 'videos': 'mp4', 'audio': 'm4a'}
-    if asset_types.get(type):
-        return asset_types.get(type)
+    if asset_types.get(file_type):
+        return asset_types.get(file_type)
     else:
         return None
 
 
 class Asset(models.Model):
+    """Structure to hold file locations."""
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
     asset_data = models.FileField(storage=fs, upload_to=get_asset_name)
 
 
 class Layer(models.Model):
+    """Structure to hold information about layers."""
     layer_name = models.CharField(max_length=100)
     layer_uid = models.CharField(max_length=100)
     layer_date = models.IntegerField(default=0)
@@ -53,6 +73,7 @@ class Layer(models.Model):
 
 
 class Feature(models.Model):
+    """Structure to hold information about and actual feature data."""
     feature_uid = models.CharField(max_length=100)
     feature_version = models.IntegerField(default=0)
     layer = models.ForeignKey(Layer,on_delete=models.CASCADE, default="")
@@ -62,12 +83,8 @@ class Feature(models.Model):
         unique_together = (("feature_uid", "feature_version"),)
 
 
-class Links(models.Model):
-    asset = models.ForeignKey(Asset,on_delete=models.CASCADE,default="")
-    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, default="")
-
-
 class S3Sync(models.Model):
+    """Structure to persist knowledge of a file download."""
     s3_filename = models.CharField(max_length=500, primary_key=True)
 
 
@@ -99,6 +116,11 @@ class FulcrumApi(models.Model):
     def __unicode__(self):
        return self.fulcrum_api_name
 
+
 class Filters(models.Model):
+    """Structure to hold knownledge of filters in the filter package."""
     filter_name = models.CharField(max_length=255)
     filter_active = models.BooleanField(default=False)
+
+    def __unicode__(self):
+       return self.filter_name

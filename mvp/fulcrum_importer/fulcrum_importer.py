@@ -523,6 +523,7 @@ def upload_geojson(file_path=None, geojson=None):
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
     layer, created = write_layer(name=file_basename)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
+
     for feature in features:
         if not feature:
             continue
@@ -593,8 +594,9 @@ def find_media_keys(features):
             if '_url' in prop_key:
                 media_key = prop_key.rstrip("_url")
                 for asset_key in asset_types:
-                    if asset_key in prop_val:
-                        key_map[media_key] = asset_key
+                    if prop_val:
+                        if asset_key in prop_val:
+                            key_map[media_key] = asset_key
                     elif asset_key in prop_key:
                         key_map[media_key] = asset_key
                 if not key_map.get(media_key):
@@ -737,7 +739,8 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
                 asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
                                       File(open_file))
         else:
-            print("The file {} was not found, and is most likely missing from the archive.".format(file_path))
+            print("The file {} was not found, and is most likely missing from the archive, "
+                  "or was filtered out (if using filters).".format(file_path))
             return None, False
     return asset, created
 

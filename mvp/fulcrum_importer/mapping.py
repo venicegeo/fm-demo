@@ -12,7 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def get_geojson(layer):
+    """
+
+    Args:
+        layer: Converts the feature data for a layer to geojson.
+
+    Returns:
+
+    """
     from django.core.exceptions import ObjectDoesNotExist
     from .models import Layer, Feature
     import json
@@ -43,6 +52,11 @@ def get_geojson(layer):
 
 
 def get_layer_names():
+    """
+
+    Returns: The layers as a dict.
+
+    """
     from .models import Layer
 
     layers = {}
