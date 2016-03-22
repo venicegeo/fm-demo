@@ -36,14 +36,14 @@ class FulcrumImporterTests(TestCase):
         """
 
         geojson1 = {'type': 'feature',
-                       'properties': {'pics_url': '',
-                                      'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
-                                      'sounds_url': ''}}
+                    'properties': {'pics_url': '',
+                                   'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                   'sounds_url': ''}}
         expected_keymap1 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'photos'}
         geojson2 = {'type': 'feature',
-                        'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
-                                       'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
-                                       'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
+                    'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
+                                   'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                   'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
         expected_keymap2 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
 
         self.assertEqual(find_media_keys([geojson1]), expected_keymap1)
@@ -52,14 +52,14 @@ class FulcrumImporterTests(TestCase):
     def test_update_layer_media_keys(self):
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
         geojson1 = {'type': 'feature',
-                       'properties': {'pics_url': '',
-                                      'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
-                                      'sounds_url': ''}}
+                    'properties': {'pics_url': '',
+                                   'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                   'sounds_url': ''}}
         expected_keymap1 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'photos'}
         geojson2 = {'type': 'feature',
-                        'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
-                                       'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
-                                       'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
+                    'properties': {'pics_url': 'https://api.fulcrumapp.com/api/v2/photos',
+                                   'vids_url': 'https://api.fulcrumapp.com/api/v2/videos',
+                                   'sounds_url': 'https://api.fulcrumapp.com/api/v2/audio'}}
         expected_keymap2 = {'pics': 'photos', 'vids': 'videos', 'sounds': 'audio'}
 
         get_update_layer_media_keys(media_keys=find_media_keys([geojson1]),
@@ -71,6 +71,7 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(example_layer.layer_media_keys, json.dumps(expected_keymap2))
 
     def test_feature_model_for_duplicates(self):
+        """Ensures that constraints work as intended for feature model."""
         example_layer = Layer.objects.create(layer_name="example", layer_uid="unique")
         first_feature = {
             "type": "Feature",
@@ -98,6 +99,7 @@ class FulcrumImporterTests(TestCase):
         self.assertIsNotNone(feature2)
 
     def test_sort_features(self):
+        """Ensures that features are properly sorted (in ascending order)."""
         unsorted_features = [{'properties': {'id': 'cdec0e00-f511-44bf-a94e-165f930ce7d4', 'version': 2}},
                              {'properties': {'id': 'cdec0e00-f511-44bf-a94e-165f930ce7d5', 'version': 2}},
                              {'properties': {'id': 'cdec0e00-f511-44bf-a94e-165f930ce7d4', 'version': 1}},
@@ -128,6 +130,7 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(sorted_by_version_then_id, expected_sorted_by_version_then_id)
 
     def test_get_duplicate_features(self):
+        """Ensures that feature duplicates can be found and that they are all accounted for."""
         unsorted_features = [{'properties': {'id': 'cdec0e00-f511-44bf-a94e-165f930ce7d4', 'version': 2}},
                              {'properties': {'id': 'cdec0e00-f511-44bf-a94e-165f930ce7d5', 'version': 2}},
                              {'properties': {'id': 'cdec0e00-f511-44bf-a94e-165f930ce7d4', 'version': 1}},
@@ -147,6 +150,7 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_non_unique_features, non_unique_features)
 
     def test_features_to_file(self):
+        """Ensures that features are written into a file and that the file is in a format which can be read back."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
         test_name = 'test_geojson.json'
         test_path = os.path.join(test_dir, test_name)
@@ -178,12 +182,14 @@ class FulcrumImporterTests(TestCase):
         self.assertFalse(os.path.isfile(test_path))
 
     def test_convert_to_epoch_time(self):
+        """Maintains the integrity of the time conversion function."""
         date = "2016-01-28 14:36:59 UTC"
         expected_time_stamp = 1453991819
         returned_time = convert_to_epoch_time(date)
         self.assertEqual(expected_time_stamp, returned_time)
 
     def test_append_time_to_features(self):
+        """Ensures that the proper values are appended. Time correctness is assumed."""
         test_feature = {
             "type": "Feature",
             "geometry": {
@@ -216,6 +222,7 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_feature, results[0])
 
     def test_get_element_map(self):
+        """Ensures that the element map is returned as expected, and provides implicit documentation."""
         fi = FulcrumImporter(fulcrum_api_key='1234')
         form = {'elements': [{
             "type": "TextField",
@@ -247,6 +254,7 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_element_map, result_element_map)
 
     def test_get_media_map(self):
+        """Ensures that the media map is returned as expected, and provides implicit documentation."""
         fi = FulcrumImporter(fulcrum_api_key='1234')
         form = {'elements': [{
             "type": "TextField",
@@ -314,6 +322,7 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual(expected_media_map2, result_element_map2)
 
     def test_convert_to_geojson(self):
+        """Ensures that the record structure from fulcrum is converted properly to a geojson"""
         fi = FulcrumImporter(fulcrum_api_key='1234')
 
         element_map = {'3320': 'name',
@@ -332,9 +341,7 @@ class FulcrumImporterTests(TestCase):
             "updated_at": "2016-01-21T15:18:28Z",
             "client_created_at": "2016-01-21T15:18:28Z",
             "client_updated_at": "2016-01-21T15:18:28Z",
-            "created_by": "Luke Rees",
             "created_by_id": "bbf56001-a5b0-40a6-9ae6-607771983c62",
-            "updated_by": "Luke Rees",
             "updated_by_id": "bbf56001-a5b0-40a6-9ae6-607771983c62",
             "form_id": "d82f38c2-4ecd-400a-a4cc-7c2c93427d1e",
             "project_id": None,
@@ -355,44 +362,40 @@ class FulcrumImporterTests(TestCase):
             "vertical_accuracy": None
         }]
 
-        print fi.convert_to_geojson(records, element_map, expected_media_map)
+        returned_geojson = fi.convert_to_geojson(records, element_map, expected_media_map)
 
-        # expected_geojson =
-
-    def test_append_time_to_features(self):
-        test_feature = {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [125.6, 10.1]
-            },
-            "properties": {
-                "name": "Dinagat Islands",
-                "version": 1,
-                "fulcrum_id": "123",
-                "updated_at": "2016-01-28 14:36:59 UTC",
-            }
-        }
-        expected_feature = {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [125.6, 10.1]
-            },
-            "properties": {
-                "name": "Dinagat Islands",
-                "version": 1,
-                "fulcrum_id": "123",
-                "updated_at": "2016-01-28 14:36:59 UTC",
-                "updated_at_time": 1453991819
-            }
+        expected_geojson = {
+            'type': 'FeatureCollection',
+            'features': [{
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [-69.8680442584387, 18.5177634347377]
+                },
+                'type': 'Feature',
+                'properties': {
+                    'form_id': 'd82f38c2-4ecd-400a-a4cc-7c2c93427d1e',
+                    'latitude': 18.5177634347377,
+                    'created_at': '2016-01-21T15:18:28Z',
+                    'updated_at': '2016-01-21T15:18:28Z',
+                    'pics': ['561bb279-d9f7-486a-a4b8-dd34d820b003.jpg'],
+                    'client_created_at': '2016-01-21T15:18:28Z',
+                    'version': 1,
+                    'updated_by_id': 'bbf56001-a5b0-40a6-9ae6-607771983c62',
+                    'longitude': -69.8680442584387,
+                    'client_updated_at': '2016-01-21T15:18:28Z',
+                    'vids': ['bbae4aed-48ac-48f4-8f85-d9f3ada7a942'],
+                    'created_by_id': 'bbf56001-a5b0-40a6-9ae6-607771983c62',
+                    'sounds': ['5dcd8385-d46c-4856-a689-6ce3ec8da8ed.m4a'],
+                    'id': 'b5da0b90-d325-4299-b6cd-0d0baacc0c62',
+                    'name': 'Example'
+                }
+            }]
         }
 
-        results = append_time_to_features(test_feature, properties_key_of_date="updated_at")
-        self.assertEqual(expected_feature, results[0])
+        self.assertEqual(expected_geojson, returned_geojson)
 
     def test_prepare_features_for_geoshape(self):
-
+        """Ensures that the geojson structure from fulcrum is converted properly to a format suitable for maploom."""
         test_feature = {
             "type": "Feature",
             "geometry": {
@@ -435,8 +438,6 @@ class FulcrumImporterTests(TestCase):
         }
 
         returned_features = prepare_features_for_geoshape(test_feature, media_keys=media_keys)
-        print(json.dumps(test_feature))
-        print(json.dumps(expected_feature))
         self.assertEqual(expected_feature, returned_features[0])
 
     def test_is_valid_photo(self):
@@ -462,9 +463,21 @@ class FulcrumImporterTests(TestCase):
         coords2 = get_gps_coords(properties2)
         self.assertEqual([38.889775, -77.456342], coords2)
 
+    # def test_create_geogig_repo(self):
+    #     new_repo = 'test_repo'
+    #     repos = get_all_geogig_repos()
+    #     for repo in repos:
+    #         print repo
+    #         # create_geogig_repo(new_repo)
+    #         # repo = get_geogig_repo(new_repo)
+    #         # self.assertEqual(new_repo,repo)
+
 
 class FulcrumImporterDBTests(TransactionTestCase):
+    """Test cases for model functions to prevent locking issues due to transactions."""
+
     def test_table_exist(self):
+        """Ensure table is properly created and that the function properly checks for it."""
         table_name = "test_table_exist"
         self.assertFalse(table_exists(table=table_name))
 
@@ -477,7 +490,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertTrue(table_exists(table=table_name))
 
     def test_upload_to_db(self):
-
+        """Ensures data is properly updated to a presumed remote database or separate table."""
         table_name = "test_upload_to_db"
 
         test_feature = {
@@ -565,6 +578,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertEqual("GOOD", imported_feature.get('meta'))
 
     def test_ogr2ogr_geojson_to_db(self):
+        """Ensure ogr2ogr and any associated functions are maintained."""
         table_name = 'test_ogr2ogr_geojson_to_db'
         test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         test_name = 'test_geojson.json'
@@ -601,7 +615,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
         os.remove(geojson_file)
 
     def test_add_unique_constraint(self):
-
+        """Ensures logic behind adding unique constraint is consistent."""
         cur = connection.cursor()
 
         table_name = 'test_unique'
@@ -632,7 +646,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertFalse(added_duplicate_value)
 
     def test_update_db_feature(self):
-
+        """Ensures logic behind updating a feature is consistent."""
         table_name = 'test_update_db_feature'
         test_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         test_name = 'test_geojson.json'
@@ -699,10 +713,11 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertEqual(expected_version, imported_feature.get('version'))
 
     def test_s3_credentials_admin(self):
+        """Ensure the expected structure of the s3 credentials is maintained."""
         s3_cred = S3Credential.objects.create(s3_key='key',
                                               s3_secret='secret',
                                               s3_gpg='encrypt')
-        s3_bucket = S3Bucket.objects.create(s3_bucket='bucket',s3_credential=s3_cred)
+        s3_bucket = S3Bucket.objects.create(s3_bucket='bucket', s3_credential=s3_cred)
         expected_bucket_dict = {'s3_bucket': ['bucket'],
                                 's3_key': 'key',
                                 's3_secret': 'secret',
@@ -713,7 +728,5 @@ class FulcrumImporterDBTests(TransactionTestCase):
         cred['s3_key'] = s3_bucket.s3_credential.s3_key
         cred['s3_secret'] = s3_bucket.s3_credential.s3_secret
         cred['s3_gpg'] = s3_bucket.s3_credential.s3_gpg
-        print str(cred)
 
         self.assertEqual(expected_bucket_dict, cred)
-

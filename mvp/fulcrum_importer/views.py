@@ -14,15 +14,17 @@
 
 from django.shortcuts import render
 from .models import Asset
-from .forms import ListenerForm, UploadFulcrumData
+from .forms import UploadFulcrumData
 from django.http import HttpResponse, HttpResponseRedirect
 from django.conf import settings
 import json
 import time
 import os
 
+
 def index(request):
     return viewer(request)
+
 
 def geojson(request):
     from .mapping import get_geojson
@@ -78,6 +80,7 @@ def viewer(request):
 def layers(request):
     from .mapping import get_layer_names
     return HttpResponse(json.dumps(get_layer_names()), content_type="application/json")
+
 
 def pzworkflow(request):
     from .fetch_workflow import PzWorkflow

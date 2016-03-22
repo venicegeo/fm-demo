@@ -42,7 +42,26 @@ By default the install script should take care of the following dependencies:
 ```
 
 You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py
- file (sudo required).  Additionally in local_settings add in an S3_KEY, S3_SECRET, and an arbitrary S3_GPG value.  The name of an S3 bucket should be provided as well.  If the bucket is s3://my-data then the value should be S3_BUCKET = "my-data".
+ file (sudo required).
+ ```
+  FULCRUM_API_KEYS = ["xxxxx"]
+ ```
+ Additionally in local_settings an S3_CREDENTIALS dict structured like:
+
+```
+S3_CREDENTIALS = [{'s3_bucket': ["xxxxx"],
+                   's3_key': "xxxxx",
+                   's3_secret': "xxxxx",
+                   's3_gpg': "xxxxx"},
+                   {'s3_bucket': ["xxxxx"],
+                   's3_key': "xxxxx",
+                   's3_secret': "xxxxx",
+                   's3_gpg': "xxxxx"}]
+```
+
+Alternatively you may enter this information in the admin console.  It is more secure in the local_settings file, but the server would need to be restarted, after information is added or removed.
+
+ .  The name of an S3 bucket should be provided as well.  If the bucket is s3://my-data then the value should be S3_BUCKET = "my-data".
  
 To allow for geoshape tile truncation on addition of new data, make sure there is a default OGC_SERVER value in the  /var/lib/geonode/rogue_genode/geoshape/local_settings.py file. It should look like OGC_SERVER = { 'default': { 'your settings here'}}
 The setting keys required for tile truncation are USER and PASSWORD. These should correspond to the username/password of your GeoServer.
