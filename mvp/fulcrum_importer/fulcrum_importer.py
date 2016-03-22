@@ -116,7 +116,6 @@ class FulcrumImporter:
         if not imported_features:
             return
 
-
         pulled_record_count = len(imported_features)
 
         date_field = 'updated_at'
@@ -127,8 +126,6 @@ class FulcrumImporter:
 
         latest_time = imported_features[-1].get('properties').get(time_field)
 
-        print("imported_features: {}".format(imported_features))
-        print("latest_time: {}".format(str(int(latest_time))))
         for grouped_features in chunks(imported_features, 100):
             if not grouped_features:
                 break
@@ -137,11 +134,9 @@ class FulcrumImporter:
 
             uploads = []
 
-            print "Filtered Features: {}".format(filtered_features)
             if filtered_features:
                 latest_time = layer.layer_date
                 for feature in filtered_features.get('features'):
-                    print feature
                     if not feature:
                         print("no feature")
                         continue
@@ -186,14 +181,12 @@ class FulcrumImporter:
                 update_geoshape_layers()
                 send_task('fulcrum_importer.tasks.task_update_tiles', (uploads, layer.layer_name))
                 with transaction.atomic():
-                    print("UPDATING LAYER DATE:{}".format(int(latest_time)))
                     layer.layer_date = int(latest_time)
                     layer.save()
         # This is added again after the loop because if the loop finishes all points would have been processed,
         # however since some points may have been filtered we want their times to be included so as to not,
         # continually request them, but only after we are sure that we got all valid points where they need to be.
         with transaction.atomic():
-            print("UPDATING LAYER DATE:{}".format(int(latest_time)))
             layer.layer_date = int(latest_time)
             layer.save()
         print("RESULTS\n---------------")
