@@ -21,11 +21,6 @@ def filter_spatial_features(input_features, boundary_features):
     if type(input_features) is DictType:
         if input_features.get("features"):
             return iterate_geojson(input_features, boundary_features)
-    #     else:
-    #         return iterate_json(input_features, boundary_features)
-    #
-    # elif type(input_features) is ListType:
-    #     return iterate_array(input_features, boundary_features)
     else:
         print "Returning none"
         print type(input_features)
@@ -45,7 +40,6 @@ def iterate_geojson(input_features, boundary_features):
     failed = []
     for feature in input_features.get("features"):
         if not feature:
-            print "Found a None"
             continue
         try:
             coords = feature.get('geometry').get('coordinates')
@@ -65,39 +59,6 @@ def iterate_geojson(input_features, boundary_features):
     failed_features['features'] = failed
     return {'passed': passed_features, 'failed': failed_features}
 
-# def iterate_json(input_features, boundary_features):
-#     passed = []
-#     failed = []
-#     coords = None
-#     if input_features.get('lat') and input_features.get('lon'):
-#         coords = [input_features.get('lon'), input_features.get('lat')]
-#     elif input_features.get('latitude') and input_features.get('longitude'):
-#         coords = [input_features.get('longitude'), input_features.get('latitude')]
-#     if coords:
-#         if check_geometry(coords, boundary_features):
-#             failed.append(input_features)
-#         else:
-#             passed.append(input_features)
-#     else:
-#         passed.append(input_features)
-#
-#     return {'passed': passed, 'failed': failed}
-#
-# def iterate_array(input_features, boundary_features):
-#     passed = []
-#     failed = []
-#     for feature in input_features:
-#         coords = None
-#         if input_features[feature].get('latitude') and input_features[feature].get('longitude'):
-#             coords = [input_features[feature].get('longitude'), input_features[feature].get('latitude')]
-#         elif input_features[feature].get('lat') and input_features[feature].get('lon'):
-#             coords = [input_features[feature].get('lon'), input_features[feature].get('lat')]
-#         if coords:
-#             if check_geometry(coords, boundary_features):
-#                 failed.append(input_features[feature])
-#             else:
-#                 passed.append(input_features[feature])
-#     return {'passed': passed, 'failed': failed}
 
 def check_geometry(coords, boundary_features):
     """

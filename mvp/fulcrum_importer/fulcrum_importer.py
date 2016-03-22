@@ -142,7 +142,7 @@ class FulcrumImporter:
 
         imported_features = sort_features(imported_features, time_field)
 
-        for grouped_features in grouper(imported_features, 100):
+        for grouped_features in chunks(imported_features, 100):
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
             uploads = []
@@ -340,6 +340,10 @@ class FulcrumImporter:
         """Used to remove the placehoder on the cache if using the threading module."""
         cache.set(self.fulcrum_api_key, False)
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from 1."""
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
 
 def grouper(iterable, n):
     """
@@ -426,38 +430,12 @@ def filter_features(features):
         The filtered features and the feature count as a tuple.
     """
     from .filters import run_filters
-    # try:
-    #     DATA_FILTERS = settings.DATA_FILTERS
-    # except AttributeError:
-    #     DATA_FILTERS = []
-    #     pass
-    #
-    # filtered_features = features
-    #
-    # if not DATA_FILTERS:
-    #     return filtered_features, 0
-    #
-    # if filtered_features.get('features'):
-    #     for filter in DATA_FILTERS:
-    #         try:
-    #             filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-    #         except ValueError:
-    #             print("Failed to decode json")
-    #         if filtered_results.get('failed').get('features'):
-    #             print("Some features failed the {} filter.".format(filter))
-    #             # with open('./failed_features.geojson', 'a') as failed_features:
-    #             #     failed_features.write(json.dumps(filtered_results.get('failed')))
-    #         if filtered_results.get('passed').get('features'):
-    #             filtered_features = filtered_results.get('passed')
-    #             filtered_feature_count = len(filtered_results.get('passed').get('features'))
-    #         else:
-    #             filtered_features = None
-    # else:
-    #     filtered_features = None
-    #     filtered_feature_count = 0
+
     filtered_features, filtered_feature_count = run_filters.filter(features)
+
     if not filtered_feature_count:
         print("All of the features were filtered. None remain.")
+
     return filtered_features, filtered_feature_count
 
 

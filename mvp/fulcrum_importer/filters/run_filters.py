@@ -49,7 +49,6 @@ def filter(features):
                             filtered_features = filtered_results.get('passed')
                             filtered_feature_count = len(filtered_results.get('passed').get('features'))
                         else:
-                            print "No features passed"
                             filtered_features = None
                             filtered_feature_count = 0
                             return filtered_features, filtered_feature_count
