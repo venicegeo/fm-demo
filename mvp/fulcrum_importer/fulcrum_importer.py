@@ -142,16 +142,16 @@ class FulcrumImporter:
 
         imported_features = sort_features(imported_features, time_field)
 
-        for grouped_features in grouper(imported_features, 100):
+        for grouped_features in chunks(imported_features, 100):
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
-
             uploads = []
-
             if filtered_features:
                 latest_time = 0
                 for feature in filtered_features.get('features'):
                     if not feature:
+                        continue
+                    if not feature.get('geometry'):
                         continue
                     latest_time = feature.get('properties').get(time_field)
                     if feature.get('properties').get('id'):
@@ -340,8 +340,12 @@ class FulcrumImporter:
         """Used to remove the placehoder on the cache if using the threading module."""
         cache.set(self.fulcrum_api_key, False)
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from 1."""
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
 
-def grouper(iterable, n, fillvalue=None):
+def grouper(iterable, n):
     """
 
     Args:
@@ -419,44 +423,19 @@ def process_fulcrum_data(f):
 
 def filter_features(features):
     """
-
     Args:
         features: A dict formatted like a geojson, containing features to be passed through various filters.
 
     Returns:
         The filtered features and the feature count as a tuple.
     """
-    try:
-        DATA_FILTERS = settings.DATA_FILTERS
-    except AttributeError:
-        DATA_FILTERS = []
-        pass
+    from .filters import run_filters
 
-    filtered_features = features
+    filtered_features, filtered_feature_count = run_filters.filter(features)
 
-    if not DATA_FILTERS:
-        return filtered_features, 0
-
-    if filtered_features.get('features'):
-        for filter in DATA_FILTERS:
-            try:
-                filtered_results = requests.post(filter, data=json.dumps(filtered_features)).json()
-            except ValueError:
-                print("Failed to decode json")
-            if filtered_results.get('failed').get('features'):
-                print("Some features failed the {} filter.".format(filter))
-                # with open('./failed_features.geojson', 'a') as failed_features:
-                #     failed_features.write(json.dumps(filtered_results.get('failed')))
-            if filtered_results.get('passed').get('features'):
-                filtered_features = filtered_results.get('passed')
-                filtered_feature_count = len(filtered_results.get('passed').get('features'))
-            else:
-                filtered_features = None
-    else:
-        filtered_features = None
-        filtered_feature_count = 0
     if not filtered_feature_count:
         print("All of the features were filtered. None remain.")
+
     return filtered_features, filtered_feature_count
 
 
@@ -540,6 +519,10 @@ def upload_geojson(file_path=None, geojson=None):
     layer, created = write_layer(name=file_basename)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
     for feature in features:
+        if not feature:
+            continue
+        if not feature.get('geometry'):
+            continue
         for media_key in media_keys:
             if from_file and feature.get('properties').get(media_key):
                 urls = []
@@ -754,6 +737,14 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
 
 
 def is_valid_photo(photo_file):
+    """
+    Args:
+        photo_file: A File object of a photo:
+
+    Returns:
+         True if the photo does not contain us-coords.
+         False if the photo does contain us-coords.
+    """
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
     from PIL import Image
 
@@ -788,6 +779,13 @@ def is_valid_photo(photo_file):
 
 
 def get_gps_info(info):
+    """
+    Args:
+         info: A json object of exif photo data
+
+    Returns:
+        A json object of exif photo data with decoded gps_data:
+    """
     from PIL.ExifTags import TAGS, GPSTAGS
     properties = {}
     for tag, value in info.items():
@@ -805,6 +803,13 @@ def get_gps_info(info):
 
 
 def get_gps_coords(properties):
+    """
+    Args:
+         properties: A json containing decoded exif gps data:
+
+    Returns:
+         An array of coordinates in Decimal Degrees:
+    """
     try:
         gps_info = properties["GPSInfo"]
         gps_lat = gps_info["GPSLatitude"]
@@ -828,7 +833,13 @@ def get_gps_coords(properties):
 
 
 def convert_to_degrees(value):
+    """
+    Args:
+        Value: An exif format coordinate:
 
+    Returns:
+        Float value of a coordinate in Decimal Degree format
+    """
     d0 = value[0][0]
     d1 = value[0][1]
     d = float(d0) / float(d1)
@@ -894,7 +905,6 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
-
     if not feature_data:
         return False
 
