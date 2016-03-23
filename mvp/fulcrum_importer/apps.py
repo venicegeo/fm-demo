@@ -23,12 +23,10 @@ class FulcrumImporterConfig(AppConfig):
     def ready(self):
         # from django.db.utils import OperationalError
         # try:
-        #     from .celery import app as celery_app # noqa
-        # #     from .models import Layer
-        # #     from geoshape_fulcrum import Fulcrum_Importer
-        # #     print("Server loaded.")
-        # #     fulcrum = Fulcrum_Importer()
-        # #     # fulcrum.start()
+        #     from .fulcrum_importer import FulcrumImporter
+        #     print("Server loaded.")
+        #     fulcrum = FulcrumImporter()
+        #     # fulcrum.start()
         # except OperationalError:
         #     print("Schema is not reconciled (migrate/syncdb).")
         #     return
