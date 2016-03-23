@@ -37,7 +37,7 @@ By default the install script should take care of the following dependencies:
 ```
 /var/lib/geonode/bin/pip install fulcrum
 /var/lib/geonode/bin/pip install python-memcached
-/var/lib/geonode/bin/pip install s3cmd
+/var/lib/geonode/bin/pip install boto3
 /var/lib/geonode/bin/pip install Pillow
 ```
 
