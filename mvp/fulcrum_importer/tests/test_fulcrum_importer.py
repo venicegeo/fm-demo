@@ -463,14 +463,42 @@ class FulcrumImporterTests(TestCase):
         coords2 = get_gps_coords(properties2)
         self.assertEqual([38.889775, -77.456342], coords2)
 
-    # def test_create_geogig_repo(self):
-    #     new_repo = 'test_repo'
-    #     repos = get_all_geogig_repos()
-    #     for repo in repos:
-    #         print repo
-    #         # create_geogig_repo(new_repo)
-    #         # repo = get_geogig_repo(new_repo)
-    #         # self.assertEqual(new_repo,repo)
+    def test_create_geogig_repo(self):
+        from django.conf import settings
+
+        site_url = getattr(settings, 'SITEURL', None)
+
+        ogc_server = get_ogc_server()
+        if not site_url or not ogc_server:
+            print("Could not find site_url or ogc_server.")
+            return
+        headers = {'Content-Type': 'text/json'}
+        url = "{}/geogig".format(ogc_server.get('LOCATION').rstrip('/'))
+        print("URL:{}".format(url))
+
+        response = requests.get(url,
+                                    #auth=(ogc_server.get('USER'), ogc_server.get('PASSWORD')),
+                                    #headers=headers,
+                                    verify=False,
+                                    stream=True)
+        response.encoding = response.headers['content-encoding']
+        print(str(response.headers['content-encoding']))
+        print(str(response.headers))
+        print(str(response.encoding))
+        print(str(response.content))
+        print(str(response.text))
+        response = requests.get('https://',
+                                    #auth=(ogc_server.get('USER'), ogc_server.get('PASSWORD')),
+                                    #headers=headers,
+                                    verify=False,
+                                    stream=True)
+        # tree = ET.fromstring(response.content)
+        #
+        # new_repo = 'test_repo'
+        # print("Getting Repos...")
+        # print(str(tree))
+        # for repo in repos:
+        #     print repo
 
 
 class FulcrumImporterDBTests(TransactionTestCase):

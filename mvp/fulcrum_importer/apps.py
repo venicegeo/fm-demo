@@ -11,26 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import unicode_literals, absolute_import
-
 from django.apps import AppConfig
-
 
 class FulcrumImporterConfig(AppConfig):
     name = 'fulcrum_importer'
 
     def ready(self):
-        # from django.db.utils import OperationalError
-        # try:
-        #     from .celery import app as celery_app # noqa
-        # #     from .models import Layer
-        # #     from geoshape_fulcrum import Fulcrum_Importer
-        # #     print("Server loaded.")
-        # #     fulcrum = Fulcrum_Importer()
-        # #     # fulcrum.start()
-        # except OperationalError:
-        #     print("Schema is not reconciled (migrate/syncdb).")
-        #     return
-        # return
-        pass
+        print("FULCRUM_IMPORTER_STARTED")

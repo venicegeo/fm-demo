@@ -36,6 +36,7 @@ from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
 import shutil
+import xml.etree.ElementTree as ET
 
 
 class FulcrumImporter:
@@ -1615,18 +1616,51 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
                   data=payload,
                   verify=False)
 
+
 def ensure_geogig_repo():
+
     pass
+
 
 def create_geogig_repo(repo_name):
 
     pass
 
+
 def get_geogig_repo():
 
     pass
 
+
 def get_all_geogig_repos():
 
-    pass
+    site_url = getattr(settings, 'SITEURL', None)
+
+    ogc_server = get_ogc_server()
+
+    if not site_url or not ogc_server:
+        return
+
+    url = "{}/geogig".format(ogc_server.get('LOCATION'))
+    response = requests.post(url, auth=(ogc_server.get('USER'), ogc_server.get('PASSWORD')), verify=False)
+    tree = ET.fromstring(response)
+    return tree
+
+
+def get_ogc_server(alias=None):
+    """
+    Args:
+        alias: An alias for which OGC_SERVER to get from the settings file, default is 'default'.
+
+    Returns:
+        A dict containing information about the OGC_SERVER.
+    """
+
+    ogc_server = getattr(settings, 'OGC_SERVER', None)
+
+    if ogc_server:
+        if ogc_server.get(alias):
+            return ogc_server.get(alias)
+        else:
+            return ogc_server.get('default')
 
