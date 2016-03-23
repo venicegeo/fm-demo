@@ -26,6 +26,7 @@ from hashlib import md5
 from .s3_downloader import pull_all_s3_data
 from .models import FulcrumApi
 from .fulcrum_importer import check_filters
+from fulcrum.exceptions import UnauthorizedException
 
 
 @shared_task(name="fulcrum_importer.tasks.task_update_layers")
@@ -60,8 +61,14 @@ def task_update_layers():
     if acquire_lock():
         try:
             for fulcrum_api_key in fulcrum_api_keys:
-                fulcrum_importer = FulcrumImporter(fulcrum_api_key=fulcrum_api_key)
-                fulcrum_importer.update_all_layers()
+                if not fulcrum_api_key:
+                    continue
+                try:
+                    fulcrum_importer = FulcrumImporter(fulcrum_api_key=fulcrum_api_key)
+                    fulcrum_importer.update_all_layers()
+                except UnauthorizedException:
+                    print("The API key ending in: {}, is unauthorized.".format(fulcrum_api_key[-4:]))
+                    continue
         finally:
             release_lock()
 
