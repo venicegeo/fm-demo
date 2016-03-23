@@ -23,6 +23,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import ProgrammingError
 import boto3
+import botocore
 from .fulcrum_importer import process_fulcrum_data
 from hashlib import md5
 import glob
@@ -76,19 +77,28 @@ def pull_all_s3_data():
                 pass
 
             for s3_credential in s3_credentials:
-                session = boto3.session.Session()
-                s3 = session.resource('s3',
-                                      aws_access_key_id=s3_credential.get('s3_key'),
-                                      aws_secret_access_key=s3_credential.get('s3_secret'))
 
-                buckets = s3_credential.get('s3_bucket')
-                if type(buckets) != list: buckets = [buckets]
-                for bucket in buckets:
-                    print("Getting files from {}".format(bucket))
-                    s3_bucket_obj = s3.Bucket(bucket)
-                    for s3_file in s3_bucket_obj.objects.all():
-                        print str(s3_file.key) + " " + str(s3_file.size)
-                        handle_file(s3_bucket_obj, s3_file)
+                    session = boto3.session.Session()
+                    s3 = session.resource('s3',
+                                          aws_access_key_id=s3_credential.get('s3_key'),
+                                          aws_secret_access_key=s3_credential.get('s3_secret'))
+
+                    buckets = s3_credential.get('s3_bucket')
+                    if type(buckets) != list: buckets = [buckets]
+                    for bucket in buckets:
+                        if not bucket:
+                            continue
+                        try:
+                            print("Getting files from {}".format(bucket))
+                            s3_bucket_obj = s3.Bucket(bucket)
+                            for s3_file in s3_bucket_obj.objects.all():
+                                print str(s3_file.key) + " " + str(s3_file.size)
+                                handle_file(s3_bucket_obj, s3_file)
+                        except botocore.exceptions.ClientError:
+                            print("There is an issue with the bucket and/or credentials,")
+                            print("for bucket: {} and access_key {}".format(s3_credential.get('s3_bucket'),
+                                                                            s3_credential.get('s3_key')))
+                            continue
         except Exception as e:
             # This exception catches everything, which is bad for debugging, but if it isn't here
             # the lock is not released which makes it challenging to restore the proper state.
@@ -108,7 +118,10 @@ def clean_up_partials(file_name):
 def handle_file(s3_bucket_obj, s3_file):
     if is_loaded(s3_file.key):
         return
-    s3_download(s3_bucket_obj, s3_file)
+
+        s3_download(s3_bucket_obj, s3_file)
+
+
     clean_up_partials(s3_file.key)
     print("Processing: {}".format(s3_file.key))
     process_fulcrum_data(s3_file.key)
