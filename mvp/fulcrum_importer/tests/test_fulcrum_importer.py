@@ -464,41 +464,8 @@ class FulcrumImporterTests(TestCase):
         self.assertEqual([38.889775, -77.456342], coords2)
 
     def test_create_geogig_repo(self):
-        from django.conf import settings
+        get_all_geogig_repos()
 
-        site_url = getattr(settings, 'SITEURL', None)
-
-        ogc_server = get_ogc_server()
-        if not site_url or not ogc_server:
-            print("Could not find site_url or ogc_server.")
-            return
-        headers = {'Content-Type': 'text/json'}
-        url = "{}/geogig".format(ogc_server.get('LOCATION').rstrip('/'))
-        print("URL:{}".format(url))
-
-        response = requests.get(url,
-                                    #auth=(ogc_server.get('USER'), ogc_server.get('PASSWORD')),
-                                    #headers=headers,
-                                    verify=False,
-                                    stream=True)
-        response.encoding = response.headers['content-encoding']
-        print(str(response.headers['content-encoding']))
-        print(str(response.headers))
-        print(str(response.encoding))
-        print(str(response.content))
-        print(str(response.text))
-        response = requests.get('https://',
-                                    #auth=(ogc_server.get('USER'), ogc_server.get('PASSWORD')),
-                                    #headers=headers,
-                                    verify=False,
-                                    stream=True)
-        # tree = ET.fromstring(response.content)
-        #
-        # new_repo = 'test_repo'
-        # print("Getting Repos...")
-        # print(str(tree))
-        # for repo in repos:
-        #     print repo
 
 
 class FulcrumImporterDBTests(TransactionTestCase):
@@ -732,6 +699,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
         results = dictfetchall(cur)
+
         if results:
             imported_feature = results[0]
 

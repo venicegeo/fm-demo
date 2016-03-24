@@ -92,7 +92,6 @@ def pull_all_s3_data():
                             print("Getting files from {}".format(bucket))
                             s3_bucket_obj = s3.Bucket(bucket)
                             for s3_file in s3_bucket_obj.objects.all():
-                                print str(s3_file.key) + " " + str(s3_file.size)
                                 handle_file(s3_bucket_obj, s3_file)
                         except botocore.exceptions.ClientError:
                             print("There is an issue with the bucket and/or credentials,")
@@ -118,10 +117,7 @@ def clean_up_partials(file_name):
 def handle_file(s3_bucket_obj, s3_file):
     if is_loaded(s3_file.key):
         return
-
-        s3_download(s3_bucket_obj, s3_file)
-
-
+    s3_download(s3_bucket_obj, s3_file)
     clean_up_partials(s3_file.key)
     print("Processing: {}".format(s3_file.key))
     process_fulcrum_data(s3_file.key)
