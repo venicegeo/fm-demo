@@ -24,7 +24,7 @@ def filter_features(features):
         filtered_feature_count = len(filtered_features.get('features'))
         filtered_results = None
         filter_entries = Filter.objects.all()
-        un_needed=[]
+        un_needed =[]
         for entry in filter_entries:
             if entry.filter_name in files:
                 if entry.filter_active:
