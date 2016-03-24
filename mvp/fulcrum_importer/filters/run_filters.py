@@ -24,44 +24,45 @@ def filter_features(features):
         filtered_feature_count = len(filtered_features.get('features'))
         filtered_results = None
         filter_entries = Filter.objects.all()
-        un_needed =[]
-        for entry in filter_entries:
-            if entry.filter_name in files:
-                if entry.filter_active:
-                    try:
-                        module_name = 'fulcrum_importer.filters.' + str(entry.filter_name.rstrip('.py'))
-                        mod = import_module(module_name)
-                        print "Running: {}".format(entry.filter_name)
-                        filtered_results = mod.filter_features(filtered_features)
+        if filter_entries:
+            un_needed =[]
+            for entry in filter_entries:
+                if entry.filter_name in files:
+                    if entry.filter_active:
+                        try:
+                            module_name = 'fulcrum_importer.filters.' + str(entry.filter_name.rstrip('.py'))
+                            mod = import_module(module_name)
+                            print "Running: {}".format(entry.filter_name)
+                            filtered_results = mod.filter_features(filtered_features)
 
-                    except ImportError:
-                        print "Could not filter features - ImportError"
-                    except TypeError:
-                        print "Could not filter features - TypeError"
+                        except ImportError:
+                            print "Could not filter features - ImportError"
+                        except TypeError:
+                            print "Could not filter features - TypeError"
 
-                    except Exception as e:
-                        "Unknow error occured, could not filter features"
-                        print repr(e)
+                        except Exception as e:
+                            "Unknow error occured, could not filter features"
+                            print repr(e)
 
-                    if filtered_results:
-                        if filtered_results.get('failed').get('features'):
-                            print "{} features failed the filter".format(len(filtered_results.get('failed').get('features')))
-                        if filtered_results.get('passed').get('features'):
-                            print "{} features passed the filter".format(len(filtered_results.get('passed').get('features')))
-                            filtered_features = filtered_results.get('passed')
-                            filtered_feature_count = len(filtered_results.get('passed').get('features'))
+                        if filtered_results:
+                            if filtered_results.get('failed').get('features'):
+                                print "{} features failed the filter".format(len(filtered_results.get('failed').get('features')))
+                            if filtered_results.get('passed').get('features'):
+                                print "{} features passed the filter".format(len(filtered_results.get('passed').get('features')))
+                                filtered_features = filtered_results.get('passed')
+                                filtered_feature_count = len(filtered_results.get('passed').get('features'))
+                            else:
+                                filtered_features = None
+                                filtered_feature_count = 0
+                                return filtered_features, filtered_feature_count
                         else:
-                            filtered_features = None
-                            filtered_feature_count = 0
-                            return filtered_features, filtered_feature_count
-                    else:
-                        print "Failure to get filtered results"
-            else:
-                un_needed.append(entry)
-        if un_needed:
-            for filter_entry in un_needed:
-                print "Deleting un-needed filter entry: {}".format(filter_entry.filter_name)
-                filter_entry.delete()
+                            print "Failure to get filtered results"
+                else:
+                    un_needed.append(entry)
+            if un_needed:
+                for filter_entry in un_needed:
+                    print "Deleting un-needed filter entry: {}".format(filter_entry.filter_name)
+                    filter_entry.delete()
 
     else:
         filtered_features = None

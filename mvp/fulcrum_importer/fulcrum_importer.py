@@ -1632,20 +1632,21 @@ def check_filters():
     workspace = os.path.dirname(os.path.abspath(__file__))
     filter_dir = os.path.join(workspace, 'filters')
     files = os.listdir(filter_dir)
-    LOCK_EXPIRE = 60 * 10
-    lock_id = 'list-filters-success'
-    if cache.get(lock_id):
-        return
-    for filter_file in files:
-            if filter_file.endswith('.py'):
-                if filter_file != 'run_filters.py' and filter_file != '__init__.py':
-                    print "Creating model object for {}".format(filter_file)
-                    try:
-                        filter_entry, created = Filter.objects.get_or_create(filter_name=filter_file)
-                    except Exception as e:
-                        print repr(e)
-                        continue
-    cache.set(lock_id, True, LOCK_EXPIRE)
+    if files:
+        LOCK_EXPIRE = 60 * 10
+        lock_id = 'list-filters-success'
+        if cache.get(lock_id):
+            return
+        for filter_file in files:
+                if filter_file.endswith('.py'):
+                    if filter_file != 'run_filters.py' and filter_file != '__init__.py':
+                        print "Creating model object for {}".format(filter_file)
+                        try:
+                            filter_entry, created = Filter.objects.get_or_create(filter_name=filter_file)
+                        except Exception as e:
+                            print repr(e)
+                            continue
+        cache.set(lock_id, True, LOCK_EXPIRE)
     return
 
 def ensure_geogig_repo():
