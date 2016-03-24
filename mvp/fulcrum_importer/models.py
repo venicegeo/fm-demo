@@ -119,7 +119,7 @@ class FulcrumApi(models.Model):
 
 class Filter(models.Model):
     """Structure to hold knownledge of filters in the filter package."""
-    filter_name = models.CharField(max_length=255)
+    filter_name = models.CharField(max_length=255, unique=True)
     filter_active = models.BooleanField(default=True)
 
     def __unicode__(self):
