@@ -119,7 +119,7 @@ def handle_file(s3_bucket_obj, s3_file):
     if is_loaded(s3_file.key):
         return
 
-        s3_download(s3_bucket_obj, s3_file)
+    s3_download(s3_bucket_obj, s3_file)
 
 
     clean_up_partials(s3_file.key)

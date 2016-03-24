@@ -432,7 +432,7 @@ def filter_features(features):
     """
     from .filters import run_filters
 
-    filtered_features, filtered_feature_count = run_filters.filter(features)
+    filtered_features, filtered_feature_count = run_filters.filter_features(features)
 
     if not filtered_feature_count:
         print("All of the features were filtered. None remain.")
@@ -759,7 +759,10 @@ def is_valid_photo(photo_file):
     except:
         print "Failed to get exif data"
         return True
-    properties = get_gps_info(info)
+    if info:
+        properties = get_gps_info(info)
+    else:
+        return True
     if properties.get('GPSInfo'):
         coords = get_gps_coords(properties)
         if coords:
@@ -793,17 +796,19 @@ def get_gps_info(info):
     """
     from PIL.ExifTags import TAGS, GPSTAGS
     properties = {}
-    for tag, value in info.items():
-        decoded = TAGS.get(tag, tag)
-        if decoded == "GPSInfo":
-            gps_data = {}
-            for t in value:
-                sub_decoded = GPSTAGS.get(t, t)
-                gps_data[sub_decoded] = value[t]
+    if info.items():
+        for tag, value in info.items():
+            decoded = TAGS.get(tag, tag)
+            if decoded == "GPSInfo":
+                gps_data = {}
+                if value:
+                    for t in value:
+                        sub_decoded = GPSTAGS.get(t, t)
+                        gps_data[sub_decoded] = value[t]
 
-            properties[decoded] = gps_data
-        elif decoded != "MakerNote":
-            properties[decoded] = value
+                properties[decoded] = gps_data
+            elif decoded != "MakerNote":
+                properties[decoded] = value
     return properties
 
 
@@ -1615,16 +1620,48 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
                   data=payload,
                   verify=False)
 
+
+def check_filters():
+    """
+    Args: None
+    Returns: None
+    Finds '.py' files used for filtering and adds to db model for use in admin console.
+    Sets cache value so function will not running fully every time it is called by tasks.py
+    """
+    from .models import Filter
+    workspace = os.path.dirname(os.path.abspath(__file__))
+    filter_dir = os.path.join(workspace, 'filters')
+    files = os.listdir(filter_dir)
+    if files:
+        LOCK_EXPIRE = 60 * 10
+        lock_id = 'list-filters-success'
+        if cache.get(lock_id):
+            return
+        for filter_file in files:
+                if filter_file.endswith('.py'):
+                    if filter_file != 'run_filters.py' and filter_file != '__init__.py':
+                        print "Creating model object for {}".format(filter_file)
+                        try:
+                            filter_entry, created = Filter.objects.get_or_create(filter_name=filter_file)
+                        except Exception as e:
+                            print repr(e)
+                            continue
+        cache.set(lock_id, True, LOCK_EXPIRE)
+    return
+
 def ensure_geogig_repo():
     pass
+
 
 def create_geogig_repo(repo_name):
 
     pass
 
+
 def get_geogig_repo():
 
     pass
+
 
 def get_all_geogig_repos():
 

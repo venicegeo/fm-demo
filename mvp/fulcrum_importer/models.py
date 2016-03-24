@@ -117,10 +117,15 @@ class FulcrumApi(models.Model):
        return self.fulcrum_api_name
 
 
-class Filters(models.Model):
+class Filter(models.Model):
     """Structure to hold knownledge of filters in the filter package."""
-    filter_name = models.CharField(max_length=255)
-    filter_active = models.BooleanField(default=False)
+    filter_name = models.CharField(max_length=255, unique=True)
+    filter_active = models.BooleanField(default=True)
 
     def __unicode__(self):
-       return self.filter_name
+        if self.filter_active:
+            status = "  (Active)"
+        else:
+            status = "  (Inactive)"
+
+        return self.filter_name + status

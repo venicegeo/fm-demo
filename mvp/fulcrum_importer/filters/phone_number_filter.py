@@ -4,7 +4,7 @@ import copy
 import re
 
 
-def filter(input):
+def filter_features(input):
     """
     Args:
          input: A Geojson feature collection

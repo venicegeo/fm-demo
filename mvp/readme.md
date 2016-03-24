@@ -37,7 +37,7 @@ By default the install script should take care of the following dependencies:
 ```
 /var/lib/geonode/bin/pip install fulcrum
 /var/lib/geonode/bin/pip install python-memcached
-/var/lib/geonode/bin/pip install s3cmd
+/var/lib/geonode/bin/pip install boto3
 /var/lib/geonode/bin/pip install Pillow
 ```
 
@@ -67,7 +67,10 @@ To allow for geoshape tile truncation on addition of new data, make sure there i
 The setting keys required for tile truncation are USER and PASSWORD. These should correspond to the username/password of your GeoServer.
 
 Add any desired filters to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file. (US geospatial and phone number filters are added by default.)
-Then run the command:
+(By default these filters will be turned on, but they can be turned off in the admin console. Please be aware that the filter status changes will not be reflected in already processed data.)
+(Any additional filters added must have a primary function `def filter(input)`, where input is a geojson feature collection. The filter function must return `{'passed': passed_features, 'failed': failed_features}`, where passed and failed features are geojson feature collections.)
+
+Finally run the command:
 ```
 sudo geoshape-config init "geoshape.dev"
 ```
