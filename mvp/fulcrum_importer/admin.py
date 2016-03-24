@@ -14,7 +14,7 @@
 from __future__ import absolute_import
 
 from django.contrib import admin
-from .models import S3Credential, S3Bucket, FulcrumApi
+from .models import S3Credential, S3Bucket, FulcrumApi, Filter
 
 
 class S3BucketInline(admin.TabularInline):
@@ -28,6 +28,7 @@ class S3Admin(admin.ModelAdmin):
 
 admin.site.register(S3Credential, S3Admin)
 admin.site.register(FulcrumApi)
+admin.site.register(Filter)
 
 
 

@@ -17,4 +17,4 @@ class FulcrumImporterConfig(AppConfig):
     name = 'fulcrum_importer'
 
     def ready(self):
-        print("FULCRUM_IMPORTER_STARTED")
+        pass

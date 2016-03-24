@@ -25,6 +25,7 @@ from celery import shared_task
 from hashlib import md5
 from .s3_downloader import pull_all_s3_data
 from .models import FulcrumApi
+from .fulcrum_importer import check_filters
 from fulcrum.exceptions import UnauthorizedException
 
 
@@ -33,8 +34,9 @@ def task_update_layers():
 
     LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
 
-    fulcrum_api_keys = []
+    check_filters()
 
+    fulcrum_api_keys = []
     try:
         fulcrum_api_keys = settings.FULCRUM_API_KEYS
     except AttributeError:
@@ -70,9 +72,11 @@ def task_update_layers():
         finally:
             release_lock()
 
-
 @shared_task(name="fulcrum_importer.tasks.pull_s3_data")
 def pull_s3_data():
+
+    check_filters()
+
     pull_all_s3_data()
 
 

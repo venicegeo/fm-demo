@@ -43,6 +43,7 @@ def s3_download(s3_bucket_object, s3_file):
     s3_bucket_object.download_file(s3_file.key, os.path.join(settings.FULCRUM_UPLOAD, s3_file.key))
     return True
 
+
 def pull_all_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
