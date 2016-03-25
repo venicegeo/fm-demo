@@ -38,7 +38,7 @@ import ogr2ogr
 import shutil
 from StringIO import StringIO
 import gzip
-import xml.etree.ElementTree as ET
+
 
 
 class FulcrumImporter:
@@ -1653,69 +1653,4 @@ def check_filters():
     return
 
 
-def ensure_geogig_repo():
-
-    pass
-
-
-def create_geogig_repo(repo_name):
-
-    pass
-
-
-def get_geogig_repo():
-
-    pass
-
-
-def get_all_geogig_repos():
-
-    site_url = getattr(settings, 'SITEURL', None)
-
-    ogc_server = get_ogc_server()
-    if not site_url or not ogc_server:
-        print("Could not find site_url or ogc_server.")
-        return
-
-    base_url = ogc_server.get('LOCATION') or site_url
-
-    url = '{}/geogig'.format(base_url)
-    print url
-    response = requests.get(url,
-                            verify=False,
-                            params={'output_format': 'json'})
-    if response.status_code != 200:
-        return
-    if response.headers.get('content-encoding') == 'gzip, gzip':
-        gz_file = gzip.GzipFile(fileobj=StringIO(response.content), mode='rb')
-        decompressed_file = gzip.GzipFile(fileobj=StringIO(gz_file.read()), mode='rb')
-        body = decompressed_file.read()
-    else:
-        body = response.text
-    print body
-    root = ET.fromstring(body)
-    #html->body->ul->a->stuff
-    tags = root.findall("//body//a")
-    for tag in tags:
-        print tag
-
-
-
-
-def get_ogc_server(alias=None):
-    """
-    Args:
-        alias: An alias for which OGC_SERVER to get from the settings file, default is 'default'.
-
-    Returns:
-        A dict containing inormation about the OGC_SERVER.
-    """
-
-    ogc_server = getattr(settings, 'OGC_SERVER', None)
-
-    if ogc_server:
-        if ogc_server.get(alias):
-            return ogc_server.get(alias)
-        else:
-            return ogc_server.get('default')
 

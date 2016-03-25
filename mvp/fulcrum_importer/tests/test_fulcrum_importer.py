@@ -463,8 +463,7 @@ class FulcrumImporterTests(TestCase):
         coords2 = get_gps_coords(properties2)
         self.assertEqual([38.889775, -77.456342], coords2)
 
-    def test_create_geogig_repo(self):
-        get_all_geogig_repos()
+
 
 
 
