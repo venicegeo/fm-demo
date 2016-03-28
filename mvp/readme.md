@@ -66,7 +66,7 @@ Alternatively you may enter this information in the admin console.  It is more s
 To allow for geoshape tile truncation on addition of new data, make sure there is a default OGC_SERVER value in the  /var/lib/geonode/rogue_genode/geoshape/local_settings.py file. It should look like OGC_SERVER = { 'default': { 'your settings here'}}
 The setting keys required for tile truncation are USER and PASSWORD. These should correspond to the username/password of your GeoServer.
 
-Add any desired filters to the /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file. (US geospatial and phone number filters are added by default.)
+Add any desired filters to the /var/lib/geonode/lib/Python27/site-packages/fulcrum_importer/filters file. (US geospatial and phone number filters are added by default.)
 (By default these filters will be turned on, but they can be turned off in the admin console. Please be aware that the filter status changes will not be reflected in already processed data.)
 (Any additional filters added must have a primary function `def filter(input)`, where input is a geojson feature collection. The filter function must return `{'passed': passed_features, 'failed': failed_features}`, where passed and failed features are geojson feature collections.)
 

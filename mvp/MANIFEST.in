@@ -1,0 +1,5 @@
+include readme.md
+recursive-include fulcrum_importer/filters/boundary_polygons *.geojson
+recursive-include fulcrum_importer/static *
+recursive-include fulcrum_importer/templates *
+recursive-include fulcrum_importer/tests *
