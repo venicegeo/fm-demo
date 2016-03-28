@@ -1,4 +1,0 @@
-fulcrum
-python-memcached
-boto3
-Pillow
