@@ -35,6 +35,7 @@ class GeogigTests(TestCase):
         create_geogig_datastore(test_repo)
         for id, name in get_all_geogig_repos().iteritems():
             print("{}({})".format(id, name))
+        send_wfs()
         # delete_geogig_repo(test_repo)
         # self.assertFalse(os.path.exists(expected_repo_path))
     #
@@ -46,3 +47,4 @@ class GeogigTests(TestCase):
     #     repos = get_all_geogig_repos()
     #     for repo in repos:
     #         print repo
+

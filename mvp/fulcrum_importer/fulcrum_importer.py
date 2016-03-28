@@ -36,9 +36,6 @@ from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
 import shutil
-from StringIO import StringIO
-import gzip
-
 
 
 class FulcrumImporter:
