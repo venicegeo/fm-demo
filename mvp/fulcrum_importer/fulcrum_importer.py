@@ -883,11 +883,11 @@ def update_geoshape_layers():
         # http://stackoverflow.com/questions/13567507/passing-csrftoken-with-python-requests
         client = requests.session()
         URL = 'https://{}/account/login'.format(GEOSHAPE_SERVER)
-        client.get(URL, verify=False)
+        client.get(URL, verify=getattr(settings, 'SSL_VERIFY', True))
         csrftoken = client.cookies['csrftoken']
         login_data = dict(username=GEOSHAPE_USER, password=GEOSHAPE_PASSWORD, csrfmiddlewaretoken=csrftoken,
                           next='/gs/updatelayers/')
-        client.post(URL, data=login_data, headers=dict(Referer=URL), verify=False)
+        client.post(URL, data=login_data, headers=dict(Referer=URL), verify=getattr(settings, 'SSL_VERIFY', True))
     else:
         python_bin = '/var/lib/geonode/bin/python'
         manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
@@ -1618,7 +1618,7 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
                         ),
                   headers={"content-type": "application/json"},
                   data=payload,
-                  verify=False)
+                  verify=getattr(settings, 'SSL_VERIFY', True))
 
 
 def check_filters():
@@ -1649,21 +1649,4 @@ def check_filters():
         cache.set(lock_id, True, LOCK_EXPIRE)
     return
 
-def ensure_geogig_repo():
-    pass
-
-
-def create_geogig_repo(repo_name):
-
-    pass
-
-
-def get_geogig_repo():
-
-    pass
-
-
-def get_all_geogig_repos():
-
-    pass
 

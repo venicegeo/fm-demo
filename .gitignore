@@ -14,7 +14,7 @@ celery.log
 celerybeat.pid
 celerybeat-schedule
 test.json
-local_settings.py
 setup.py
 mvp/clear_fm_db.sh
 mvp/clear_fm_db.sh
+!mvp/fulcrum_importer/scripts/settings.py

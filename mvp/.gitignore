@@ -20,3 +20,4 @@ mvp/*
 clear_fm_db.sh
 test.sqlite3
 test_data.sqlite3
+!fulcrum_importer/scripts/settings.py
