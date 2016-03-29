@@ -32,10 +32,13 @@ class GeogigTests(TestCase):
                                           '.geogig')
         create_geogig_repo(test_repo)
         self.assertTrue(os.path.exists(expected_repo_path))
+        # import_postgis_into_geogig("test_repo", 'fulcrum_test3', database_alias='fulcrum')
         create_geogig_datastore(test_repo)
         for id, name in get_all_geogig_repos().iteritems():
             print("{}({})".format(id, name))
-        send_wfs()
+        # importer_from_json('/var/lib/geonode/fulcrum_data/example.geojson', test_repo, 'geonode')
+        # send_wfs()
+
         # delete_geogig_repo(test_repo)
         # self.assertFalse(os.path.exists(expected_repo_path))
     #
