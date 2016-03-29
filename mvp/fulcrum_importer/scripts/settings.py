@@ -47,3 +47,4 @@ OGC_SERVER = {
         'GEOGIG_DATASTORE_DIR':'/var/lib/geoserver_data/geogig',
     }
 }
+
