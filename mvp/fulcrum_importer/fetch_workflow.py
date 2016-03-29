@@ -8,7 +8,7 @@ class PzWorkflow:
     def __init__(self, url):
         self.addr = url
         self.map = {'trigger': "/v1/triggers/", 'eventtypes': '/v1/eventtypes/', 'event': "/v1/events/", 'alert': "/v1/alerts/"}
-        print "Pz object created with url: " +self.addr
+        print "Pz object created with url: " + self.addr
 
     def status(self):
         return requests.get(self.addr).status_code;
