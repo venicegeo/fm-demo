@@ -121,13 +121,31 @@
 			url : '/fulcrum_layers',
 			dataType: "json",
 			success : function(result) {
-				updateLayers(result);
+				updateLayers(result, true);
 			}
 		});
+		
+		setInterval(function(){
+			$.ajax({
+				url : '/fulcrum_layers',
+				dataType: "json",
+				success : function(result) {
+					//layerControl.removeFrom(map);
+					//layerControl = null;
+					updateLayers(result, false);
+				}
+			});
+		}, 30000);
+		
 		// Update the layer control with any new layers //
-		function updateLayers(result) {
+		function updateLayers(result, firstcall) {
+			for (var key in layers) {
+				console.log(key);
+			}
 			for (var key in result) {
-				if(!layers[key]){
+				console.log("looking at " + key);
+				if(!(key in layers)){
+					console.log("not in layers");
 					if(!(key in layerStyles)) {
 						var color = getRandomColor();
 						layerStyles[key] = {
@@ -142,9 +160,14 @@
 					layers[key] = L.geoJson(false);
 					layerUrls[key] = '/fulcrum_geojson?layer=' + key;
 					console.log(layerUrls[key]);
+					if (firstcall == false) {
+						layerControl.addOverlay(layers[key], key, "Fulcrum Layers");
+					}
 				}
 			}
-			layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
+			if (firstcall == true) {
+				layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
+			}
 		};
 		
 		// Listens for user selecting a layer from Layer Control //
