@@ -55,7 +55,6 @@ class PzWorkflow:
         return None
 
     def get(self, user_request):
-        items = None
         try:
             items = requests.get(self.addr + self.map.get(user_request.get('type')))
             items = items.json()

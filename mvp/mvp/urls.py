@@ -27,11 +27,10 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url, include
+from __future__ import absolute_import
 
+from django.conf.urls import include, url
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
-urlpatterns = [
-    url(r'^fulcrum_importer/', include('fulcrum_importer.urls')),
-]
+urlpatterns = [url('^', include('fulcrum_importer.urls'))]

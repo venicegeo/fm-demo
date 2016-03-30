@@ -17,19 +17,42 @@ from __future__ import unicode_literals
 from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
-
-try:
-    fs = FileSystemStorage(location=settings.FILESERVICE_CONFIG.get('store_dir'))
-except AttributeError:
-    fs = FileSystemStorage(location=settings.MEDIA_ROOT)
+import os
 
 
-def get_asset_name(instance, filename):
+if getattr(settings, 'SITENAME', None).lower() == 'geoshape':
+    fulcrum_media_dir = getattr(settings, 'FILESERVICE_CONFIG', {}).get('store_dir')
+else:
+    fulcrum_media_dir = getattr(settings, 'MEDIA_ROOT', None)
+if not fulcrum_media_dir:
+    if not os.path.exists(os.path.join(os.getcwd(), 'media')):
+        os.mkdir(os.path.join(os.getcwd(), 'media'))
+    fulcrum_media_dir = os.path.join(os.getcwd(), 'media')
+
+
+if getattr(settings, 'SITENAME', None).lower() == 'geoshape':
+    fulcrum_data_dir = getattr(settings, 'FULCRUM_UPLOAD', None)
+else:
+    fulcrum_data_dir = getattr(settings, 'MEDIA_ROOT', None)
+if not fulcrum_data_dir:
+    if not os.path.exists(os.path.join(os.getcwd(), 'data')):
+        os.mkdir(os.path.join(os.getcwd(), 'data'))
+    fulcrum_data_dir = os.path.join(os.getcwd(), 'data')
+
+
+def get_media_dir():
+    return fulcrum_media_dir
+
+
+def get_data_dir():
+    return fulcrum_data_dir
+
+
+def get_asset_name(instance, *args):
     """
 
     Args:
         instance: The model instance.
-        filename: The file name.
 
     Returns:
         a string representing the file with an extension.
@@ -58,7 +81,7 @@ class Asset(models.Model):
     """Structure to hold file locations."""
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
-    asset_data = models.FileField(storage=fs, upload_to=get_asset_name)
+    asset_data = models.FileField(storage=FileSystemStorage(location=get_media_dir()), upload_to=get_asset_name)
 
 
 class Layer(models.Model):
@@ -66,7 +89,7 @@ class Layer(models.Model):
     layer_name = models.CharField(max_length=100)
     layer_uid = models.CharField(max_length=100)
     layer_date = models.IntegerField(default=0)
-    layer_media_keys = models.CharField(max_length=2000,default="{}")
+    layer_media_keys = models.CharField(max_length=2000, default="{}")
 
     class Meta:
         unique_together = (("layer_name", "layer_uid"),)
@@ -76,7 +99,7 @@ class Feature(models.Model):
     """Structure to hold information about and actual feature data."""
     feature_uid = models.CharField(max_length=100)
     feature_version = models.IntegerField(default=0)
-    layer = models.ForeignKey(Layer,on_delete=models.CASCADE, default="")
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, default="")
     feature_data = models.CharField(max_length=10000)
 
     class Meta:
@@ -98,7 +121,7 @@ class S3Credential(models.Model):
         unique_together = (("s3_key", "s3_secret"),)
 
     def __unicode__(self):
-       return "{}({})".format(self.s3_name, self.s3_key)
+        return "{}({})".format(self.s3_name, self.s3_key)
 
 
 class S3Bucket(models.Model):
@@ -106,7 +129,7 @@ class S3Bucket(models.Model):
     s3_credential = models.ForeignKey(S3Credential, on_delete=models.CASCADE, default="")
 
     def __unicode__(self):
-       return self.s3_bucket
+        return self.s3_bucket
 
 
 class FulcrumApi(models.Model):
@@ -114,7 +137,7 @@ class FulcrumApi(models.Model):
     fulcrum_api_key = models.CharField(max_length=255, default="", primary_key=True)
 
     def __unicode__(self):
-       return self.fulcrum_api_name
+        return self.fulcrum_api_name
 
 
 class Filter(models.Model):

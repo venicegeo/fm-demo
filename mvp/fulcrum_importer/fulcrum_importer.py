@@ -18,16 +18,11 @@
 from fulcrum import Fulcrum
 from django.core.cache import cache
 from dateutil import parser
-from celery.execute import send_task
-from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 import requests
-from .models import Asset, get_type_extension
 import json
 from django.conf import settings
-import os
-from .models import Layer
-from datetime import datetime
+from .models import Layer, get_media_dir, get_data_dir
 import time
 from geoserver.catalog import Catalog
 import subprocess
@@ -36,7 +31,14 @@ from django.db.utils import ConnectionDoesNotExist
 import re
 import ogr2ogr
 import shutil
-
+from django.core.files import File
+import os
+from .models import Asset, get_type_extension, Feature, Filter
+from threading import Thread
+from .filters import run_filters
+from PIL import Image
+from PIL.ExifTags import TAGS, GPSTAGS
+from celery.execute import send_task
 
 class FulcrumImporter:
     def __init__(self, fulcrum_api_key=None):
@@ -63,7 +65,6 @@ class FulcrumImporter:
         Args:
             interval: An integer in seconds for the polling interval.
         """
-        from threading import Thread
         if cache.get(self.fulcrum_api_key):
             return
         else:
@@ -205,7 +206,7 @@ class FulcrumImporter:
         Args:
             layer: A django model representing the layer.
 
-        Returns: A
+        Returns: A list of records
 
         """
         if not layer:
@@ -355,14 +356,29 @@ class FulcrumImporter:
         cache.set(self.fulcrum_api_key, False)
 
 
-def chunks(l, n):
-    """Yield successive n-sized chunks from 1."""
-    for i in xrange(0, len(l), n):
-        yield l[i:i+n]
+def chunks(a_list, chunk_size):
+    """
+
+    Args:
+        a_list: A list.
+        chunk_size: Size of each sub-list.
+
+    Returns:
+        A list of sub-lists.
+    """
+    for i in xrange(0, len(a_list), chunk_size):
+        yield a_list[i:i+chunk_size]
 
 
 def convert_to_epoch_time(date):
-    """Converts a 'date' string to an integer"""
+    """
+
+    Args:
+        date: A ISO standard date string
+
+    Returns:
+        An integer representing the date.
+    """
     return int(time.mktime(parser.parse(date).timetuple()))
 
 
@@ -405,10 +421,10 @@ def process_fulcrum_data(f):
         archive_name = f.name
     except AttributeError:
         archive_name = f
-    file_path = os.path.join(settings.FULCRUM_UPLOAD, archive_name)
+    file_path = os.path.join(get_data_dir(), archive_name)
     if save_file(f, file_path):
         unzip_file(file_path)
-        for folder, subs, files in os.walk(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0])):
+        for folder, subs, files in os.walk(os.path.join(get_data_dir(), os.path.splitext(file_path)[0])):
             for filename in files:
                 if '.geojson' in filename:
                     if 'changesets' in filename:
@@ -430,7 +446,6 @@ def filter_features(features):
     Returns:
         The filtered features and the feature count as a tuple.
     """
-    from .filters import run_filters
 
     filtered_features, filtered_feature_count = run_filters.filter_features(features)
 
@@ -456,16 +471,14 @@ def save_file(f, file_path):
         return False
     if os.path.exists(file_path):
         return True
-    # try:
-    if not os.path.exists(settings.FULCRUM_UPLOAD):
-        os.mkdir(settings.FULCRUM_UPLOAD)
-        # with open(file_path, 'wb+') as destination:
-        #     for chunk in f.chunks():
-        #         destination.write(chunk)
-    # except:
-    #     print "Failed to save the file: {}".format(f.name)
-    #     return False
-    # print "Saved the file: {}".format(f.name)
+    try:
+        with open(file_path, 'wb+') as destination:
+            for chunk in f.chunks():
+                destination.write(chunk)
+    except IOError:
+        print "Failed to save the file: {}".format(f.name)
+        return False
+    print "Saved the file: {}".format(f.name)
     return True
 
 
@@ -474,7 +487,7 @@ def unzip_file(file_path):
 
     print("Unzipping the file: {}".format(file_path))
     with zipfile.ZipFile(file_path) as zf:
-        zf.extractall(os.path.join(settings.FULCRUM_UPLOAD, os.path.splitext(file_path)[0]))
+        zf.extractall(os.path.join(get_data_dir(), os.path.splitext(file_path)[0]))
 
 
 def upload_geojson(file_path=None, geojson=None):
@@ -538,8 +551,10 @@ def upload_geojson(file_path=None, geojson=None):
                                                            os.path.dirname(file_path))
                     if asset:
                         if asset.asset_data:
-                            if settings.FILESERVICE_CONFIG.get('url_template'):
-                                urls += ['{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),
+                            if getattr(settings, 'FILESERVICE_CONFIG', {}).get('url_template'):
+                                urls += ['{}{}.{}'.format(getattr(settings,
+                                                                  'FILESERVICE_CONFIG',
+                                                                  {}).get('url_template').rstrip("{}"),
                                                           asset_uid,
                                                           get_type_extension(media_keys[media_key]))]
                             else:
@@ -654,8 +669,6 @@ def write_feature(key, version, layer, feature_data):
     Returns:
         The feature model object.
     """
-    from .models import Feature
-    import json
     feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
                                                              feature_version=version,
                                                              defaults={'layer': layer,
@@ -679,8 +692,6 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
 
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
     if created:
-        if not os.path.exists(settings.MEDIA_ROOT):
-            os.mkdir(settings.MEDIA_ROOT)
         with NamedTemporaryFile() as temp:
             if not url:
                 url = 'https://api.fulcrumapp.com/api/v2/{}/{}.{}'.format(asset.asset_type, asset.asset_uid,
@@ -700,8 +711,8 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
     else:
         asset = Asset.objects.get(asset_uid=asset_uid)
     if asset.asset_data:
-        if settings.FILESERVICE_CONFIG.get('url_template'):
-            return '{}{}.{}'.format(settings.FILESERVICE_CONFIG.get('url_template').rstrip("{}"),
+        if getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template'):
+            return '{}{}.{}'.format(getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template').rstrip("{}"),
                                     asset_uid,
                                     get_type_extension(asset.asset_type))
         else:
@@ -720,16 +731,9 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
     Returns:
         A tuple of the asset model object, and a boolean representing 'was created'.
     """
-    from django.core.files import File
-    import os
-    from .models import Asset, get_type_extension
-    from django.conf import settings
-
     file_path = os.path.join(file_dir, '{}.{}'.format(asset_uid, get_type_extension(asset_type)))
     asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
     if created:
-        if not os.path.exists(settings.MEDIA_ROOT):
-            os.mkdir(settings.MEDIA_ROOT)
         if os.path.isfile(file_path):
             with open(file_path) as open_file:
                 asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
@@ -751,7 +755,6 @@ def is_valid_photo(photo_file):
          False if the photo does contain us-coords.
     """
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
-    from PIL import Image
 
     try:
         im = Image.open(photo_file)
@@ -794,7 +797,6 @@ def get_gps_info(info):
     Returns:
         A json object of exif photo data with decoded gps_data:
     """
-    from PIL.ExifTags import TAGS, GPSTAGS
     properties = {}
     if info.items():
         for tag, value in info.items():
@@ -872,34 +874,17 @@ def update_geoshape_layers():
     Returns:
         None
     """
-    try:
-        GEOSHAPE_SERVER = settings.GEOSHAPE_SERVER
-        GEOSHAPE_USER = settings.GEOSHAPE_USER
-        GEOSHAPE_PASSWORD = settings.GEOSHAPE_PASSWORD
-    except AttributeError:
-        GEOSHAPE_SERVER = None
-        pass
-    if GEOSHAPE_SERVER:
-        # http://stackoverflow.com/questions/13567507/passing-csrftoken-with-python-requests
-        client = requests.session()
-        URL = 'https://{}/account/login'.format(GEOSHAPE_SERVER)
-        client.get(URL, verify=getattr(settings, 'SSL_VERIFY', True))
-        csrftoken = client.cookies['csrftoken']
-        login_data = dict(username=GEOSHAPE_USER, password=GEOSHAPE_PASSWORD, csrfmiddlewaretoken=csrftoken,
-                          next='/gs/updatelayers/')
-        client.post(URL, data=login_data, headers=dict(Referer=URL), verify=getattr(settings, 'SSL_VERIFY', True))
-    else:
-        python_bin = '/var/lib/geonode/bin/python'
-        manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
-        env = {}
-        execute = [python_bin,
-                   manage_script,
-                   'updatelayers',
-                   '--ignore-errors',
-                   '--remove-deleted',
-                   '--skip-unadvertised']
-        DEVNULL = open(os.devnull, 'wb')
-        subprocess.Popen(execute, env=env, stdout=DEVNULL, stderr=DEVNULL)
+    python_bin = '/var/lib/geonode/bin/python'
+    manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
+    env = {}
+    execute = [python_bin,
+               manage_script,
+               'updatelayers',
+               '--ignore-errors',
+               '--remove-deleted',
+               '--skip-unadvertised']
+    DEVNULL = open(os.devnull, 'wb')
+    subprocess.Popen(execute, env=env, stdout=DEVNULL, stderr=DEVNULL)
 
 
 def upload_to_db(feature_data, table, media_keys, database_alias=None):
@@ -921,12 +906,7 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     if type(feature_data) != list:
         feature_data = [feature_data]
 
-    try:
-        sitename = settings.SITENAME
-    except AttributeError:
-        sitename = None
-
-    if sitename == 'GeoSHAPE':
+    if getattr(settings,'SITENAME','').lower() == 'geoshape':
         feature_data = prepare_features_for_geoshape(feature_data, media_keys=media_keys)
 
     key_name = 'fulcrum_id'
@@ -1064,11 +1044,11 @@ def features_to_file(features, file_path=None):
     """
     if not file_path:
         try:
-            file_path = os.path.join(settings.FULCRUM_UPLOAD, 'temp.json')
+            file_path = os.path.join(get_data_dir(), 'temp.json')
             file_path = '/'.join(file_path.split('\\'))
         except AttributeError:
             print "ERROR: Unable to write features_to_file because " \
-                  "file_path AND settings.FULCRUM_UPLOAD are not defined."
+                  "file_path AND get_data_dir() are not defined."
 
     if not features:
         return None
@@ -1489,30 +1469,33 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
         layer_name: The name of the table that already exists in postgis,
          to be published as a layer in geoserver.
         geoserver_base_url: A string where geoserver is accessed(i.e. "http://localhost:8080/geoserver")
-        database_alias:
+        database_alias: A string representing the Django database object to use.
 
     Returns:
-        None
+        A tuple of (layer, created).
     """
 
-    if not geoserver_base_url:
-        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+    geoserver_base_url = geoserver_base_url or get_ogc_server().get('LOCATION').rstrip('/')
 
+    if not geoserver_base_url:
+        print('The function publish_layer was called without a '
+              'geoserver_base_url parameter or an OGC_SERVER defined in the settings')
+        return None, False
     url = "{}/rest".format(geoserver_base_url)
     workspace_name = "geonode"
     workspace_uri = "http://www.geonode.org/"
     if database_alias:
-        datastore_name = connections[database_alias].settings_dict.get('NAME')
-        database = connections[database_alias].settings_dict.get('NAME')
+        conn = connections[database_alias]
     else:
-        datastore_name = connection.settings_dict.get('NAME')
-        database = connection.settings_dict.get('NAME')
-    host = settings.DATABASE_HOST
-    port = settings.DATABASE_PORT
-    password = settings.DATABASE_PASSWORD
+        conn = connection
+    host = conn.settings_dict.get('HOST')
+    port = conn.settings_dict.get('PORT')
+    password = conn.settings_dict.get('PASSWORD')
     db_type = "postgis"
-    user = settings.DATABASE_USER
+    user = conn.settings_dict.get('USER')
     srs = "EPSG:4326"
+    database = conn.settings_dict.get('NAME')
+    datastore_name = database
 
     if not password:
         print("Geoserver can not be updated without a database password provided in the settings file.")
@@ -1607,15 +1590,19 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
 
     payload = json.dumps({"seedRequest": params})
 
-    if not geoserver_base_url:
-        geoserver_base_url = settings.GEOSERVER_URL.rstrip('/')
+    ogc_server = get_ogc_server()
+
+    if not ogc_server:
+        print("An OGC_SERVER wasn't defined in the settings")
+        return
+
+    geoserver_base_url = geoserver_base_url or ogc_server.get('LOCATION').rstrip('/')
 
     url = "{0}/gwc/rest/seed/geonode:{1}.json".format(geoserver_base_url, layer_name)
 
     requests.post(url,
-                  auth=(settings.OGC_SERVER['default']['USER'],
-                        settings.OGC_SERVER['default']['PASSWORD'],
-                        ),
+                  auth=(ogc_server.get('USER'),
+                        ogc_server.get('PASSWORD')),
                   headers={"content-type": "application/json"},
                   data=payload,
                   verify=getattr(settings, 'SSL_VERIFY', True))
@@ -1628,7 +1615,6 @@ def check_filters():
     Finds '.py' files used for filtering and adds to db model for use in admin console.
     Sets cache value so function will not running fully every time it is called by tasks.py
     """
-    from .models import Filter
     workspace = os.path.dirname(os.path.abspath(__file__))
     filter_dir = os.path.join(workspace, 'filters')
     files = os.listdir(filter_dir)
@@ -1650,3 +1636,18 @@ def check_filters():
     return
 
 
+def get_ogc_server(alias=None):
+    """
+    Args:
+        alias: An alias for which OGC_SERVER to get from the settings file, default is 'default'.
+    Returns:
+        A dict containing inormation about the OGC_SERVER.
+    """
+
+    ogc_server = getattr(settings, 'OGC_SERVER', None)
+
+    if ogc_server:
+        if ogc_server.get(alias):
+            return ogc_server.get(alias)
+        else:
+            return ogc_server.get('default')
