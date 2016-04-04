@@ -17,3 +17,4 @@ test.json
 local_settings.py
 mvp/clear_fm_db.sh
 mvp/clear_fm_db.sh
+!mvp/fulcrum_importer/scripts/settings.py
