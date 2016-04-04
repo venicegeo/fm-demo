@@ -17,6 +17,7 @@ yum install memcached -y
 service memcached start
 chkconfig memcached on
 
+/var/lib/geonode/bin/pip install django-fulcrum
 /var/lib/geonode/bin/pip install fulcrum
 /var/lib/geonode/bin/pip install python-memcached
 /var/lib/geonode/bin/pip install boto3
