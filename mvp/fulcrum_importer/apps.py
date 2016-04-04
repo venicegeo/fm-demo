@@ -18,22 +18,40 @@ from django.apps import AppConfig
 from django.core.cache import cache
 from hashlib import md5
 from sys import exit
-from time import sleep
+from multiprocessing import current_process
+
 
 class FulcrumImporterConfig(AppConfig):
     name = 'fulcrum_importer'
 
     def ready(self):
-        test_lock, test_read = test_cache()
-        if not test_lock:
-            print("Unable to securely write to cache.")
-            print("Please ensure you have a process safe cache installed, configured, and running.")
+        from django.db.utils import OperationalError
+        from django.core.exceptions import AppRegistryNotReady
+        from django.conf import settings
+        try:
+            from .models import Layer
+            if not current_process().daemon:
+                test_lock, test_read = test_cache()
+                if not test_lock:
+                    print("Unable to securely write to cache.")
+                    print("Please ensure you have a process safe cache installed, configured, and running.")
+                    exit(1)
+                if not test_read:
+                    print("Unable to read/write to cache.")
+                    print("Please ensure you have a process safe cache installed, configured, and running.")
+                    exit(1)
+                if not getattr(settings, 'DJANGO_FULCRUM_USE_CELERY', True):
+                    print("Running django-fulcrum without celery...")
+                    from .fulcrum_task_runner import FulcrumTaskRunner
+                    runner = FulcrumTaskRunner()
+                    runner.start(interval=30)
+                    print("Server loaded.")
+        except OperationalError:
+            print("Data has not yet been migrated.")
+            return
+        except AppRegistryNotReady:
+            print("Apps not yet loaded.")
             exit(1)
-        if not test_read:
-            print("Unable to read/write to cache.")
-            print("Please ensure you have a process safe cache installed, configured, and running.")
-            exit(1)
-        return
 
 
 def test_cache():
@@ -62,4 +80,3 @@ def create_lock(lock_id):
 def get_lock_id(lock_name):
     file_name_hexdigest = md5(lock_name).hexdigest()
     return '{0}-lock-{1}'.format(lock_name, file_name_hexdigest)
-

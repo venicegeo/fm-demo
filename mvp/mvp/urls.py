@@ -30,7 +30,9 @@ Including another URLconf
 from __future__ import absolute_import
 
 from django.conf.urls import include, url
+from django.contrib import admin
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
-urlpatterns = [url('^', include('fulcrum_importer.urls'))]
+urlpatterns = [url('^', include('fulcrum_importer.urls')),
+               url(r'^admin/', admin.site.urls)]

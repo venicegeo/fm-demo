@@ -22,7 +22,7 @@ from django.core.files.temp import NamedTemporaryFile
 import requests
 import json
 from django.conf import settings
-from .models import Layer, get_media_dir, get_data_dir
+from .models import Layer, get_data_dir
 import time
 from geoserver.catalog import Catalog
 import subprocess
@@ -34,11 +34,11 @@ import shutil
 from django.core.files import File
 import os
 from .models import Asset, get_type_extension, Feature, Filter
-from threading import Thread
 from .filters import run_filters
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 from celery.execute import send_task
+
 
 class FulcrumImporter:
     def __init__(self, fulcrum_api_key=None):
@@ -59,32 +59,6 @@ class FulcrumImporter:
         if fulcrum_api_key:
             return Fulcrum(key=fulcrum_api_key)
         return None
-
-    def start(self, interval=30):
-        """Calls Run() sets an interval time
-        Args:
-            interval: An integer in seconds for the polling interval.
-        """
-        if cache.get(self.fulcrum_api_key):
-            return
-        else:
-            cache.set(self.fulcrum_api_key, True)
-            thread = Thread(target=self.run, args=[interval])
-            thread.daemon = True
-            thread.start()
-
-    def run(self, interval):
-        """Checks the 'lock' from the cache if using threading module, update if it exists.
-        Args:
-            interval: An integer in seconds for the polling interval.
-        """
-        while cache.get(self.fulcrum_api_key):
-            self.update_all_layers()
-            time.sleep(interval)
-
-    def stop(self):
-        """Removes the 'lock' from the cache if using threading module."""
-        cache.set(self.fulcrum_api_key, False)
 
     def get_forms(self):
         """A wrapper for getting Fulcrum froms from the API"""
@@ -182,10 +156,10 @@ class FulcrumImporter:
                     connections[database_alias]
                 except ConnectionDoesNotExist:
                     database_alias = None
-                upload_to_db(uploads, layer.layer_name, media_map, database_alias=database_alias)
-                publish_layer(layer.layer_name, database_alias=database_alias)
-                update_geoshape_layers()
-                send_task('fulcrum_importer.tasks.task_update_tiles', (uploads, layer.layer_name))
+                if upload_to_db(uploads, layer.layer_name, media_map, database_alias=database_alias):
+                    publish_layer(layer.layer_name, database_alias=database_alias)
+                    update_geoshape_layers()
+                    send_task('fulcrum_importer.tasks.task_update_tiles', (uploads, layer.layer_name))
                 with transaction.atomic():
                     layer.layer_date = int(latest_time)
                     layer.save()
@@ -351,10 +325,6 @@ class FulcrumImporter:
             print "An asset_id must be provided."
             return None
 
-    def __del__(self):
-        """Used to remove the placeholder on the cache if using the threading module."""
-        cache.set(self.fulcrum_api_key, False)
-
 
 def chunks(a_list, chunk_size):
     """
@@ -475,7 +445,7 @@ def save_file(f, file_path):
         with open(file_path, 'wb+') as destination:
             for chunk in f.chunks():
                 destination.write(chunk)
-    except IOError:
+    except:
         print "Failed to save the file: {}".format(f.name)
         return False
     print "Saved the file: {}".format(f.name)
@@ -532,12 +502,20 @@ def upload_geojson(file_path=None, geojson=None):
     file_basename = os.path.splitext(os.path.basename(file_path))[0]
     layer, created = write_layer(name=file_basename)
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
-
+    field_map = get_field_map(features)
+    prototype = get_prototype(field_map)
+    print str(field_map)
+    print str(prototype)
     for feature in features:
         if not feature:
             continue
         if not feature.get('geometry'):
             continue
+        for key in field_map:
+            if key not in feature.get('properties'):
+                feature['properties'][key] = prototype.get(key)
+                if isinstance(feature['properties'][key], type(None)):
+                    feature['properties'][key] = ''
         for media_key in media_keys:
             if feature.get('properties').get(media_key):
                 urls = []
@@ -560,11 +538,11 @@ def upload_geojson(file_path=None, geojson=None):
                             else:
                                 urls += [asset.asset_data.url]
                     else:
-                        urls += [None]
+                        urls += [""]
                 feature['properties']['{}_url'.format(media_key)] = urls
             elif from_file and not feature.get('properties').get(media_key):
-                feature['properties'][media_key] = None
-                feature['properties']['{}_url'.format(media_key)] = None
+                feature['properties'][media_key] = ""
+                feature['properties']['{}_url'.format(media_key)] = ""
         if not feature.get('properties').get('fulcrum_id'):
             feature['properties']['fulcrum_id'] = feature.get('properties').get('id')
 
@@ -579,9 +557,10 @@ def upload_geojson(file_path=None, geojson=None):
 
     try:
         database_alias = 'fulcrum'
-        connections[database_alias]
+        db_conn = connections[database_alias]
     except ConnectionDoesNotExist:
         database_alias = None
+        db_conn = connection
 
     table_name = layer.layer_name
     if upload_to_db(uploads, table_name, media_keys, database_alias=database_alias):
@@ -649,12 +628,13 @@ def write_layer(name, layer_id='', date=0, media_keys={}):
     Returns:
         The layer model object.
     """
-    layer_name = 'fulcrum_{}'.format(name.lower())
-    layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
-                                                       layer_uid=layer_id,
-                                                       defaults={'layer_date': int(date),
-                                                                 'layer_media_keys': json.dumps(media_keys)})
-    return layer, layer_created
+    with transaction.atomic():
+        layer_name = 'fulcrum_{}'.format(name.lower())
+        layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
+                                                           layer_uid=layer_id,
+                                                           defaults={'layer_date': int(date),
+                                                                     'layer_media_keys': json.dumps(media_keys)})
+        return layer, layer_created
 
 
 def write_feature(key, version, layer, feature_data):
@@ -669,11 +649,12 @@ def write_feature(key, version, layer, feature_data):
     Returns:
         The feature model object.
     """
-    feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
-                                                             feature_version=version,
-                                                             defaults={'layer': layer,
-                                                                       'feature_data': json.dumps(feature_data)})
-    return feature
+    with transaction.atomic():
+        feature, feature_created = Feature.objects.get_or_create(feature_uid=key,
+                                                                 feature_version=version,
+                                                                 defaults={'layer': layer,
+                                                                           'feature_data': json.dumps(feature_data)})
+        return feature
 
 
 def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
@@ -689,34 +670,34 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
     Returns:
         The new url (provided by the django model FileField) for the asset.
     """
-
-    asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
-    if created:
-        with NamedTemporaryFile() as temp:
-            if not url:
-                url = 'https://api.fulcrumapp.com/api/v2/{}/{}.{}'.format(asset.asset_type, asset.asset_uid,
-                                                                          get_type_extension(asset_type))
-            response = requests.get(url, headers={'X-ApiToken': fulcrum_api_key})
-            for content in response.iter_content(chunk_size=1028):
-                temp.write(content)
-            temp.flush()
-            if get_type_extension(asset_type) == 'jpg':
-                if is_valid_photo(File(temp)):
-                    asset.asset_data.save(asset.asset_uid, File(temp))
+    with transaction.atomic():
+        asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
+        if created:
+            with NamedTemporaryFile() as temp:
+                if not url:
+                    url = 'https://api.fulcrumapp.com/api/v2/{}/{}.{}'.format(asset.asset_type, asset.asset_uid,
+                                                                              get_type_extension(asset_type))
+                response = requests.get(url, headers={'X-ApiToken': fulcrum_api_key})
+                for content in response.iter_content(chunk_size=1028):
+                    temp.write(content)
+                temp.flush()
+                if get_type_extension(asset_type) == 'jpg':
+                    if is_valid_photo(File(temp)):
+                        asset.asset_data.save(asset.asset_uid, File(temp))
+                    else:
+                        asset.delete()
+                        return None
                 else:
-                    asset.delete()
-                    return None
-            else:
-                asset.asset_data.save(asset.asset_uid, File(temp))
-    else:
-        asset = Asset.objects.get(asset_uid=asset_uid)
-    if asset.asset_data:
-        if getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template'):
-            return '{}{}.{}'.format(getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template').rstrip("{}"),
-                                    asset_uid,
-                                    get_type_extension(asset.asset_type))
+                    asset.asset_data.save(asset.asset_uid, File(temp))
         else:
-            return asset.asset_data.url
+            asset = Asset.objects.get(asset_uid=asset_uid)
+        if asset.asset_data:
+            if getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template'):
+                return '{}{}.{}'.format(getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template').rstrip("{}"),
+                                        asset_uid,
+                                        get_type_extension(asset.asset_type))
+            else:
+                return asset.asset_data.url
 
 
 def write_asset_from_file(asset_uid, asset_type, file_dir):
@@ -732,17 +713,18 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
         A tuple of the asset model object, and a boolean representing 'was created'.
     """
     file_path = os.path.join(file_dir, '{}.{}'.format(asset_uid, get_type_extension(asset_type)))
-    asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
-    if created:
-        if os.path.isfile(file_path):
-            with open(file_path) as open_file:
-                asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
-                                      File(open_file))
-        else:
-            print("The file {} was not found, and is most likely missing from the archive, "
-                  "or was filtered out (if using filters).".format(file_path))
-            return None, False
-    return asset, created
+    with transaction.atomic():
+        asset, created = Asset.objects.get_or_create(asset_uid=asset_uid, asset_type=asset_type)
+        if created:
+            if os.path.isfile(file_path):
+                with open(file_path) as open_file:
+                    asset.asset_data.save(os.path.splitext(os.path.basename(file_path))[0],
+                                          File(open_file))
+            else:
+                print("The file {} was not found, and is most likely missing from the archive, "
+                      "or was filtered out (if using filters).".format(file_path))
+                return None, False
+        return asset, created
 
 
 def is_valid_photo(photo_file):
@@ -798,8 +780,8 @@ def get_gps_info(info):
         A json object of exif photo data with decoded gps_data:
     """
     properties = {}
-    if info.items():
-        for tag, value in info.items():
+    if info.iteritems():
+        for tag, value in info.iteritems():
             decoded = TAGS.get(tag, tag)
             if decoded == "GPSInfo":
                 gps_data = {}
@@ -807,7 +789,6 @@ def get_gps_info(info):
                     for t in value:
                         sub_decoded = GPSTAGS.get(t, t)
                         gps_data[sub_decoded] = value[t]
-
                 properties[decoded] = gps_data
             elif decoded != "MakerNote":
                 properties[decoded] = value
@@ -836,11 +817,11 @@ def get_gps_coords(properties):
     if gps_lat_ref != "N":
         lat = 0 - lat
 
-    long = convert_to_degrees(gps_long)
-    if gps_lat_ref != "E":
-        long = 0 - long
+    lon = convert_to_degrees(gps_long)
+    if gps_long_ref != "E":
+        lon = 0 - lon
 
-    coords = [round(lat, 6), round(long, 6)]
+    coords = [round(lat, 6), round(lon, 6)]
     return coords
 
 
@@ -874,6 +855,8 @@ def update_geoshape_layers():
     Returns:
         None
     """
+    if not getattr(settings, 'SITENAME', '').lower() == 'geoshape':
+        return
     python_bin = '/var/lib/geonode/bin/python'
     manage_script = '/var/lib/geonode/rogue_geonode/manage.py'
     env = {}
@@ -900,6 +883,14 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    if 'postgis' not in db_conn.settings_dict.get('ENGINE') or 'postgres' not in db_conn.settings_dict.get('ENGINE'):
+        return False
+
     if not feature_data:
         return False
 
@@ -910,6 +901,12 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
         feature_data = prepare_features_for_geoshape(feature_data, media_keys=media_keys)
 
     key_name = 'fulcrum_id'
+
+     # Sort the data in memory before making a ton of calls to the server.
+    feature_data, non_unique_features = get_duplicate_features(features=feature_data, properties_id='fulcrum_id')
+
+    with open('./test.json','w') as test:
+        test.write(str(feature_data))
 
     # Use ogr2ogr to create a table and add an index, before any non unique values are added.
     if not table_exists(table=table, database_alias=database_alias):
@@ -922,9 +919,10 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
         else:
             feature_data = None
 
-    # Sort the data in memory before making a ton of calls to the server.
-    feature_data, non_unique_features = get_duplicate_features(features=feature_data, properties_id='fulcrum_id')
 
+
+    with open('./test2.json','w') as test:
+        test.write(str(feature_data))
     # Try to upload the presumed unique values in bulk.
     uploaded = False
     while not uploaded:
@@ -1078,7 +1076,7 @@ def get_pg_conn_string(database_alias=None):
         db_conn = connections[database_alias]
     else:
         db_conn = connection
-
+    db_conn.close()
     return "host={host} " \
            "port={port} " \
            "dbname={database} " \
@@ -1100,7 +1098,6 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None):
 
     Returns:
         True if the file is succesfully uploaded.
-
     """
 
     if not geojson_file:
@@ -1114,25 +1111,30 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None):
     if 'postgis' in db_conn.settings_dict.get('ENGINE') or 'postgres' in db_conn.settings_dict.get('ENGINE'):
         db_format = 'PostgreSQL'
         dest = "PG:{}".format(get_pg_conn_string(database_alias))
+        options = ['-update', '-append']
     else:
-        db_format = 'SQLite'
-        sqlite_file = connection.settings_dict.get('NAME')
-        dest = '{}'.format(sqlite_file)
+        return True
+    #     db_format = 'SQLite'
+    #     sqlite_file = db_conn.settings_dict.get('NAME')
+    #     dest = '{}'.format(sqlite_file)
+    #     options = ['-update','-append']
+    #     with db_conn.cursor() as cur:
+    #         initialize_sqlite_db(cur)
+    #     db_conn.commit()
+    # db_conn.close()
 
     execute_append = ['',
                       '-f', db_format,
-                      '-update',
-                      '-append',
                       '-skipfailures',
                       dest,
                       '{}'.format(geojson_file),
-                      '-nln', table]
+                      '-nln', table] + options
     try:
         ogr2ogr.main(execute_append)
         return True
     except Exception as e:
-        print(repr(e))
-        return False
+        print str(e)
+    return False
 
 
 def add_unique_constraint(database_alias=None, table=None, key_name=None):
@@ -1156,10 +1158,15 @@ def add_unique_constraint(database_alias=None, table=None, key_name=None):
 
     cur = db_conn.cursor()
 
-    if 'sqlite' in db_conn.settings_dict.get('NAME'):
-        query = "CREATE UNIQUE INDEX unique_{key_name} on {table}({key_name})".format(table=table, key_name=key_name)
-    else:
+    if 'postgis' in db_conn.settings_dict.get('ENGINE') or 'postgres' in db_conn.settings_dict.get('ENGINE'):
         query = "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)
+    else:
+        return True
+    #
+    # if 'sqlite' in db_conn.settings_dict.get('NAME'):
+    #     query = "CREATE UNIQUE INDEX unique_{key_name} on {table}({key_name})".format(table=table, key_name=key_name)
+    # else:
+    #     query = "ALTER TABLE {} ADD UNIQUE({});".format(table, key_name)
 
     try:
         with transaction.atomic():
@@ -1168,6 +1175,7 @@ def add_unique_constraint(database_alias=None, table=None, key_name=None):
         print("Unable to add a key because {} was not created yet.".format(table))
     finally:
         cur.close()
+        db_conn.close()
 
 
 def table_exists(database_alias=None, table=None):
@@ -1202,6 +1210,7 @@ def table_exists(database_alias=None, table=None):
         does_table_exist = False
     finally:
         cur.close()
+        db_conn.close()
     return does_table_exist
 
 
@@ -1446,6 +1455,7 @@ def delete_db_feature(feature, layer, database_alias=None):
         print("It is most likely not in the database or missing a fulcrum_id.")
     finally:
         cur.close()
+        db_conn.close()
 
 
 def is_alnum(data):
@@ -1475,11 +1485,14 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
         A tuple of (layer, created).
     """
 
-    geoserver_base_url = geoserver_base_url or get_ogc_server().get('LOCATION').rstrip('/')
-
+    if geoserver_base_url:
+        geoserver_base_url
+    else:
+        if get_ogc_server().get('LOCATION'):
+            geoserver_base_url = get_ogc_server().get('LOCATION').rstrip('/')
     if not geoserver_base_url:
-        print('The function publish_layer was called without a '
-              'geoserver_base_url parameter or an OGC_SERVER defined in the settings')
+        # print('The function publish_layer was called without a '
+        #       'geoserver_base_url parameter or an OGC_SERVER defined in the settings')
         return None, False
     url = "{}/rest".format(geoserver_base_url)
     workspace_name = "geonode"
@@ -1608,34 +1621,6 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
                   verify=getattr(settings, 'SSL_VERIFY', True))
 
 
-def check_filters():
-    """
-    Args: None
-    Returns: None
-    Finds '.py' files used for filtering and adds to db model for use in admin console.
-    Sets cache value so function will not running fully every time it is called by tasks.py
-    """
-    workspace = os.path.dirname(os.path.abspath(__file__))
-    filter_dir = os.path.join(workspace, 'filters')
-    files = os.listdir(filter_dir)
-    if files:
-        LOCK_EXPIRE = 60 * 10
-        lock_id = 'list-filters-success'
-        if cache.get(lock_id):
-            return
-        for filter_file in files:
-                if filter_file.endswith('.py'):
-                    if filter_file != 'run_filters.py' and filter_file != '__init__.py':
-                        print "Creating model object for {}".format(filter_file)
-                        try:
-                            filter_entry, created = Filter.objects.get_or_create(filter_name=filter_file)
-                        except Exception as e:
-                            print repr(e)
-                            continue
-        cache.set(lock_id, True, LOCK_EXPIRE)
-    return
-
-
 def get_ogc_server(alias=None):
     """
     Args:
@@ -1651,3 +1636,35 @@ def get_ogc_server(alias=None):
             return ogc_server.get(alias)
         else:
             return ogc_server.get('default')
+    else:
+        return {}
+
+
+def initialize_sqlite_db(cursor):
+    results = cursor.execute("SELECT * from sqlite_master LIMIT 1")
+    if not results.fetchone():
+        cursor.execute("CREATE TABLE 'temp'('Field1' INTEGER);")
+
+
+def get_field_map(features):
+    field_map = {}
+    for feature in features:
+        if not feature.get('properties'):
+            continue
+        for prop, value in feature.get('properties').iteritems():
+            if prop not in field_map or isinstance(field_map[prop], type(None)):
+                field_map[prop] = type(value)
+    return field_map
+
+
+def get_prototype(field_map):
+    prototype = {}
+    for key, value in field_map.iteritems():
+        if isinstance(value, int):
+            prototype[key] = 0
+        elif isinstance(value, list):
+            prototype[key] = '[]'
+        elif isinstance(value, str):
+            prototype[key] = ''
+    return prototype
+

@@ -76,29 +76,32 @@ def pull_all_s3_data():
             except ProgrammingError:
                 pass
 
-            for s3_credential in s3_credentials:
+            if s3_credentials:
+                for s3_credential in s3_credentials:
 
-                    session = boto3.session.Session()
-                    s3 = session.resource('s3',
-                                          aws_access_key_id=s3_credential.get('s3_key'),
-                                          aws_secret_access_key=s3_credential.get('s3_secret'))
+                        session = boto3.session.Session()
+                        s3 = session.resource('s3',
+                                              aws_access_key_id=s3_credential.get('s3_key'),
+                                              aws_secret_access_key=s3_credential.get('s3_secret'))
 
-                    buckets = s3_credential.get('s3_bucket')
-                    if type(buckets) != list: buckets = [buckets]
-                    for bucket in buckets:
-                        if not bucket:
-                            continue
-                        try:
-                            print("Getting files from {}".format(bucket))
-                            s3_bucket_obj = s3.Bucket(bucket)
-                            for s3_file in s3_bucket_obj.objects.all():
-                                print str(s3_file.key) + " " + str(s3_file.size)
-                                handle_file(s3_bucket_obj, s3_file)
-                        except botocore.exceptions.ClientError:
-                            print("There is an issue with the bucket and/or credentials,")
-                            print("for bucket: {} and access_key {}".format(s3_credential.get('s3_bucket'),
-                                                                            s3_credential.get('s3_key')))
-                            continue
+                        buckets = s3_credential.get('s3_bucket')
+                        if type(buckets) != list: buckets = [buckets]
+                        for bucket in buckets:
+                            if not bucket:
+                                continue
+                            try:
+                                print("Getting files from {}".format(bucket))
+                                s3_bucket_obj = s3.Bucket(bucket)
+                                for s3_file in s3_bucket_obj.objects.all():
+                                    print str(s3_file.key) + " " + str(s3_file.size)
+                                    handle_file(s3_bucket_obj, s3_file)
+                            except botocore.exceptions.ClientError:
+                                print("There is an issue with the bucket and/or credentials,")
+                                print("for bucket: {} and access_key {}".format(s3_credential.get('s3_bucket'),
+                                                                                s3_credential.get('s3_key')))
+                                continue
+            else:
+                print("There are no S3 Credentials defined in the settings or admin console.")
         except Exception as e:
             # This exception catches everything, which is bad for debugging, but if it isn't here
             # the lock is not released which makes it challenging to restore the proper state.

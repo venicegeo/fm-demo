@@ -20,7 +20,7 @@ from django.conf import settings
 import os
 
 
-if getattr(settings, 'SITENAME', None).lower() == 'geoshape':
+if getattr(settings, 'SITENAME', '').lower() == 'geoshape':
     fulcrum_media_dir = getattr(settings, 'FILESERVICE_CONFIG', {}).get('store_dir')
 else:
     fulcrum_media_dir = getattr(settings, 'MEDIA_ROOT', None)
@@ -30,7 +30,7 @@ if not fulcrum_media_dir:
     fulcrum_media_dir = os.path.join(os.getcwd(), 'media')
 
 
-if getattr(settings, 'SITENAME', None).lower() == 'geoshape':
+if getattr(settings, 'SITENAME', '').lower() == 'geoshape':
     fulcrum_data_dir = getattr(settings, 'FULCRUM_UPLOAD', None)
 else:
     fulcrum_data_dir = getattr(settings, 'MEDIA_ROOT', None)
@@ -144,6 +144,7 @@ class Filter(models.Model):
     """Structure to hold knownledge of filters in the filter package."""
     filter_name = models.CharField(max_length=255, unique=True)
     filter_active = models.BooleanField(default=True)
+
 
     def __unicode__(self):
         if self.filter_active:

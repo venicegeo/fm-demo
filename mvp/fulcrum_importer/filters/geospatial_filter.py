@@ -48,14 +48,11 @@ def iterate_geojson(input_features, boundary_features):
     passed = []
     failed = []
     for feature in input_features.get("features"):
-        if not feature:
+        if not feature or not feature.get('geometry'):
             continue
-        try:
-            coords = feature.get('geometry').get('coordinates')
 
-        except Exception as e:
-            print "Could not get coordinates"
-            print repr(e)
+        coords = feature.get('geometry').get('coordinates')
+
         if coords:
             if check_geometry(coords, boundary_features):
                 failed.append(feature)

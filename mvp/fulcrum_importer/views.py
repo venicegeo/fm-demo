@@ -15,6 +15,7 @@
 from django.shortcuts import render
 from .models import Asset
 from .forms import UploadFulcrumData
+from .filters.run_filters import check_filters
 from django.http import HttpResponse, HttpResponseRedirect
 from django.conf import settings
 import json
@@ -49,6 +50,7 @@ def upload(request):
         print request.FILES
         geojson = {}
         if form.is_valid():
+            check_filters()
             layers = process_fulcrum_data(request.FILES['file'])
             for layer in layers:
                 if get_geojson(layer):

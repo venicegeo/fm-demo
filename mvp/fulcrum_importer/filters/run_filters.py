@@ -1,6 +1,7 @@
 import os
 from importlib import import_module
-
+from django.core.cache import cache
+from ..models import Filter
 
 def filter_features(features):
     """
@@ -12,8 +13,6 @@ def filter_features(features):
          Geojson Feature Collection that passed any filters in the in filter package
          If no features passed None is returned
     """
-
-    from django.core.exceptions import ObjectDoesNotExist
     from ..models import Filter
     workspace = os.path.dirname(os.path.abspath( __file__ ))
     files = os.listdir(workspace)
@@ -69,3 +68,30 @@ def filter_features(features):
         filtered_feature_count = 0
     print "Finished filtering"
     return filtered_features, filtered_feature_count
+
+
+def check_filters():
+    """
+    Args: None
+    Returns: None
+    Finds '.py' files used for filtering and adds to db model for use in admin console.
+    Sets cache value so function will not running fully every time it is called by tasks.py
+    """
+    workspace = os.path.dirname(os.path.abspath(__file__))
+    files = os.listdir(workspace)
+    if files:
+        LOCK_EXPIRE = 10
+        lock_id = 'list-filters-success'
+        if cache.get(lock_id):
+            return
+        for filter_file in files:
+                if filter_file.endswith('.py'):
+                    if filter_file != 'run_filters.py' and filter_file != '__init__.py':
+                        print "Creating model object for {}".format(filter_file)
+                        try:
+                            filter_entry, created = Filter.objects.get_or_create(filter_name=filter_file)
+                        except Exception as e:
+                            print repr(e)
+                            continue
+        cache.set(lock_id, True, LOCK_EXPIRE)
+    return
