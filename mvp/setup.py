@@ -16,7 +16,7 @@ setup(
     packages=find_packages(exclude=["mvp"]),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['fulcrum', 'python-memcached', 'boto3', 'Pillow', 'django'],
+    install_requires=['fulcrum', 'python-memcached', 'boto3', 'Pillow>=2.9.0', 'django'],
     classifiers=['Topic :: Utilities',
                  'Natural Language :: English',
                  'Operating System :: OS Independent',
