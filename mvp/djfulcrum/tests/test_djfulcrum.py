@@ -21,7 +21,7 @@ import copy
 from django.db import IntegrityError, transaction
 
 
-class FulcrumImporterTests(TestCase):
+class DjangoFulcrumTests(TestCase):
     def setUp(self):
         pass
 
@@ -603,10 +603,9 @@ class FulcrumImporterDBTests(TransactionTestCase):
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
                               table=table_name)
 
-        cur = connection.cursor()
-
         self.assertTrue(table_exists(table=table_name))
 
+        cur = connection.cursor()
         cur.execute("SELECT name FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
 
         imported_name = dictfetchall(cur)[0].get('name')
@@ -616,32 +615,38 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
     def test_add_unique_constraint(self):
         """Ensures logic behind adding unique constraint is consistent."""
-        cur = connection.cursor()
 
         table_name = 'test_unique'
 
         with transaction.atomic():
+            cur = connection.cursor()
             cur.execute("CREATE TABLE {}(id integer);".format(table_name))
+            cur.close()
 
         self.assertTrue(table_exists(table=table_name))
 
         with transaction.atomic():
+            cur = connection.cursor()
             cur.execute("INSERT INTO {} values(1);".format(table_name))
+            cur.close()
 
         add_unique_constraint(database_alias=None, table=table_name, key_name='id')
 
-        try:
-            cur.execute("INSERT INTO {} values(1);".format(table_name))
-            connection.commit()
-            added_duplicate_value = True
-        except ProgrammingError:
-            added_duplicate_value = False
-        except OperationalError:
-            added_duplicate_value = False
-        except IntegrityError:
-            added_duplicate_value = False
-        finally:
-            cur.close()
+        with transaction.atomic():
+            try:
+                cur = connection.cursor()
+                cur.execute("INSERT INTO {} values(1);".format(table_name))
+
+                added_duplicate_value = True
+            except ProgrammingError:
+                added_duplicate_value = False
+            except OperationalError:
+                added_duplicate_value = False
+            except IntegrityError:
+                added_duplicate_value = False
+            finally:
+                cur.close()
+                connection.close()
 
         self.assertFalse(added_duplicate_value)
 
@@ -686,7 +691,6 @@ class FulcrumImporterDBTests(TransactionTestCase):
                               table=table_name)
 
         cur = connection.cursor()
-
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
 
         results = dictfetchall(cur)
@@ -702,6 +706,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
         update_db_feature(test_feature_2, layer=table_name)
 
+        cur = connection.cursor()
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
         results = dictfetchall(cur)
         if results:
@@ -711,6 +716,8 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
         self.assertEqual("Dinagat Islands", imported_feature.get('name'))
         self.assertEqual(expected_version, imported_feature.get('version'))
+        cur.close()
+        connection.close()
 
     def test_s3_credentials_admin(self):
         """Ensure the expected structure of the s3 credentials is maintained."""

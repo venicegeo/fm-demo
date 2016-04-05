@@ -1,5 +1,6 @@
 import json
 import requests
+from django.conf import settings
 
 # post, get, get all, delete
 class PzWorkflow:
@@ -11,7 +12,7 @@ class PzWorkflow:
         print "Pz object created with url: " + self.addr
 
     def status(self):
-        return requests.get(self.addr).status_code;
+        return requests.get(self.addr, verify=getattr(settings, 'SSL_VERIFY', True)).status_code;
 
     def request(self, user_request):
         user_request = json.loads(user_request)
@@ -56,7 +57,8 @@ class PzWorkflow:
 
     def get(self, user_request):
         try:
-            items = requests.get(self.addr + self.map.get(user_request.get('type')))
+            items = requests.get(self.addr + self.map.get(user_request.get('type')),
+                                 verify=getattr(settings, 'SSL_VERIFY', True))
             items = items.json()
         except:
             print "Could not get items"
@@ -75,9 +77,13 @@ class PzWorkflow:
             data = json.dumps(user_request.get('data'))
             if user_request.get('type') == 'event':
                 eventtype = self.get({'type': 'eventtypes', 'data': {'id': user_request.get('data').get('type')}})
-                posted = requests.post(self.addr + self.map.get(user_request.get('type')) + eventtype.get('name'), data=data)
+                posted = requests.post(self.addr + self.map.get(user_request.get('type')) + eventtype.get('name'),
+                                       data=data,
+                                       verify=getattr(settings, 'SSL_VERIFY', True))
             else:
-                posted = requests.post(self.addr + self.map.get(user_request.get('type')), data=data)
+                posted = requests.post(self.addr + self.map.get(user_request.get('type')),
+                                       data=data,
+                                       verify=getattr(settings, 'SSL_VERIFY', True))
             if posted.status_code == 201:
                 print '{} created'.format(user_request.get('type'))
                 return posted
@@ -93,7 +99,8 @@ class PzWorkflow:
             return None
 
     def get_all(self, user_request):
-        return requests.get(self.addr + self.map.get(user_request.get('type')))
+        return requests.get(self.addr + self.map.get(user_request.get('type')),
+                            verify=getattr(settings, 'SSL_VERIFY', True))
 
     def delete(self, user_request):
         check = self.get(user_request)
@@ -101,9 +108,14 @@ class PzWorkflow:
             print "Deleting"
 
             if user_request.get('type') == "event":
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))  + user_request.get('data').get('eventname') + "/" + user_request.get('data').get('id'))
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))
+                                             + user_request.get('data').get('eventname') + "/"
+                                             + user_request.get('data').get('id'),
+                                             verify=getattr(settings, 'SSL_VERIFY', True))
             else :
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) + user_request.get('data').get('id'))
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))
+                                             + user_request.get('data').get('id'),
+                                             verify=getattr(settings, 'SSL_VERIFY', True))
             check = self.get(user_request)
             if check:
                 print "Delete failed"
@@ -138,9 +150,3 @@ def main():
 
 if(__name__ == "__main__"):
     main()
-
-# things = requests.get(addr)
-#     print things
-
-#json.dumps changes to string
-#json.loads and .json() change to python dict

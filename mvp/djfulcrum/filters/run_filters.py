@@ -87,9 +87,10 @@ def check_filters():
         for filter_file in files:
                 if filter_file.endswith('.py'):
                     if filter_file != 'run_filters.py' and filter_file != '__init__.py':
-                        print "Creating model object for {}".format(filter_file)
                         try:
-                            Filter.objects.get_or_create(filter_name=filter_file)
+                            filter_name, created = Filter.objects.get_or_create(filter_name=filter_file)
+                            if created:
+                                print "Created model object for {}".format(filter_file)
                         except Exception as e:
                             print repr(e)
                             continue

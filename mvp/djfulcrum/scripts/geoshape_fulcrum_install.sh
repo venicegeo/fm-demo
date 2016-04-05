@@ -24,7 +24,7 @@ chkconfig memcached on
 /var/lib/geonode/bin/pip install Pillow
 grep -qF "INSTALLED_APPS += ('djfulcrum',)" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "INSTALLED_APPS += ('djfulcrum',)" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
-# change permissions to file_service folder so that fulcrum_import can add data to the folder.
+# change permissions to file_service folder so that djfulcrum can add data to the folder.
 chown tomcat:geoservice /var/lib/geoserver_data/file-service-store
 chmod 775 /var/lib/geoserver_data/file-service-store
 

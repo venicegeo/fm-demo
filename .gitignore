@@ -25,3 +25,5 @@ mvp/django_fulcrum.egg-info/dependency_links.txt
 mvp/django_fulcrum.egg-info/SOURCES.txt
 mvp/django_fulcrum.egg-info/PKG-INFO
 mvp/django_fulcrum.egg-info/top_level.txt
+mvp/build/*
+mvp/django_fulcrum.egg-info

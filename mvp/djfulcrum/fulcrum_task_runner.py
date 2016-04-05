@@ -5,8 +5,9 @@ from django.core.cache import cache
 from multiprocessing import Process
 import time
 import django
-from django.core.exceptions import AppRegistryNotReady
+from django.core.exceptions import AppRegistryNotReady, ImproperlyConfigured
 from django.db import OperationalError
+import json
 
 
 class FulcrumTaskRunner:
@@ -22,7 +23,7 @@ class FulcrumTaskRunner:
             interval: An integer in seconds for the polling interval.
         """
 
-        if cache.add(self.lock_id, True, timeout=None):
+        if self.add_lock():
                 process = Process(target=self.run, args=(interval,))
                 process.daemon = True
                 process.start()
@@ -32,14 +33,17 @@ class FulcrumTaskRunner:
         Args:
             interval: An integer in seconds for the polling interval.
         """
-        while cache.get(self.lock_id):
+        while self.is_locked():
             try:
                 from .tasks import task_update_layers, pull_s3_data
             except AppRegistryNotReady:
                 django.setup()
                 from .tasks import task_update_layers, pull_s3_data
             try:
-                from django.contrib.auth.models import User
+                try:
+                    from django.contrib.auth.models import User
+                except ImproperlyConfigured:
+                    pass
                 if User.objects.filter(id=1):
                     print("Updating Layers...")
                     task_update_layers()
@@ -55,6 +59,29 @@ class FulcrumTaskRunner:
         """Removes the 'lock' from the cache if using multiprocessing module."""
         cache.delete(self.lock_id)
 
+    def add_lock(self):
+        """Adds a lock to a queue so multiple processes don't break the lock."""
+        if cache.add(self.lock_id, json.dumps(['lock']), timeout=None):
+            return True
+        else:
+            old_value = json.loads(cache.get(self.lock_id))
+            cache.set(self.lock_id, json.dumps(old_value + ['lock']))
+            return False
+
+    def is_locked(self):
+        """Checks the lock."""
+        if cache.get(self.lock_id):
+            return True
+        return False
+
+    def remove_lock(self):
+        """Removes a lock to a queue so multiple processes don't break the lock."""
+        lock = json.loads(cache.get(self.lock_id))
+        if len(lock) <= 1:
+            cache.delete(self.lock_id)
+        else:
+            cache.set(self.lock_id, json.dumps(lock[:-1]))
+
     def __del__(self):
         """Used to remove the placeholder on the cache if using the multiprocessing module."""
-        cache.delete(self.lock_id)
+        self.remove_lock()

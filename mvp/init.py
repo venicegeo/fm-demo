@@ -15,7 +15,7 @@ if os.path.exists('./media'):
 if os.path.exists('./data'):
     shutil.rmtree('./data')
 
-migration_dir = os.path.abspath('./fulcrum_importer/migrations')
+migration_dir = os.path.abspath('./djfulcrum/migrations')
 for file_name in os.listdir(migration_dir):
     if '__init__' not in file_name.lower():
         os.remove(os.path.join(migration_dir, file_name))

@@ -403,7 +403,7 @@ def process_fulcrum_data(f):
                     print("Uploading the geojson file: {}".format(os.path.abspath(os.path.join(folder, filename))))
                     if upload_geojson(file_path=os.path.abspath(os.path.join(folder, filename))):
                         layers += [os.path.splitext(filename)[0]]
-        shutil.rmtree((os.path.splitext(file_path)[0]))
+        shutil.rmtree(os.path.splitext(file_path)[0])
     return layers
 
 
@@ -503,8 +503,6 @@ def upload_geojson(file_path=None, geojson=None):
     media_keys = get_update_layer_media_keys(media_keys=find_media_keys(features), layer=layer)
     field_map = get_field_map(features)
     prototype = get_prototype(field_map)
-    print str(field_map)
-    print str(prototype)
     for feature in features:
         if not feature:
             continue
@@ -556,10 +554,8 @@ def upload_geojson(file_path=None, geojson=None):
 
     try:
         database_alias = 'fulcrum'
-        db_conn = connections[database_alias]
     except ConnectionDoesNotExist:
         database_alias = None
-        db_conn = connection
 
     table_name = layer.layer_name
     if upload_to_db(uploads, table_name, media_keys, database_alias=database_alias):
@@ -887,7 +883,7 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     else:
         db_conn = connection
 
-    if 'postgis' not in db_conn.settings_dict.get('ENGINE') or 'postgres' not in db_conn.settings_dict.get('ENGINE'):
+    if 'postgis' not in db_conn.settings_dict.get('ENGINE') and 'postgres' not in db_conn.settings_dict.get('ENGINE'):
         return False
 
     if not feature_data:
@@ -904,9 +900,6 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
      # Sort the data in memory before making a ton of calls to the server.
     feature_data, non_unique_features = get_duplicate_features(features=feature_data, properties_id='fulcrum_id')
 
-    with open('./test.json','w') as test:
-        test.write(str(feature_data))
-
     # Use ogr2ogr to create a table and add an index, before any non unique values are added.
     if not table_exists(table=table, database_alias=database_alias):
         ogr2ogr_geojson_to_db(geojson_file=features_to_file(feature_data[0]),
@@ -918,10 +911,6 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
         else:
             feature_data = None
 
-
-
-    with open('./test2.json','w') as test:
-        test.write(str(feature_data))
     # Try to upload the presumed unique values in bulk.
     uploaded = False
     while not uploaded:

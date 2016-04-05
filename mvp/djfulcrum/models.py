@@ -30,9 +30,8 @@ if not fulcrum_media_dir:
     fulcrum_media_dir = os.path.join(os.getcwd(), 'media')
 
 
-if getattr(settings, 'SITENAME', '').lower() == 'geoshape':
-    fulcrum_data_dir = getattr(settings, 'FULCRUM_UPLOAD', None)
-else:
+fulcrum_data_dir = getattr(settings, 'FULCRUM_UPLOAD', None)
+if not fulcrum_data_dir:
     fulcrum_data_dir = getattr(settings, 'MEDIA_ROOT', None)
 if not fulcrum_data_dir:
     if not os.path.exists(os.path.join(os.getcwd(), 'data')):

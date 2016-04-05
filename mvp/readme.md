@@ -93,6 +93,11 @@ sudo geoshape-config init "geoshape.dev"
 
 ### custom project
 
+First ensure you install the package:
+```
+python setup.py install
+```
+
 If using an existing Django Project you will need to integrate the urls and the various settings. The default settings should get you minimal functionality.  It is also assumed that you are using celery (which is recommended). If you aren't using celery it can be disabled.
 
 If you don't have a django repo yet a script is provided with default settings that will help get you up and running.

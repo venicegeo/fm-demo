@@ -63,7 +63,7 @@ def copy_template(template, new_file, name):
         print("Warning: The file {}, was overwritten.".format(new_file))
     with open(template, 'r') as temp_file, open(new_file, 'w') as proj_file:
         for line in temp_file:
-            line = re.sub('mvp', name, line.rstrip())
+            line = re.sub('mvp', name, line)
             proj_file.write(line)
 
 
