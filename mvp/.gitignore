@@ -6,7 +6,7 @@ fulcrum/*
 .idea
 *.pyc
 mvp_app/*
-fulcrum_importer/migrations/*
+djfulcrum/migrations/*
 temp.json
 settings.py
 local_settings.py
@@ -19,6 +19,6 @@ mvp/*
 clear_fm_db.sh
 test.sqlite3
 test_data.sqlite3
-!fulcrum_importer/scripts/settings.py
+!djfulcrum/scripts/settings.py
 media/
 data/
