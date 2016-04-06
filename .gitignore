@@ -6,7 +6,7 @@ fulcrum/*
 .idea
 *.pyc
 mvp_app/*
-fulcrum_importer/migrations/*
+djfulcrum/migrations/*
 temp.json
 settings.py
 local_settings.py
@@ -17,4 +17,13 @@ test.json
 local_settings.py
 mvp/clear_fm_db.sh
 mvp/clear_fm_db.sh
-!mvp/fulcrum_importer/scripts/settings.py
+!mvp/djfulcrum/scripts/settings.py
+mvp/django_fulcrum.egg-info/not-zip-safe
+mvp/django_fulcrum.egg-info/requires.txt
+*.s3cfg
+mvp/django_fulcrum.egg-info/dependency_links.txt
+mvp/django_fulcrum.egg-info/SOURCES.txt
+mvp/django_fulcrum.egg-info/PKG-INFO
+mvp/django_fulcrum.egg-info/top_level.txt
+mvp/build/*
+mvp/django_fulcrum.egg-info

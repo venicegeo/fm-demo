@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 
 setup(
-    name='fm-mvp',
+    name='django-fulcrum',
     version='1.0.0',
     author='Radiant Blue',
     author_email='venice@radiantblue.com',
@@ -16,7 +16,17 @@ setup(
     packages=find_packages(exclude=["mvp"]),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['fulcrum', 'python-memcached', 'boto3', 'Pillow<=2.9.0', 'django'],
+    install_requires=['celery',
+                      'django-celery',
+                      'fulcrum',
+                      'python-memcached',
+                      'boto3',
+                      'Pillow<=2.9.0',
+                      'django',
+                      'gsconfig',
+                      'requests',
+                      'shapely',
+                      'gdal'],
     classifiers=['Topic :: Utilities',
                  'Natural Language :: English',
                  'Operating System :: OS Independent',
