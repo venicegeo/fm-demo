@@ -51,16 +51,8 @@ vagrant up
 SSH into the VM and run the following commands
 ```
 cd /tmp
-wget https://raw.githubusercontent.com/venicegeo/fm-mvp/increasePortability/mvp/djfulcrum/scripts/geoshape_fulcrum_isntall.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
+wget https://raw.githubusercontent.com/venicegeo/fm-mvp/increasePortability/mvp/djfulcrum/scripts/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
 sudo bash /tmp/geoshape_fulcrum_install.sh
-```
-
-By default the install script should take care of the following dependencies:
-```
-/var/lib/geonode/bin/pip install fulcrum
-/var/lib/geonode/bin/pip install python-memcached
-/var/lib/geonode/bin/pip install boto3
-/var/lib/geonode/bin/pip install Pillow
 ```
 
 You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file (sudo required).

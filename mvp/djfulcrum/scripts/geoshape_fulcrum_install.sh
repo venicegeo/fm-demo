@@ -4,13 +4,13 @@
 #add to /var/lib/geonode/rogue_geonode/geoshape/settings.py: 
 cd ~
 yum install unzip -y
-wget https://github.com/venicegeo/fm-mvp/archive/increasePortability.zip
+wget https://github.com/venicegeo/fm-mvp/archive/master.zip
 # wget https://github.com/venicegeo/fm-mvp/archive/master.zip
-unzip increasePortability.zip
-mv -f fm-mvp-increasePortability/mvp/djfulcrum /var/lib/geonode/lib/python2.7/site-packages/
+unzip master.zip
+mv -f fm-mvp-master/mvp/djfulcrum /var/lib/geonode/lib/python2.7/site-packages/
 chown geoshape:geoservice -R /var/lib/geonode/lib/python2.7/site-packages/djfulcrum
-rm increasePortability.zip
-rm -rf increasePortability
+rm master.zip
+rm -rf master
 
 mkdir /var/lib/geonode/fulcrum_data
 chown geoshape:geoservice /var/lib/geonode/fulcrum_data
