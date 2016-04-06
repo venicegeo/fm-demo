@@ -34,8 +34,8 @@ def geojson(request):
             return HttpResponse("No layer exists, or a layer was not specified.",status=400)
         geojson = {}
         for layer in request.GET.getlist('layer'):
-            if get_geojson(layer):
-                geojson[layer] = json.loads(get_geojson(layer))
+            if get_geojson(layer=layer):
+                geojson[layer] = json.loads(get_geojson(layer=layer))
     if not geojson:
         return HttpResponse("No layer exists, or a layer was not specified.",status=400)
     return HttpResponse(json.dumps(geojson), content_type="application/json")
@@ -53,8 +53,8 @@ def upload(request):
             check_filters()
             layers = process_fulcrum_data(request.FILES['file'])
             for layer in layers:
-                if get_geojson(layer):
-                    geojson[layer] = json.loads(get_geojson(layer))
+                if get_geojson(layer=layer):
+                    geojson[layer] = json.loads(get_geojson(layer=layer))
             return HttpResponse(json.dumps(geojson), content_type="application/json")
         else:
             print "FORM NOT VALID."
@@ -71,7 +71,7 @@ def viewer(request):
         geojson = {}
         layers = []
         for layer in request.GET.getlist('layer'):
-            if get_geojson(layer):
+            if get_geojson(layer=layer):
                 layers += ['layer=' + layer]
         if geojson:
             return render(request, 'djfulcrum/map.html', {'geojson_request_url':'/djfulcrum/geojson?{}'+'&'.join(layers)})

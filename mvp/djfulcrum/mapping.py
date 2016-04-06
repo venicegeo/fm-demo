@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-def get_geojson(layer):
+def get_geojson(layer=None):
     """
 
     Args:
@@ -30,8 +30,11 @@ def get_geojson(layer):
 
     json_features = []
     try:
-        layer = Layer.objects.get(layer_name=layer)
-        features = Feature.objects.filter(layer=layer)
+        if layer:
+            layer = Layer.objects.get(layer_name=layer)
+            features = Feature.objects.filter(layer=layer)
+        else:
+            features = Feature.objects.all()
     except ObjectDoesNotExist:
         return None
     for feature in features:
@@ -42,12 +45,13 @@ def get_geojson(layer):
             date = parser.parse(json_feature.get('properties').get('updated_at'))
         elif json_feature.get('properties').get('created_at'):
             date = parser.parse(json_feature.get('properties').get('created_at'))
-        else: date = None
+        else:
+            date = None
         if date:
             json_feature["properties"]["time"] = time.mktime(date.timetuple())
         json_features += [json_feature]
 
-    feature_collection = {"type":"FeatureCollection","features": json_features}
+    feature_collection = {"type": "FeatureCollection", "features": json_features}
     return json.dumps(feature_collection)
 
 

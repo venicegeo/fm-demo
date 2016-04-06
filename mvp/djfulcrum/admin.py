@@ -26,9 +26,12 @@ class S3Admin(admin.ModelAdmin):
         S3BucketInline
     ]
 
+class FilterAdmin(admin.ModelAdmin):
+    readonly_fields = ('filter_previous_status',)
+
 admin.site.register(S3Credential, S3Admin)
 admin.site.register(FulcrumApi)
-admin.site.register(Filter)
+admin.site.register(Filter, FilterAdmin)
 
 
 

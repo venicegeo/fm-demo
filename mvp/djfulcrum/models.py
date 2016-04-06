@@ -18,6 +18,7 @@ from django.db import models
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 import os
+import json
 
 
 if getattr(settings, 'SITENAME', '').lower() == 'geoshape':
@@ -76,6 +77,14 @@ def get_type_extension(file_type):
         return None
 
 
+def get_all_features():
+    """Gets an array of all of the features"""
+    features = []
+    for feature in Feature.objects.all():
+        features += [json.loads(feature.feature_data)]
+    return {"features": features}
+
+
 class Asset(models.Model):
     """Structure to hold file locations."""
     asset_uid = models.CharField(max_length=100, primary_key=True)
@@ -103,7 +112,6 @@ class Feature(models.Model):
 
     class Meta:
         unique_together = (("feature_uid", "feature_version"),)
-
 
 class S3Sync(models.Model):
     """Structure to persist knowledge of a file download."""
@@ -141,9 +149,21 @@ class FulcrumApi(models.Model):
 
 class Filter(models.Model):
     """Structure to hold knownledge of filters in the filter package."""
-    filter_name = models.CharField(max_length=255, unique=True)
-    filter_active = models.BooleanField(default=True)
 
+    filter_name = models.TextField(unique=True)
+    filter_active = models.BooleanField(default=True)
+    filter_previous = models.BooleanField(default=False)
+    filter_previous_status = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        if not self.filter_active:
+            self.filter_previous = False
+            self.filter_previous_status = False
+        elif self.filter_previous:
+            print("Filtering old features...")
+            from .filters.run_filters import filter_features
+            filter_features(get_all_features(), filter_name=self.filter_name, notify_filter=True)
+        super(Filter, self).save(*args, **kwargs)
 
     def __unicode__(self):
         if self.filter_active:
@@ -152,3 +172,4 @@ class Filter(models.Model):
             status = "  (Inactive)"
 
         return self.filter_name + status
+

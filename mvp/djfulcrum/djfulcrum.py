@@ -878,12 +878,7 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
-    if database_alias:
-        db_conn = connections[database_alias]
-    else:
-        db_conn = connection
-
-    if 'postgis' not in db_conn.settings_dict.get('ENGINE') and 'postgres' not in db_conn.settings_dict.get('ENGINE'):
+    if not is_db_supported(database_alias):
         return False
 
     if not feature_data:
@@ -934,6 +929,17 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
         update_db_features(non_unique_features, table, database_alias=database_alias)
     return True
 
+
+def is_db_supported(database_alias=None):
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    if 'postgis' not in db_conn.settings_dict.get('ENGINE') and 'postgres' not in db_conn.settings_dict.get('ENGINE'):
+        return False
+    else:
+        return True
 
 def prepare_features_for_geoshape(feature_data, media_keys=None):
     """
@@ -1656,3 +1662,18 @@ def get_prototype(field_map):
             prototype[key] = ''
     return prototype
 
+
+def delete_feature(feature_uid):
+    if getattr(settings, 'DATABASES', {}).get('fulcrum'):
+        database_alias = 'fulcrum'
+    else:
+        database_alias = None
+
+    is_database_used = False
+    if is_db_supported(database_alias):
+        is_database_used = True
+
+    for feature in Feature.objects.filter(feature_uid=feature_uid):
+        if is_database_used:
+            delete_db_feature(json.loads(feature.feature_data), feature.layer.layer_name, database_alias=database_alias)
+        feature.delete()
