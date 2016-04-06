@@ -128,7 +128,6 @@ class PzWorkflow:
             return None
 
 
-
 # post trigger, get trigger, post event, get event, delete trigger, get alerts
 def main():
 
@@ -148,5 +147,6 @@ def main():
     #requests.post(self.addr + self.map.get('event'), data=data)
     pass
 
-if(__name__ == "__main__"):
+
+if __name__ == "__main__":
     main()
