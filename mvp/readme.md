@@ -20,6 +20,9 @@ Python 2.7 with the following packages.
  - gdal
 
 The install script for geoshape using the geoshape-vagrant VM will be handled automatically.
+Note that GEOS and GDAL are needed with their python bindings, additionally shapely needs to have a compatibly version of GEOS.
+Therefore if your platform has a package already created called something similar to, "python-shapely" or "python-gdal" this will probably be
+the easiest route to success.
 
 ## Setup 
 
@@ -48,7 +51,7 @@ vagrant up
 SSH into the VM and run the following commands
 ```
 cd /tmp
-wget https://raw.githubusercontent.com/venicegeo/fm-mvp/master/mvp/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
+wget https://raw.githubusercontent.com/venicegeo/fm-mvp/increasePortability/mvp/djfulcrum/scripts/geoshape_fulcrum_isntall.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
 sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
 

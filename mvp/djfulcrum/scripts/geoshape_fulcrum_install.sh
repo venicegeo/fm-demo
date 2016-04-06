@@ -61,6 +61,8 @@ printf "CACHES = {\n\
      }\n\
 }\n" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
 
+grep -q '^SSL_VERIFY' /var/lib/geonode/rogue_geonode/geoshape/settings.py && sed -i "s/^SSL_VERIFY.*/SSL_VERIFY = False/" /var/lib/geonode/rogue_geonode/geoshape/settings.py || echo "SSL_VERIFY = False" >> /var/lib/geonode/rogue_geonode/geoshape/settings.py
+
 #add to /var/lib/geonode/rogue_geonode/geoshape/local_settings.py:
 
 grep -q "^FULCRUM_UPLOAD =" /var/lib/geonode/rogue_geonode/geoshape/local_settings.py ||
