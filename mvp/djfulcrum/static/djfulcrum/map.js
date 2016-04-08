@@ -703,47 +703,52 @@
 		var uploadForm = (function(){
 			map.dragging.enable();
 			map.doubleClickZoom.enable();
-            var formData = new FormData($('#fileUpload')[0]);
-            $.ajax({
-                url: '/fulcrum_upload',  //Server script to process data
-                type: 'POST',
-                xhr: function() {  // Custom XMLHttpRequest
-                    var myXhr = $.ajaxSettings.xhr();
-                    if(myXhr.upload){ // Check if upload property exists
-                        myXhr.upload.addEventListener('progress',progressHandlingFunction, false); // For handling the progress of the upload
-						myXhr.upload.addEventListener('progress',progressFinishedFunction, false); // If progress is finished, close file upload dialog
-                    }
-                    return myXhr;
-                },
-                // Ajax events //
-                beforeSend: console.log("Sending"),
-				// Adds layer to the map //
-                success: function (result) {
-					document.getElementById('waiting').style.visibility = 'hidden';
-					for(var key in result) {
-						// If layer already exists, remove first, then add new version //
-						if(key in layers) {
-							map.removeLayer(layers[key]);
-							layerControl.removeLayer(key);
-							delete layers[key];
-							if(key in activeLayers) {
-								delete activeLayers[key];
-							};
-						}
-						layerControl.removeFrom(map);
-						updateLayers(result);
+			if ($('#uploadFormButton').val() != '' && $('uploadFormButton').val() != null) {
+				var formData = new FormData($('#fileUpload')[0]);
+	            $.ajax({
+	                url: '/fulcrum_upload',  //Server script to process data
+	                type: 'POST',
+	                xhr: function() {  // Custom XMLHttpRequest
+	                    var myXhr = $.ajaxSettings.xhr();
+	                    if(myXhr.upload){ // Check if upload property exists
+	                        myXhr.upload.addEventListener('progress',progressHandlingFunction, false); // For handling the progress of the upload
+							myXhr.upload.addEventListener('progress',progressFinishedFunction, false); // If progress is finished, close file upload dialog
+	                    }
+	                    return myXhr;
+	                },
+	                // Ajax events //
+	                beforeSend: console.log("Sending"),
+					// Adds layer to the map //
+	                success: function (result) {
+						document.getElementById('waiting').style.visibility = 'hidden';
+						for(var key in result) {
+							// If layer already exists, remove first, then add new version //
+							if(key in layers) {
+								map.removeLayer(layers[key]);
+								layerControl.removeLayer(key);
+								delete layers[key];
+								if(key in activeLayers) {
+									delete activeLayers[key];
+								};
+							}
+							layerControl.removeFrom(map);
+							updateLayers(result);
+							
+						};
 						
-					};
-					
-				},
-                error: console.log("Fail"),
-                // Form data //
-                data: formData,
-                // Options to tell jQuery not to process data or worry about content-type. //
-                cache: false,
-                contentType: false,
-                processData: false
-            });
+					},
+	                error: console.log("Fail"),
+	                // Form data //
+	                data: formData,
+	                // Options to tell jQuery not to process data or worry about content-type. //
+	                cache: false,
+	                contentType: false,
+	                processData: false
+	            });
+			}
+			else {
+				console.log("No file selected");
+			}
         });
         
 		// For progress bar ..
