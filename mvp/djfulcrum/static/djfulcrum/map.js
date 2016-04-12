@@ -16,49 +16,16 @@
 	
 "use strict";
 		
-	$(document).ready(function () {
+	$(window).load(function () {
 	
 		if (!Date.now) {
 				Date.now = function() { return new Date().getTime() } //Time in milliseconds
-			}
+		}
+		
+		var baseMaps = {};
 
-		var OpenStreetMap = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-			maxZoom : 18,
-			attribution : 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
-			id : 'mapbox.light'
-		});
-		
-		var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-			maxZoom : 18,
-			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-		});
-		
-		var mini1 = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			minZoom: 0, 
-			maxZoom: 16, 
-			attribution: 'Map data © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
-		});
-		
-		var mini2 = new L.TileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-			minZoom: 0,
-			maxZoom: 16,
-			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN , IGP, UPR-EGP, and teh GIS User Community'
-		});
-		
-		var map = L.map('map', {
-			zoomControl: false,
-			fullscreenControl: true,
-			center:[0, 0], 
-			zoom: 2,
-			layers: OpenStreetMap
-		});
-		
-		var baseMaps = {
-			"Esri_WorldImagery": Esri_WorldImagery,
-			"OpenStreetMap": OpenStreetMap
-		};
+		var miniMaps = {};
 
-		
 		// Track which layers are in the map //
 		var activeLayers = {};
 		
@@ -78,7 +45,31 @@
 		var overlays = {
 			"Fulcrum Layers": layers,
 		};
-		
+
+		for (var basemap in basemapInfo) {
+    		var base = L.tileLayer(basemapInfo[basemap][1],{
+    			minZoom : 0,
+    			maxZoom : 18,
+    			attribution : basemapInfo[basemap][2],
+    		});
+    		var mini = L.tileLayer(basemapInfo[basemap][1],{
+    			minZoom : 0,
+    			maxZoom : 16,
+    			attribution : basemapInfo[basemap][2],
+    		});
+    		var name = basemapInfo[basemap][0];
+    		baseMaps[name] = base;
+    		miniMaps[name] = mini;
+    	}
+
+    	var map = L.map('map', {
+			zoomControl: false,
+			fullscreenControl: true,
+			center:[0, 0], 
+			zoom: 2,
+			layers: baseMaps[basemapInfo[0][0]]
+		});
+
 		//Set starting bounds for zoom-to-extent button //
 		var defaultBounds = map.getBounds();
 		var north = -90.0;
@@ -269,18 +260,12 @@
 		};
 		
 		// Adds a locator map to bottom corner of the main map //
-		var miniMap = new L.Control.MiniMap(mini1).addTo(map);
+		var miniMap = new L.Control.MiniMap(miniMaps[basemapInfo[0][0]]).addTo(map);
 		
 		map.on('baselayerchange', function(e) {
 			var base = e["name"];
-			if (base == 'Esri_WorldImagery') {
-				miniMap.removeFrom(map);
-				miniMap = new L.Control.MiniMap(mini2).addTo(map);
-			}
-			else {
-				miniMap.removeFrom(map);
-				miniMap = new L.Control.MiniMap(mini1).addTo(map);
-			}
+			miniMap.removeFrom(map);
+			miniMap = new L.Control.MiniMap(miniMaps[base]).addTo(map);
 		});
 		
 		// Adds a popup with information for each point //
@@ -703,7 +688,7 @@
 		var uploadForm = (function(){
 			map.dragging.enable();
 			map.doubleClickZoom.enable();
-			if ($('#uploadFormButton').val() != '' && $('uploadFormButton').val() != null) {
+			if ($('#uploadFormButton').val() != '' && $('#uploadFormButton').val() != null) {
 				var formData = new FormData($('#fileUpload')[0]);
 	            $.ajax({
 	                url: '/fulcrum_upload',  //Server script to process data
