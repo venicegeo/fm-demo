@@ -66,17 +66,22 @@ def upload(request):
 def viewer(request):
     from .mapping import get_geojson
     if request.method=='GET':
+        basemaps = []
+        tuples = settings.LEAFLET_CONFIG['TILES']
+        for layer_tuple in tuples:
+            name, link, attr = layer_tuple
+            basemaps.append([name, link, attr])
         if 'layer' not in request.GET:
-            return render(request, 'djfulcrum/map.html', {'geojson_request_url':''})
+            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'', 'basemaps': basemaps})
         geojson = {}
         layers = []
         for layer in request.GET.getlist('layer'):
             if get_geojson(layer=layer):
                 layers += ['layer=' + layer]
         if geojson:
-            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'/djfulcrum/geojson?{}'+'&'.join(layers)})
+            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'/djfulcrum/geojson?{}'+'&'.join(layers), 'basemaps': basemaps})
         else:
-            return render(request, 'djfulcrum/map.html', {'geojson_request_url':''})
+            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'', 'basemaps': basemaps})
 
 
 def layers(request):

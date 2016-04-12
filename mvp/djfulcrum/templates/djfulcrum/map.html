@@ -72,98 +72,10 @@
         <progress id='progress' value="0.0" max="1.0"></progress>
     </div>
 
-	<form id="subscribeForm" title="Subscription Controller" visibility="hidden">
-			<label for="sub" style="display: block;" id="subLabel">Enter URL to subscribe to alert service</label></br>
-			<input type="text" name="sub" id="sub" value="" style="display: block; width: 450px;" class="text ui-widget-content ui-corner-all"/>
-	</form>
-	
-	<form id="pzContainer" title="Piazza Workflow" visibility="hidden">
-		<fieldset>
-			<label for="pzType">Pz-Type</label>
-			<br/>
-			<select name="Type" id="pzType">
-				<option>Trigger</option>
-				<option>Event</option>
-				<option>Alert</option>
-				<option>EventTypes</option>
-			</select>
-			<br/>
-			<br/>
-			<label for="Action">Pz-Action</label>
-			<br/>
-			<select name="pzAction" id="pzAction">
-				<option>GET</option>
-				<option>POST</option>
-				<option>DELETE</option>
-				<option>GET_ALL</option>
-			</select>
-		</fieldset>
-	</form>
-	
-	<form id="getContainer" title="GET" visibility="hidden">
-		<fieldset>
-			<label for="getID">ID</label>
-			<br/>
-			<input type="text" id="getID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="deleteEventContainer" title="DELETE" visibility="hidden">
-		<fieldset>
-			<label for="deleteEventID">Event ID</label>
-			<br/>
-			<input type="text" id="deleteEventID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="deleteEventTypeName">Event Type Name</label>
-			<br/>
-			<input type="text" id="deleteEventTypeName" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="deleteContainer" title="DELETE" visibility="hidden">
-		<fieldset>
-			<label for="deleteID">ID</label>
-			<br/>
-			<input type="text" id="deleteID" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="alertContainer" title="Alert Data" visibility="hidden">
-		<fieldset>
-			<label for="alertTriggerId">Trigger ID</label>
-			<br/>
-			<input type="text" id="alertTriggerId" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-			<label for="alertEventId">Event ID</label>
-			<br/>
-			<input type="text" id="alertEventId" class="text ui-widget-content ui-corner-all"/>
-			<br/>
-			<br/>
-		</fieldset>
-	</form>
-	
-	<form id="Manager" title="Manager" visibility="hidden"></form>
-	
-	<form id="postEventtype" title="Post EventType" visibility="hidden"></form>
-	
-	<form id="postTrigger" title="Post Trigger" visibility="hidden"></form>
-	
-	<form id="postEvent" title="Post Event" visibility="hidden"></form>
 
-				
-		
-
-	<script src="{% static "djfulcrum/leaflet/leaflet.js" %}"></script>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-	<script src="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js"></script>
+    <script src="{% static "djfulcrum/leaflet/leaflet.js" %}"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js"></script>
 	<script src="{% static "djfulcrum/Leaflet.MousePosition/src/L.Control.MousePosition.js" %}"></script>
     <script src="{% static "djfulcrum/LeafletMiniMap/src/Control.MiniMap.js" %}"></script>
     <script src="{% static "djfulcrum/LeafletLocateControl/src/L.Control.Locate.js" %}"></script>
@@ -171,8 +83,13 @@
     <script src="{% static "djfulcrum/Leaflet.EasyButton/src/easy-button.js" %}"></script>
 	<script src="{% static "djfulcrum/Leaflet.ZoomBox/L.Control.ZoomBox.min.js" %}"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-	<script src="{% static "djfulcrum/map.js" %}"></script>
 	<script src="{% static "djfulcrum/Leaflet.groupedlayercontrol/src/leaflet.groupedlayercontrol.js" %}"></script>
+    <script type="text/javascript">
+    	{% autoescape off %}
+    		var basemapInfo = {{basemaps}}
+    	{% endautoescape %}
+    </script>
+	<script src="{% static "djfulcrum/map.js" %}"></script>
 
 </body>
 </html>

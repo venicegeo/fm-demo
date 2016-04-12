@@ -51,7 +51,7 @@ vagrant up
 SSH into the VM and run the following commands
 ```
 cd /tmp
-wget https://raw.githubusercontent.com/venicegeo/fm-mvp/increasePortability/mvp/djfulcrum/scripts/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
+wget https://raw.githubusercontent.com/venicegeo/fm-mvp/master/mvp/djfulcrum/scripts/geoshape_fulcrum_install.sh -O- | tr -d '\r' > /tmp/geoshape_fulcrum_install.sh
 sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
 
@@ -80,6 +80,13 @@ The setting keys required for tile truncation are USER and PASSWORD. These shoul
 Add any desired filters to the /var/lib/geonode/lib/Python27/site-packages/djfulcrum/filters file. (US geospatial and phone number filters are added by default.)
 (By default these filters will be turned on, but they can be turned off in the admin console. Please be aware that the filter status changes will not be reflected in already processed data.)
 (Any additional filters added must have a primary function `def filter(input)`, where input is a geojson feature collection. The filter function must return `{'passed': passed_features, 'failed': failed_features}`, where passed and failed features are geojson feature collections.)
+
+If you have specific basemaps you would like to use, add them to the `LEAFLET_CONFIG['TILES']` array in /var/lib/geonode/rogue_geonode/geoshape/setting.py. 
+Each value in the array should be a tuple where the first element is the basemap name, the second element is the basemap URL, and the third element is the atrribution. All three elements are required. 
+Example: `( 'OpenStreetMap',
+         'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+         'Map data &copy  <a href="http://openstreetmap.org">OpenStreetMap</a> contributors' )`
+         
 
 Finally run the command:
 ```
