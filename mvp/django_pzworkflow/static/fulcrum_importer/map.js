@@ -1164,6 +1164,8 @@
 		var alertTriggerId;
 		var alertEventId;
 
+		var eventtypesName;
+
 
 		var pzDialogBox = $("#pzContainer").dialog({
 			autoOpen: false,
