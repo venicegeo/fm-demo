@@ -165,58 +165,61 @@ class FulcrumApiKey(models.Model):
         return self.fulcrum_api_description
 
 
+def get_now_minus_five():
+    return timezone.now() - timedelta(minutes=5)
+
+
 class Filter(models.Model):
     """Structure to hold knowledge of filters in the filter package."""
 
-    filter_name = models.TextField(unique=True)
+    filter_name = models.TextField(primary_key=True)
     filter_active = models.BooleanField(default=False)
     filter_previous = models.BooleanField(default=False)
-    filter_previous_status = models.BooleanField(default=True)
-    filter_previous_time = models.DateTimeField(default=timezone.now() - timedelta(minutes=5))
-
+    filter_previous_status = models.TextField(default="")
+    filter_previous_time = models.DateTimeField(default=get_now_minus_five())
 
     def get_lock_id(self):
+        """
+
+        Returns: A name to use to store the lock.
+
+        """
         name = "djfulcrum.tasks.task_update_layers"
         return '{0}-lock-{1}'.format(name, self.filter_name)
 
     def save(self, *args, **kwargs):
-        # if not self.id:
-        #     self.filter_previous_time = timezone.now() - timedelta(minutes=5)
+        super(Filter, self).save(*args, **kwargs)
         if self.filter_previous and not self.is_filter_running():
-            run_once = False
             run_time = timezone.now().isoformat()
-            if not self.filter_active:
-                run_once = True
             from .tasks import task_filter_features
             if getattr(settings, 'DJANGO_FULCRUM_USE_CELERY', True):
                 task_filter_features.apply_async(kwargs={'filter_name': self.filter_name,
                                                          'features': get_all_features(
-                                                             after_time_added=self.filter_previous_time),
-                                                         'run_once': run_once,
+                                                                 after_time_added=self.filter_previous_time),
+                                                         'run_once': True,
                                                          'run_time': run_time})
             else:
                 task_filter_features(filter_name=self.filter_name,
                                      features=self.filter_previous_time,
-                                     run_once=run_once,
+                                     run_once=True,
                                      run_time=run_time)
-        if not self.filter_active:
             self.filter_previous = False
-        self.filter_previous_status = not self.is_filter_running()
+        if self.is_filter_running():
+            self.filter_previous_status = "Filtering is in progress..."
+        else:
+            self.filter_previous_status = "Filtering is current as of {}.".format(self.filter_previous_time)
         super(Filter, self).save(*args, **kwargs)
 
     def is_filter_running(self):
+        """
+
+        Returns: True if a lock exists for the current filter.
+
+        """
+
         if cache.get(self.get_lock_id()):
             return True
         return False
-
-    def update_previous_filter_time(self, *args, **kwargs):
-        """
-        Args:
-            date_time: A python datetime object to use as the new time for the previous filter.
-
-        Returns: None
-        """
-        super(Filter, self).save(*args, **kwargs)
 
     def __unicode__(self):
         if self.filter_active:
@@ -226,3 +229,28 @@ class Filter(models.Model):
         if self.is_filter_running():
             status = "{} - Filtering old features...)".format(status[:-1])
         return self.filter_name + status
+
+
+def get_defaults(Model):
+    from django.db.models.fields import NOT_PROVIDED
+    defaults = {}
+    for field in get_all_field_names(Model):
+        default_value = Model._meta.get_field(field).default
+        if default_value != NOT_PROVIDED:
+            defaults[field] = Model._meta.get_field(field).default
+    return defaults
+
+
+def get_all_field_names(Model):
+    # https://docs.djangoproject.com/en/1.9/ref/models/meta/
+    try:
+        from itertools import chain
+        return list(set(chain.from_iterable(
+                (field.name, field.attname) if hasattr(field, 'attname') else (field.name,)
+                for field in Model._meta.get_fields()
+                # For complete backwards compatibility, you may want to exclude
+                # GenericForeignKey from the results.
+                if not (field.many_to_one and field.related_model is None)
+        )))
+    except AttributeError:
+        return Model._meta.get_all_field_names()

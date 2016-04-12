@@ -29,9 +29,8 @@ class S3Admin(admin.ModelAdmin):
 
 
 class FilterAdmin(admin.ModelAdmin):
-    # readonly_fields = ('filter_name', 'filter_previous_status','filter_test')
-    readonly_fields = ('filter_name', 'filter_previous_status', 'filter_previous_time',)
-
+    readonly_fields = ('filter_name', 'filter_previous_status',)
+    exclude = ('filter_previous_time',)
 
 admin.site.register(S3Credential, S3Admin)
 admin.site.register(FulcrumApiKey)

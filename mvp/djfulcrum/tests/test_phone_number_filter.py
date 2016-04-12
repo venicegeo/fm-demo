@@ -14,63 +14,15 @@
 from __future__ import absolute_import
 
 from django.test import TestCase
-from ..filters.geospatial_filter import *
 from ..filters.phone_number_filter import *
+from ..filters.run_filters import filter_features, check_filters
 import os
 import json
 
 
-class FilterTests(TestCase):
+class PhoneNumberFilterTests(TestCase):
     def setUp(self):
         pass
-
-    def test_get_boundary_features(self):
-        """
-        Test boundary feature creation
-        boundary features should have on item of MultiPolygon type
-        """
-        boundary_features = get_boundary_features()
-        self.assertEqual(len(boundary_features), 1)
-        self.assertEqual(boundary_features[0].geom_type, 'MultiPolygon')
-
-    def test_check_geometry(self):
-        """
-        Test geometry checker
-        Coordinates in US should return true. Coordinates outside the us should return false
-        """
-        boundary_features = get_boundary_features()
-        us_in = [-82.96875, 37.996162679728116]
-        self.assertTrue(check_geometry(us_in, boundary_features))
-        us_out = [-105.1171875, 4.565473550710278]
-        self.assertFalse(check_geometry(us_out, boundary_features))
-
-    def test_full_geometry_filter(self):
-        """
-        Test geometry filter on geojson
-        Us_test_features.geojson should be filtered completely, no passed features, five failed features.
-        Non_us_test_features.geojson should not be filtered out, five passed features, no failed features.
-        """
-        boundary_features = get_boundary_features()
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'passed_test_features.geojson')) as testfile:
-            features = json.load(testfile)
-            testfile.close()
-
-        filtered = filter_spatial_features(features, boundary_features)
-        fail_count = len(filtered.get('failed').get('features'))
-        pass_count = len(filtered.get('passed').get('features'))
-        self.assertEqual(fail_count, 5)
-        self.assertEqual(pass_count, 0)
-
-        with open(
-                os.path.join(os.path.dirname(os.path.abspath(__file__)), 'failed_test_features.geojson')) as testfile2:
-            features2 = json.load(testfile2)
-            testfile2.close()
-
-        filtered2 = filter_spatial_features(features2, boundary_features)
-        fail_count2 = len(filtered2.get('failed').get('features'))
-        pass_count2 = len(filtered2.get('passed').get('features'))
-        self.assertEqual(fail_count2, 0)
-        self.assertEqual(pass_count2, 5)
 
     def test_get_area_codes(self):
         """
@@ -85,6 +37,9 @@ class FilterTests(TestCase):
         Test number checker
         Phone numbers in correct phone number format and containing a US area code should return true, others should return false
         """
+
+        check_filters()
+
         us_number1 = '443-908-8888'
         us_number2 = '443.908.8888'
         us_number3 = '(443)908-8888'
@@ -110,6 +65,9 @@ class FilterTests(TestCase):
         Passed should contain four features.
         Failed should contain four features.
         """
+
+        check_filters()
+
         my_features = {
             "type": "FeatureCollection",
             "features": [
@@ -214,10 +172,12 @@ class FilterTests(TestCase):
         Us_test_features should have 0 features after filtering. (Features located in the US)
         """
 
+        check_filters()
+
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'failed_test_features.geojson')) as testfile:
             features = json.load(testfile)
             testfile.close()
-        filtered_results, filtered_results_count = filter(features)
+        filtered_results, filtered_results_count = filter_features(features)
         self.assertIsNotNone(filtered_results)
         self.assertEqual(filtered_results_count, 3)
 
@@ -225,7 +185,7 @@ class FilterTests(TestCase):
                 os.path.join(os.path.dirname(os.path.abspath(__file__)), 'passed_test_features.geojson')) as testfile2:
             features2 = json.load(testfile2)
             testfile2.close()
-        filtered_results2, filtered_results_count2 = filter(features2)
+        filtered_results2, filtered_results_count2 = filter_features(features2)
         self.assertIsNone(filtered_results2)
         self.assertEqual(filtered_results_count2, 0)
 

@@ -12,7 +12,6 @@ def filter_features(features, filter_name=None, run_once=False):
         features: A geojson Feature Collection
         filter_name: The name of a filter to use if None all active filters are used (default:None)
         run_once: Run the filter one time without being active.
-        run_time: The time that should be recorded for the features being filtered.
     Returns:
          Geojson Feature Collection that passed any filters in the in filter package
          If no features passed None is returned
@@ -20,8 +19,7 @@ def filter_features(features, filter_name=None, run_once=False):
 
     from ..models import Filter
     from ..djfulcrum import delete_feature
-    from dateutil.parser import parse
-    workspace = os.path.dirname(os.path.abspath( __file__ ))
+    workspace = os.path.dirname(os.path.abspath(__file__))
     files = os.listdir(workspace)
 
     if features.get('features'):
@@ -32,7 +30,7 @@ def filter_features(features, filter_name=None, run_once=False):
         else:
             filter_models = Filter.objects.all()
         if filter_models:
-            un_needed =[]
+            un_needed = []
             for filter_model in filter_models:
                 if filter_model.filter_name in files:
                     if filter_model.filter_active or run_once:
@@ -51,10 +49,13 @@ def filter_features(features, filter_name=None, run_once=False):
                         if filtered_results:
                             if filtered_results.get('failed').get('features'):
                                 for feature in filtered_results.get('failed').get('features'):
-                                    delete_feature(feature.get('properties').get('fulcrum_id'))
-                                print "{} features failed the filter".format(len(filtered_results.get('failed').get('features')))
+                                    if run_once:
+                                        delete_feature(feature.get('properties').get('fulcrum_id'))
+                                print "{} features failed the filter".format(
+                                        len(filtered_results.get('failed').get('features')))
                             if filtered_results.get('passed').get('features'):
-                                print "{} features passed the filter".format(len(filtered_results.get('passed').get('features')))
+                                print "{} features passed the filter".format(
+                                        len(filtered_results.get('passed').get('features')))
                                 features = filtered_results.get('passed')
                                 filtered_feature_count = len(filtered_results.get('passed').get('features'))
                             else:
@@ -74,14 +75,15 @@ def filter_features(features, filter_name=None, run_once=False):
     return features, filtered_feature_count
 
 
-def check_filters():
+def check_filters(test=None):
     """
-    Args: None
+    Args:
+        test: should be set to try if running tests.
     Returns: None
     Finds '.py' files used for filtering and adds to db model for use in admin console.
     Sets cache value so function will not running fully every time it is called by tasks.py
     """
-    from ..models import Filter
+    from ..models import Filter, get_defaults
     workspace = os.path.dirname(os.path.abspath(__file__))
     files = os.listdir(workspace)
     if files:
@@ -90,14 +92,20 @@ def check_filters():
         if cache.get(lock_id):
             return
         for filter_file in files:
-                if filter_file.endswith('.py'):
-                    if filter_file != 'run_filters.py' and filter_file != '__init__.py':
-                        try:
-                            filter_name, created = Filter.objects.get_or_create(filter_name=filter_file)
-                            if created:
-                                print "Created model object for {}".format(filter_file)
-                        except Exception as e:
-                            print repr(e)
+            if filter_file.endswith('.py'):
+                if filter_file.lower() != 'run_filters.py' and filter_file.lower() != '__init__.py':
+                    if test:
+                        if not filter_file.startswith('test_'):
                             continue
+                    else:
+                        if filter_file.startswith('test_'):
+                            continue
+                    try:
+                        filter_names = Filter.objects.filter(filter_name=filter_file)
+                        if not filter_names:
+                            Filter.objects.create(filter_name=filter_file)
+                    except Exception as e:
+                        print repr(e)
+                        continue
         cache.set(lock_id, True, lock_expire)
     return
