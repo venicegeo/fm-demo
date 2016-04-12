@@ -11,10 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from __future__ import absolute_import
 
 from django.contrib import admin
-from .models import S3Credential, S3Bucket, FulcrumApi, Filter
+from .models import S3Credential, S3Bucket, FulcrumApiKey, Filter
 
 
 class S3BucketInline(admin.TabularInline):
@@ -26,11 +27,14 @@ class S3Admin(admin.ModelAdmin):
         S3BucketInline
     ]
 
+
 class FilterAdmin(admin.ModelAdmin):
-    readonly_fields = ('filter_previous_status',)
+    # readonly_fields = ('filter_name', 'filter_previous_status','filter_test')
+    readonly_fields = ('filter_name', 'filter_previous_status', 'filter_previous_time',)
+
 
 admin.site.register(S3Credential, S3Admin)
-admin.site.register(FulcrumApi)
+admin.site.register(FulcrumApiKey)
 admin.site.register(Filter, FilterAdmin)
 
 

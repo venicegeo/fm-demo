@@ -20,12 +20,10 @@ from __future__ import absolute_import
 from .models import S3Sync, S3Bucket
 import os
 from django.conf import settings
-from django.core.cache import cache
 from django.db import ProgrammingError
 import boto3
 import botocore
 from .djfulcrum import process_fulcrum_data
-from hashlib import md5
 import glob
 
 
@@ -43,24 +41,21 @@ def s3_download(s3_bucket_object, s3_file):
     s3_bucket_object.download_file(s3_file.key, os.path.join(settings.FULCRUM_UPLOAD, s3_file.key))
     return True
 
+
 def pull_all_s3_data():
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     #https://www.mail-archive.com/s3tools-general@lists.sourceforge.net/msg00174.html
+    from .tasks import get_lock_id, acquire_lock, release_lock
 
-    LOCK_EXPIRE = 60 * 2160 # LOCK_EXPIRE IS IN SECONDS (i.e. 60*2160 is 1.5 days)
-
-    name = "djfulcrum.tasks.pull_s3_data"
     try:
         s3_credentials = settings.S3_CREDENTIALS
     except AttributeError:
         s3_credentials = []
 
-    function_name_hexdigest = md5(name).hexdigest()
-    lock_id = '{0}-lock-{1}'.format(name, function_name_hexdigest)
-    acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
-    release_lock = lambda: cache.delete(lock_id)
+    lock_id = get_lock_id("djfulcrum.tasks.pull_s3_data")
+    lock_expire = 60 * 2160 # LOCK_EXPIRE IS IN SECONDS (i.e. 60*2160 is 1.5 days)
 
-    if acquire_lock():
+    if acquire_lock(lock_id, lock_expire):
         try:
             if type(s3_credentials) != list:
                 s3_credentials = [s3_credentials]
@@ -107,7 +102,7 @@ def pull_all_s3_data():
             # the lock is not released which makes it challenging to restore the proper state.
             print(repr(e))
         finally:
-            release_lock()
+            release_lock(lock_id)
 
 
 def clean_up_partials(file_name):

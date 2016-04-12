@@ -233,3 +233,23 @@ class FilterTests(TestCase):
         filtered_results2, filtered_results_count2 = filter(features2)
         self.assertIsNone(filtered_results2)
         self.assertEqual(filtered_results_count2, 0)
+
+    # def test_filter_previous(self):
+    #     """
+    #     Test filter previously unfiltered features.
+    #     Non_us_test_features should have 3 features after filtering. (US phone numbers found)
+    #     Us_test_features should have 0 features after filtering. (Features located in the US)
+    #     """
+    #     with open(os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'non_us_test_features.geojson')) as testfile:
+    #         features = json.load(testfile)
+    #         testfile.close()
+    #     filtered_results, filtered_results_count = filter(features)
+    #     self.assertIsNotNone(filtered_results)
+    #     self.assertEqual(filtered_results_count, 3)
+    #
+    #     with open(os.path.join(os.path.dirname(os.path.abspath( __file__ )), 'us_test_features.geojson')) as testfile2:
+    #         features2 = json.load(testfile2)
+    #         testfile2.close()
+    #     filtered_results2, filtered_results_count2 = filter(features2)
+    #     self.assertIsNone(filtered_results2)
+    #     self.assertEqual(filtered_results_count2, 0)

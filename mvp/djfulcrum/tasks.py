@@ -24,15 +24,15 @@ from django.core.cache import cache
 from celery import shared_task
 from hashlib import md5
 from .s3_downloader import pull_all_s3_data
-from .models import FulcrumApi
+from .models import FulcrumApiKey
 from .filters.run_filters import check_filters
 from fulcrum.exceptions import UnauthorizedException
+import time
+from django.db import transaction
 
 
 @shared_task(name="djfulcrum.tasks.task_update_layers")
 def task_update_layers():
-
-    LOCK_EXPIRE = 60 * 60 # LOCK_EXPIRE IS IN SECONDS
 
     check_filters()
 
@@ -45,20 +45,18 @@ def task_update_layers():
     if type(fulcrum_api_keys) != list:
         fulcrum_api_keys = [fulcrum_api_keys]
 
-    for api_key in FulcrumApi.objects.all():
+    for api_key in FulcrumApiKey.objects.all():
         fulcrum_api_keys += [api_key.fulcrum_api_key]
 
     if not fulcrum_api_keys:
         print("Cannot update layers from fulcrum without an API key added to the admin page, "
               "or FULCRUM_API_KEYS = ['some_key'] defined in settings.")
 
-    name = "djfulcrum.tasks.task_update_layers"
     #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
-    file_name_hexdigest = md5(name).hexdigest()
-    lock_id = '{0}-lock-{1}'.format(name, file_name_hexdigest)
-    acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
-    release_lock = lambda: cache.delete(lock_id)
-    if acquire_lock():
+    lock_id = get_lock_id("djfulcrum.tasks.task_update_layers")
+
+    lock_expire = 60 * 60
+    if acquire_lock(lock_id, lock_expire):
         try:
             for fulcrum_api_key in fulcrum_api_keys:
                 if not fulcrum_api_key:
@@ -70,7 +68,8 @@ def task_update_layers():
                     print("The API key ending in: {}, is unauthorized.".format(fulcrum_api_key[-4:]))
                     continue
         finally:
-            release_lock()
+            release_lock(lock_id)
+
 
 @shared_task(name="djfulcrum.tasks.pull_s3_data")
 def pull_s3_data():
@@ -82,3 +81,51 @@ def pull_s3_data():
 def update_tiles(filtered_features, layer_name):
     truncate_tiles(layer_name=layer_name.lower(), srs=4326)
     truncate_tiles(layer_name=layer_name.lower(), srs=900913)
+
+
+@shared_task(name="djfulcrum.tasks.task_filter_features")
+def task_filter_features(filter_name, features, run_once=False, run_time=None):
+    from .models import Filter
+    from .filters.run_filters import filter_features
+
+    filter_lock_expire = 60 * 60
+    filter_model = Filter.objects.get(filter_name=filter_name)
+    if acquire_lock(filter_model.get_lock_id(), filter_lock_expire):
+        filter_model.save()
+        while is_feature_task_locked():
+            time.sleep(1)
+        try:
+            filter_features(features, filter_name=filter_name, run_once=run_once)
+            filter_model.filter_previous_time = run_time
+        finally:
+            release_lock(filter_model.get_lock_id())
+            filter_model.save()
+
+def is_feature_task_locked():
+    """Returns True if one of the tasks which add features is currently running."""
+    for task_name in list_task_names():
+        if cache.get(get_lock_id(task_name)):
+            return True
+
+
+def get_lock_id(name):
+    return '{0}-lock-{1}'.format(name, md5(name).hexdigest())
+
+
+def list_task_names():
+    names = []
+    global_items = globals()
+    for global_item, val in global_items.iteritems():
+        try:
+            names += [val.name]
+        except AttributeError:
+            continue
+    return names
+
+
+def acquire_lock(lock_id, expire):
+    return cache.add(lock_id, True, expire)
+
+
+def release_lock(lock_id):
+    return cache.delete(lock_id)

@@ -5,13 +5,14 @@ from importlib import import_module
 from django.core.cache import cache
 
 
-def filter_features(features, filter_name=None, notify_filter=False):
+def filter_features(features, filter_name=None, run_once=False):
     """
 
     Args:
         features: A geojson Feature Collection
         filter_name: The name of a filter to use if None all active filters are used (default:None)
-        notify_filter: Used to notify the model when filtering is complete for use with filter_previous..
+        run_once: Run the filter one time without being active.
+        run_time: The time that should be recorded for the features being filtered.
     Returns:
          Geojson Feature Collection that passed any filters in the in filter package
          If no features passed None is returned
@@ -19,37 +20,34 @@ def filter_features(features, filter_name=None, notify_filter=False):
 
     from ..models import Filter
     from ..djfulcrum import delete_feature
+    from dateutil.parser import parse
     workspace = os.path.dirname(os.path.abspath( __file__ ))
     files = os.listdir(workspace)
 
-    filtered_features = features
-
-    if filtered_features.get('features'):
-        filtered_feature_count = len(filtered_features.get('features'))
+    if features.get('features'):
+        filtered_feature_count = len(features.get('features'))
         filtered_results = None
         if filter_name:
-            filter_entries = Filter.objects.filter(filter_name=filter_name)
+            filter_models = Filter.objects.filter(filter_name__iexact=filter_name)
         else:
-            filter_entries = Filter.objects.all()
-        if filter_entries:
+            filter_models = Filter.objects.all()
+        if filter_models:
             un_needed =[]
-            for entry in filter_entries:
-                if entry.filter_name in files:
-                    if entry.filter_active:
+            for filter_model in filter_models:
+                if filter_model.filter_name in files:
+                    if filter_model.filter_active or run_once:
                         try:
-                            module_name = 'djfulcrum.filters.' + str(entry.filter_name.rstrip('.py'))
+                            module_name = 'djfulcrum.filters.' + str(filter_model.filter_name.rstrip('.py'))
                             mod = import_module(module_name)
-                            print "Running: {}".format(entry.filter_name)
-                            filtered_results = mod.filter_features(filtered_features)
+                            print "Running: {}".format(filter_model.filter_name)
+                            filtered_results = mod.filter_features(features)
                         except ImportError:
                             print "Could not filter features - ImportError"
                         except TypeError:
                             print "Could not filter features - TypeError"
-
                         except Exception as e:
                             "Unknown error occurred, could not filter features"
                             print repr(e)
-
                         if filtered_results:
                             if filtered_results.get('failed').get('features'):
                                 for feature in filtered_results.get('failed').get('features'):
@@ -57,29 +55,23 @@ def filter_features(features, filter_name=None, notify_filter=False):
                                 print "{} features failed the filter".format(len(filtered_results.get('failed').get('features')))
                             if filtered_results.get('passed').get('features'):
                                 print "{} features passed the filter".format(len(filtered_results.get('passed').get('features')))
-                                filtered_features = filtered_results.get('passed')
+                                features = filtered_results.get('passed')
                                 filtered_feature_count = len(filtered_results.get('passed').get('features'))
                             else:
-                                filtered_features = None
+                                features = None
                                 filtered_feature_count = 0
-                                return filtered_features, filtered_feature_count
                         else:
                             print "Failure to get filtered results"
                 else:
-                    un_needed.append(entry)
-                if notify_filter:
-                    entry.filter_previous_status = True
-                    entry.save()
+                    un_needed.append(filter_model)
             if un_needed:
-                for filter_entry in un_needed:
-                    print "Deleting un-needed filter entry: {}".format(filter_entry.filter_name)
-                    filter_entry.delete()
-
+                for filter_model in un_needed:
+                    print "Deleting un-needed filter entry: {}".format(filter_model.filter_name)
+                    filter_model.delete()
     else:
-        filtered_features = None
+        features = None
         filtered_feature_count = 0
-    print "Finished filtering"
-    return filtered_features, filtered_feature_count
+    return features, filtered_feature_count
 
 
 def check_filters():
@@ -93,7 +85,7 @@ def check_filters():
     workspace = os.path.dirname(os.path.abspath(__file__))
     files = os.listdir(workspace)
     if files:
-        LOCK_EXPIRE = 10
+        lock_expire = 10
         lock_id = 'list-filters-success'
         if cache.get(lock_id):
             return
@@ -107,5 +99,5 @@ def check_filters():
                         except Exception as e:
                             print repr(e)
                             continue
-        cache.set(lock_id, True, LOCK_EXPIRE)
+        cache.set(lock_id, True, lock_expire)
     return

@@ -16,10 +16,12 @@ from __future__ import unicode_literals
 
 from django.db import models
 from django.core.files.storage import FileSystemStorage
+from django.core.cache import cache
 from django.conf import settings
+from django.utils import timezone
 import os
 import json
-
+from datetime import datetime, timedelta
 
 if getattr(settings, 'SITENAME', '').lower() == 'geoshape':
     fulcrum_media_dir = getattr(settings, 'FILESERVICE_CONFIG', {}).get('store_dir')
@@ -29,7 +31,6 @@ if not fulcrum_media_dir:
     if not os.path.exists(os.path.join(os.getcwd(), 'media')):
         os.mkdir(os.path.join(os.getcwd(), 'media'))
     fulcrum_media_dir = os.path.join(os.getcwd(), 'media')
-
 
 fulcrum_data_dir = getattr(settings, 'FULCRUM_UPLOAD', None)
 if not fulcrum_data_dir:
@@ -46,6 +47,10 @@ def get_media_dir():
 
 def get_data_dir():
     return fulcrum_data_dir
+
+
+def default_datetime():
+    return datetime(1, 1, 1, 0, 0, 0)
 
 
 def get_asset_name(instance, *args):
@@ -77,11 +82,22 @@ def get_type_extension(file_type):
         return None
 
 
-def get_all_features():
-    """Gets an array of all of the features"""
+def get_all_features(after_time_added=None):
+    """
+
+    Args:
+        after_time_added: get all features that were added to the db after this date.
+
+    Returns:
+
+    """
     features = []
-    for feature in Feature.objects.all():
-        features += [json.loads(feature.feature_data)]
+    if after_time_added:
+        for feature in Feature.objects.exclude(feature_added_time__lt=after_time_added):
+            features += [json.loads(feature.feature_data)]
+    else:
+        for feature in Feature.objects.all():
+            features += [json.loads(feature.feature_data)]
     return {"features": features}
 
 
@@ -109,9 +125,11 @@ class Feature(models.Model):
     feature_version = models.IntegerField(default=0)
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, default="")
     feature_data = models.CharField(max_length=10000)
+    feature_added_time = models.DateTimeField(default=datetime.now())
 
     class Meta:
         unique_together = (("feature_uid", "feature_version"),)
+
 
 class S3Sync(models.Model):
     """Structure to persist knowledge of a file download."""
@@ -139,30 +157,65 @@ class S3Bucket(models.Model):
         return self.s3_bucket
 
 
-class FulcrumApi(models.Model):
-    fulcrum_api_name = models.CharField(max_length=100)
+class FulcrumApiKey(models.Model):
+    fulcrum_api_description = models.CharField(max_length=100)
     fulcrum_api_key = models.CharField(max_length=255, default="", primary_key=True)
 
     def __unicode__(self):
-        return self.fulcrum_api_name
+        return self.fulcrum_api_description
 
 
 class Filter(models.Model):
-    """Structure to hold knownledge of filters in the filter package."""
+    """Structure to hold knowledge of filters in the filter package."""
 
     filter_name = models.TextField(unique=True)
-    filter_active = models.BooleanField(default=True)
+    filter_active = models.BooleanField(default=False)
     filter_previous = models.BooleanField(default=False)
-    filter_previous_status = models.BooleanField(default=False)
+    filter_previous_status = models.BooleanField(default=True)
+    filter_previous_time = models.DateTimeField(default=timezone.now() - timedelta(minutes=5))
+
+
+    def get_lock_id(self):
+        name = "djfulcrum.tasks.task_update_layers"
+        return '{0}-lock-{1}'.format(name, self.filter_name)
 
     def save(self, *args, **kwargs):
+        # if not self.id:
+        #     self.filter_previous_time = timezone.now() - timedelta(minutes=5)
+        if self.filter_previous and not self.is_filter_running():
+            run_once = False
+            run_time = timezone.now().isoformat()
+            if not self.filter_active:
+                run_once = True
+            from .tasks import task_filter_features
+            if getattr(settings, 'DJANGO_FULCRUM_USE_CELERY', True):
+                task_filter_features.apply_async(kwargs={'filter_name': self.filter_name,
+                                                         'features': get_all_features(
+                                                             after_time_added=self.filter_previous_time),
+                                                         'run_once': run_once,
+                                                         'run_time': run_time})
+            else:
+                task_filter_features(filter_name=self.filter_name,
+                                     features=self.filter_previous_time,
+                                     run_once=run_once,
+                                     run_time=run_time)
         if not self.filter_active:
             self.filter_previous = False
-            self.filter_previous_status = False
-        elif self.filter_previous:
-            print("Filtering old features...")
-            from .filters.run_filters import filter_features
-            filter_features(get_all_features(), filter_name=self.filter_name, notify_filter=True)
+        self.filter_previous_status = not self.is_filter_running()
+        super(Filter, self).save(*args, **kwargs)
+
+    def is_filter_running(self):
+        if cache.get(self.get_lock_id()):
+            return True
+        return False
+
+    def update_previous_filter_time(self, *args, **kwargs):
+        """
+        Args:
+            date_time: A python datetime object to use as the new time for the previous filter.
+
+        Returns: None
+        """
         super(Filter, self).save(*args, **kwargs)
 
     def __unicode__(self):
@@ -170,6 +223,6 @@ class Filter(models.Model):
             status = "  (Active)"
         else:
             status = "  (Inactive)"
-
+        if self.is_filter_running():
+            status = "{} - Filtering old features...)".format(status[:-1])
         return self.filter_name + status
-
