@@ -520,6 +520,7 @@
 						map.dragging.enable();
 						map.doubleClickZoom.enable();
 						map.scrollWheelZoom.enable();
+						attrFields = 0;
 					}
 				}
 			});
@@ -606,8 +607,8 @@
 				console.log("Posting eventtype");
 				console.log(pzEvent);
 				onClickAttrEventPost(pzEvent, mustMatchQueries);
+				attrFields = 0;
 			}
-
 		}
 
 		function onClickAttrEventPost(pzrequest, mustMatchQueries) {
@@ -641,7 +642,7 @@
 				var pzData = {
 					'title': 'fulcrum-map-event',
 					'condition': {
-						'eventtype_id': result['id'],
+						'eventtype_ids': [result['id']],
 						'query': {
 							'query': {
 								'bool': {
@@ -1166,7 +1167,7 @@
 
 		var eventtypesName;
 
-
+		// Options for pz-workflow
 		var pzDialogBox = $("#pzContainer").dialog({
 			autoOpen: false,
 			closeOnEscape: false,
@@ -1213,6 +1214,7 @@
 			}
 		});
 
+		// Remove events and trigger from the map and database
 		var eventManager = $('#Manager').dialog({
 			autoOpen: false,
 			maxWidth: 300,
@@ -1669,7 +1671,7 @@
 			var pzData = {
 				'title': triggerTitle,
 				'condition': {
-					'eventtype_id': triggerType,
+					'eventtype_ids': [triggerType],
 					'query': {
 						'query': {
 							'bool': pzBool
@@ -2100,15 +2102,6 @@
 					var contentStr = '<pre style="text-align: left;">' + JSON.stringify(result, undefined, 2) + '</pre><br/>';
 					$(this).html(contentStr);
 				}
-				// },
-				// buttons: {
-				// 	Close: function() {
-				// 		$(this).dialog("close");
-				// 		map.dragging.enable();
-				// 		map.doubleClickZoom.enable();
-				// 		map.scrollWheelZoom.enable();
-				// 	}
-				// }
 			});
 			var buttons = {
 				'Close': function() {
@@ -2419,14 +2412,6 @@
 			console.log(layer);
 			layers[name] = L.geoJson(layer, {
 				onEachFeature: onEachFeature,
-				//filter : function(feature) {
-				//	if (timeout != 0) {
-				//		return feature.properties.time + (timeout * 60) > Math.floor(Date.now()/1000);
-				//	}
-				//	else {
-				//		return true;
-				//	}
-				//},
 				pointToLayer: function(feature, latlng) {
 					return L.circleMarker(latlng, Markers(feature, name));
 				}
@@ -2501,9 +2486,6 @@
 				}
 				postPzModel(pz_data);
 			}
-			// if (typeof(Storage) != "undefined") {
-			// 	sessionStorage.pzEvents = JSON.stringify(pzEvents);
-			// }
 		}
 
 		function storePzTrigger(id, data) {
@@ -2517,9 +2499,6 @@
 				}
 				postPzModel(pz_data);
 			}
-			// if (typeof(Storage) != "undefined") {
-			// 	sessionStorage.pzTriggers = JSON.stringify(pzTriggers);
-			// }
 		}
 
 		function storePzFeature(features) {
@@ -2528,6 +2507,7 @@
 				postPzModel(pzData);
 			}
 		}
+
 		function postPzModel(pz_data) {
 			console.log("Posting");
 			console.log(pz_data);
@@ -2663,7 +2643,4 @@
 			}
 			return formatted;
 		};
-
-
-
 	});
