@@ -125,6 +125,38 @@ python manage.py runserver
 
 These various settings are allowed in the setting.py file for your project
 
+####'DATABASES': (Required)
+A database in which the Fulcrum data can be stored. 
+Example: ```
+    DATABASES = {
+        'fulcrum': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': *database name*,
+            'USER': *database user*,
+            'PASSWORD': *database password*,
+            'HOST': *database host*,
+            'PORT': *database port*,
+        }
+    }
+```
+
+#### 'FULCRUM_UPLOAD': (Optional)
+A file path where user uploaded files or S3 files will be stored while processing.
+Example: `FULCRUM_UPLOAD = '/var/lib/geonode/fulcrum_data'`
+
+#### 'S3_CREDENTIALS': (Optional)
+Configuration for an S3 bucket to pull data from
+Example: ```
+    S3_CREDENTIALS = [{
+        's3_bucket': ['my_s3_bucket'],
+        's3_key': 'XXXXXXXXXXXXXXXXXXXX',
+        's3_secret': 'XxXxXxXxXxXxXxXxXxXxXxX',
+        's3_gpg': XxXxXxXxXxXxX'
+    }]
+```
+
+       
+
 ## Known Issues
 - Tiles are completely dumped when a layer is updated.  This is because the GWC bounding box tools was unsuccessful during various attempts even using their built in web tool.  This solution while inefficient is probably ok for static datasets and rarely updated data, as opposed to just not caching tiles at all.
 
