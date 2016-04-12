@@ -26,7 +26,7 @@ import time
 from geoserver.catalog import Catalog
 import subprocess
 from django.db import connection, connections, ProgrammingError, OperationalError, transaction
-from django.db.utils import ConnectionDoesNotExist
+from django.db.utils import ConnectionDoesNotExist, IntegrityError
 import re
 import ogr2ogr
 import shutil
@@ -625,11 +625,16 @@ def write_layer(name, layer_id='', date=0, media_keys={}):
     """
     with transaction.atomic():
         layer_name = 'fulcrum_{}'.format(name.lower())
-        layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
+        try:
+            layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
                                                            layer_uid=layer_id,
                                                            defaults={'layer_date': int(date),
                                                                      'layer_media_keys': json.dumps(media_keys)})
-        return layer, layer_created
+            return layer, layer_created
+        except IntegrityError:
+            layer = Layer.objects.get(layer_name=layer_name)
+            return layer, False
+
 
 
 def write_feature(key, version, layer, feature_data):
@@ -1473,6 +1478,12 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
         A tuple of (layer, created).
     """
 
+    ogc_server = get_ogc_server()
+
+    if not ogc_server:
+        print("An OGC_SERVER wasn't defined in the settings")
+        return
+
     if geoserver_base_url:
         geoserver_base_url
     else:
@@ -1501,7 +1512,10 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
     if not password:
         print("Geoserver can not be updated without a database password provided in the settings file.")
 
-    cat = Catalog(url)
+    cat = Catalog(url,
+                  username=ogc_server.get('USER'),
+                  password=ogc_server.get('PASSWORD'),
+                  disable_ssl_certificate_validation=not getattr(settings,'SSL_VERIFY', True))
 
     # Check if local workspace exists and if not create it
     workspace = cat.get_workspace(workspace_name)
