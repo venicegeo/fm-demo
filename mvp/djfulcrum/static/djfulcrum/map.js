@@ -688,7 +688,7 @@
 		var uploadForm = (function(){
 			map.dragging.enable();
 			map.doubleClickZoom.enable();
-			if ($('#uploadFormButton').val() != '' && $('uploadFormButton').val() != null) {
+			if ($('#uploadFormButton').val() != '' && $('#uploadFormButton').val() != null) {
 				var formData = new FormData($('#fileUpload')[0]);
 	            $.ajax({
 	                url: '/fulcrum_upload',  //Server script to process data
