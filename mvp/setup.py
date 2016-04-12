@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 
 setup(
-    name='djfulcrum',
+    name='django-fulcrum',
     version='1.0.0',
     author='Radiant Blue',
     author_email='venice@radiantblue.com',
