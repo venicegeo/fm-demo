@@ -83,7 +83,7 @@ def check_filters(test=None):
     Finds '.py' files used for filtering and adds to db model for use in admin console.
     Sets cache value so function will not running fully every time it is called by tasks.py
     """
-    from ..models import Filter, get_defaults
+    from ..models import Filter
     workspace = os.path.dirname(os.path.abspath(__file__))
     files = os.listdir(workspace)
     if files:
@@ -93,7 +93,7 @@ def check_filters(test=None):
             return
         for filter_file in files:
             if filter_file.endswith('.py'):
-                if filter_file.lower() != 'run_filters.py' and filter_file.lower() != '__init__.py':
+                if filter_file != 'run_filters.py' and filter_file != '__init__.py':
                     if test:
                         if not filter_file.startswith('test_'):
                             continue
@@ -102,7 +102,7 @@ def check_filters(test=None):
                             continue
                     try:
                         filter_names = Filter.objects.filter(filter_name=filter_file)
-                        if not filter_names:
+                        if not filter_names.exists():
                             Filter.objects.create(filter_name=filter_file)
                     except Exception as e:
                         print repr(e)

@@ -165,10 +165,6 @@ class FulcrumApiKey(models.Model):
         return self.fulcrum_api_description
 
 
-def get_now_minus_five():
-    return timezone.now() - timedelta(minutes=5)
-
-
 class Filter(models.Model):
     """Structure to hold knowledge of filters in the filter package."""
 
@@ -176,7 +172,7 @@ class Filter(models.Model):
     filter_active = models.BooleanField(default=False)
     filter_previous = models.BooleanField(default=False)
     filter_previous_status = models.TextField(default="")
-    filter_previous_time = models.DateTimeField(default=get_now_minus_five())
+    filter_previous_time = models.DateTimeField(default=timezone.now() - timedelta(minutes=5))
 
     def get_lock_id(self):
         """
@@ -231,26 +227,26 @@ class Filter(models.Model):
         return self.filter_name + status
 
 
-def get_defaults(Model):
-    from django.db.models.fields import NOT_PROVIDED
-    defaults = {}
-    for field in get_all_field_names(Model):
-        default_value = Model._meta.get_field(field).default
-        if default_value != NOT_PROVIDED:
-            defaults[field] = Model._meta.get_field(field).default
-    return defaults
-
-
-def get_all_field_names(Model):
-    # https://docs.djangoproject.com/en/1.9/ref/models/meta/
-    try:
-        from itertools import chain
-        return list(set(chain.from_iterable(
-                (field.name, field.attname) if hasattr(field, 'attname') else (field.name,)
-                for field in Model._meta.get_fields()
-                # For complete backwards compatibility, you may want to exclude
-                # GenericForeignKey from the results.
-                if not (field.many_to_one and field.related_model is None)
-        )))
-    except AttributeError:
-        return Model._meta.get_all_field_names()
+# def get_defaults(Model):
+#     from django.db.models.fields import NOT_PROVIDED
+#     defaults = {}
+#     for field in get_all_field_names(Model):
+#         default_value = Model._meta.get_field(field).default
+#         if default_value != NOT_PROVIDED:
+#             defaults[field] = Model._meta.get_field(field).default
+#     return defaults
+#
+#
+# def get_all_field_names(Model):
+#     # https://docs.djangoproject.com/en/1.9/ref/models/meta/
+#     try:
+#         from itertools import chain
+#         return list(set(chain.from_iterable(
+#                 (field.name, field.attname) if hasattr(field, 'attname') else (field.name,)
+#                 for field in Model._meta.get_fields()
+#                 # For complete backwards compatibility, you may want to exclude
+#                 # GenericForeignKey from the results.
+#                 if not (field.many_to_one and field.related_model is None)
+#         )))
+#     except AttributeError:
+#         return Model._meta.get_all_field_names()
