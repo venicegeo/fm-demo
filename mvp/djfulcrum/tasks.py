@@ -101,6 +101,26 @@ def task_filter_features(filter_name, features, run_once=False, run_time=None):
             release_lock(filter_model.get_lock_id())
             filter_model.save()
 
+@shared_task(name="djfulcrum.tasks.task_filter_assets")
+def task_filter_features(filter_name, features, run_once=False, run_time=None):
+    from .models import Filter, Asset
+    from .filters.run_filters import filter_features
+    from .djfulcrum import is_valid_photo
+
+    Asset.objects.exclude(asset_added_time__lt=after_time_added)
+    filter_lock_expire = 60 * 60
+    filter_model = Filter.objects.get(filter_name=filter_name)
+    if acquire_lock(filter_model.get_lock_id(), filter_lock_expire):
+        filter_model.save()
+        while is_feature_task_locked():
+            time.sleep(1)
+        try:
+            filter_features(features, filter_name=filter_name, run_once=run_once)
+            filter_model.filter_previous_time = run_time
+        finally:
+            release_lock(filter_model.get_lock_id())
+            filter_model.save()
+
 def is_feature_task_locked():
     """Returns True if one of the tasks which add features is currently running."""
     for task_name in list_task_names():

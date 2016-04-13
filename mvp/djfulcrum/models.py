@@ -100,13 +100,30 @@ def get_all_features(after_time_added=None):
             features += [json.loads(feature.feature_data)]
     return {"features": features}
 
+def get_all_assets(after_time_added=None):
+    """
+
+    Args:
+        after_time_added: get all features that were added to the db after this date.
+
+    Returns:
+
+    """
+    assets = []
+    if after_time_added:
+        for feature in Feature.objects.exclude(feature_added_time__lt=after_time_added):
+            features += [json.loads(feature.feature_data)]
+    else:
+        for feature in Feature.objects.all():
+            features += [json.loads(feature.feature_data)]
+    return {"features": features}
 
 class Asset(models.Model):
     """Structure to hold file locations."""
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
     asset_data = models.FileField(storage=FileSystemStorage(location=get_media_dir()), upload_to=get_asset_name)
-
+    asset_added_time = models.DateTimeField(default=timezone.now())
 
 class Layer(models.Model):
     """Structure to hold information about layers."""
@@ -125,7 +142,7 @@ class Feature(models.Model):
     feature_version = models.IntegerField(default=0)
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, default="")
     feature_data = models.CharField(max_length=10000)
-    feature_added_time = models.DateTimeField(default=datetime.now())
+    feature_added_time = models.DateTimeField(default=timezone.now())
 
     class Meta:
         unique_together = (("feature_uid", "feature_version"),)

@@ -107,8 +107,8 @@ class FilterTests(TestCase):
         """
         Test phone number in geojson filter
         Half the features should be filtered out.
-        Passed should contain four features.
-        Failed should contain four features.
+        passed should contain four features.
+        failed should contain four features.
         """
         my_features = {
             "type": "FeatureCollection",

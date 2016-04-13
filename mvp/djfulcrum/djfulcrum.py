@@ -108,12 +108,13 @@ class DjangoFulcrum:
         imported_features = sort_features(imported_features, time_field)
 
         latest_time = imported_features[-1].get('properties').get(time_field)
-
+        total_passed_features = 0
         for grouped_features in chunks(imported_features, 100):
             if not grouped_features:
                 break
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
+            total_passed_features += filtered_feature_count
             uploads = []
             if filtered_features:
                 latest_time = layer.layer_date
@@ -170,7 +171,7 @@ class DjangoFulcrum:
             layer.save()
         print("RESULTS\n---------------")
         print("Total Records Pulled: {}".format(pulled_record_count))
-        print("Total Records Passed Filter: {}".format(filtered_feature_count))
+        print("Total Records Passed Filter: {}".format(total_passed_features))
         return
 
     def get_latest_records(self, layer):
@@ -417,9 +418,6 @@ def filter_features(features):
     """
 
     filtered_features, filtered_feature_count = run_filters.filter_features(features)
-
-    if not filtered_feature_count:
-        print("All of the features were filtered. None remain.")
 
     return filtered_features, filtered_feature_count
 
