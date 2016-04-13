@@ -1974,6 +1974,7 @@
 							console.log("Event already listed, moving on");
 						} else {
 							console.log("Event not listed, going to get event");
+							console.log(value.event_id);
 							addEvent(value["event_id"]);
 						}
 					}
@@ -2017,48 +2018,60 @@
 
 		function addEventSuccess(id, result) {
 			console.log("Event request successful");
-			var $alertPopup = $('#alertPopup').dialog({
-				autoOpen: false,
-				//maxWidth: 450,
-				maxHeight: 600,
-				width: 200,
-				modal: false,
-				appendTo: '#map',
-				position: {
-					my: "left bottom",
-					at: "right top",
-					of: $("#placeholder3")
-				},
-				title: "PZ-Workflow Alert",
-				open: function() {
-					$(this).html('<p style="text-align: center;">Event matching</br>a listed trigger</p>')
-					setTimeout(function() {
-						if ($("#alertPopup").dialog("isOpen") == true) {
-							$("#alertPopup").dialog("close");
-							$("alertPopup").dialog("destroy").remove();
-						}
-					}, 7000);
-				},
-				buttons: {
-					View: function() {
+			var buttons = {
+				Ignore: function() {
 						$(this).dialog("close");
-						$(this).dialog("destroy").remove();
-						viewPzEvent(result, id);
-						
-					},
-					Ignore: function() {
-						$(this).dialog("close");
-						$(this).dialog("destroy").remove();
-					}
 				}
-			}).prev(".ui-dialog-titlebar").css("color", "red");
+			}
 
-			$('#alertPopup').dialog("open");
+			if ($("#alertPopup").hasClass("ui-dialog-content")) {
+				buttons['View'] = function() {
+					$(this).dialog("close");
+					viewPzEvent(result, id);
+				}
+				$("#alertPopup").dialog("option", "buttons", buttons);
+				$('#alertPopup').dialog("open");
+			} else {
+				var $alertPopup = $('#alertPopup').dialog({
+					autoOpen: false,
+					//maxWidth: 450,
+					maxHeight: 600,
+					width: 200,
+					modal: false,
+					appendTo: '#map',
+					position: {
+						my: "left bottom",
+						at: "right top",
+						of: $("#placeholder3")
+					},
+					title: "PZ-Workflow Alert",
+					open: function() {
+						$(this).html('<p style="text-align: center;">Event matching</br>a listed trigger</p>')
+						setTimeout(function() {
+							if ($("#alertPopup").dialog("isOpen") == true) {
+								$("#alertPopup").dialog("close");
+							}
+						}, 7000);
+					},
+					buttons: {
+						// View: function() {
+						// 	$(this).dialog("close");
+						// 	viewPzEvent(result, id);
+						// },
+						
+					}
+				}).prev(".ui-dialog-titlebar").css("color", "red");
+
+				buttons['View'] = function() {
+					$(this).dialog("close");
+					viewPzEvent(result, id);
+				}
+				$("#alertPopup").dialog("option", "buttons", buttons);
+				$("#alertPopup").dialog("open");
+			}
 		}
 
 		function viewPzEvent(result, id) {
-			console.log(result);
-			console.log(id);
 			var coords = [];
 			var data = null;
 			$('#viewPzEvent').dialog({
