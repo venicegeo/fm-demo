@@ -82,31 +82,12 @@
 		// Pz alert markers //
 		var markers = {};
 
-		// // Track triggers posted by user //
-		// if (typeof(Storage) != "undefined") {
-		// 	if (sessionStorage.pzTriggers) {
-		// 		var pzTriggers = JSON.parse(sessionStorage.pzTriggers);
-		// 	} else {
-		// 		var pzTriggers = {};
-		// 	}
-		// } else {
-		// 	var pzTriggers = {};
-		// }
-
-		// // Empty list for any pz Events //
-		// if (typeof(Storage) != "undefined") {
-		// 	if (sessionStorage.pzEvents) {
-		// 		var pzEvents = JSON.parse(sessionStorage.pzEvents);
-		// 	} else {
-		// 		var pzEvents = {};
-		// 	}
-		// } else {
-		// 	var pzEvents = {};
-		// }
 		var pzTriggers = {};
+
 		var pzEvents = {};
 
 		var eventLayer;
+
 		var eventLayerGeojson = {'type': 'FeatureCollection', 'features': [] };
 		// Create divisions in the layer control //
 		var overlays = {
@@ -158,13 +139,8 @@
 
 		// Update the layer control with any new layers //
 		function updateLayers(result, firstcall) {
-			for (var key in layers) {
-				console.log(key);
-			}
 			for (var key in result) {
-				console.log("looking at " + key);
 				if (!(key in layers)) {
-					console.log("not in layers");
 					if (!(key in layerStyles)) {
 						var color = getRandomColor();
 						layerStyles[key] = {
@@ -250,7 +226,7 @@
 					},
 				});
 			}
-		};
+		}
 
 		function addSuccess(result, name) {
 			var layer = result[name];
@@ -265,7 +241,7 @@
 				legend.addTo(map);
 			}
 			layerRefresher(name);
-		};
+		}
 
 		function addLayer(layer, name) {
 			console.log("Adding layer");
@@ -283,7 +259,7 @@
 					return L.circleMarker(latlng, Markers(feature, name));
 				}
 			}).addTo(map);
-		};
+		}
 
 		function layerRefresher(key) {
 			layerUpdates[key] = setInterval(function() {
@@ -294,7 +270,7 @@
 					success: function(result) {
 						var layer = result[key];
 						layers[key].clearLayers();
-						layers[key] = null;
+						layers[key] = L.geoJson(false);
 						addLayer(layer, key);
 						north = -90.0;
 						east = -180.0;
@@ -322,7 +298,7 @@
 				clearInterval(layerUpdates[name]);
 				layerUpdates[name] = null;
 				layers[name].clearLayers();
-				layers[name] = null;
+				layers[name] = L.geoJson(false);
 				delete activeLayers[name];
 				// Reset bounds then iterate through any active layers to compute new bounds //
 				north = -90.0;
@@ -2173,7 +2149,7 @@
 						});
 					}
 				});
-				layerControl.addOverlay(eventLayer, "PzEvents", "Fulcrum Layers");
+				layerControl.addOverlay(eventLayer, "PzEvents", "Pz-Alerts");
 				if (activeLayer == true) {
 					map.addLayer(eventLayer);
 				}
@@ -2223,6 +2199,7 @@
 				var layerActive = false;
 				if(map.hasLayer(eventLayer)) {
 					layerActive = true;
+					console.log("Layer is active, removing");
 					map.removeLayer(eventLayer);
 				}
 				eventLayerGeojson['features'].splice(deleteix, 1);
@@ -2240,10 +2217,15 @@
 					}
 				});
 
+				console.log("Removing layer control from the map");
 				layerControl.removeFrom(map);
+				console.log("Adding layer control to the map");
+				console.log(baseMaps);
+				console.log(overlays);
+				console.log(map);
 				layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
 				if (eventLayerGeojson['features'].length > 0) {
-					layerControl.addOverlay(eventLayer, "PzEvents", "Fulcrum Layers");
+					layerControl.addOverlay(eventLayer, "PzEvents", "Pz-Alerts");
 					if (layerActive == true) {
 						map.addLayer(eventLayer);
 					}

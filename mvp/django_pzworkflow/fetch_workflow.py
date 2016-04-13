@@ -79,7 +79,10 @@ class PzWorkflow:
             print "Creating. . ."
             data = json.dumps(user_request.get('data'))
             if user_request.get('type') == 'event':
-                eventtype = self.get({'type': 'eventtypes', 'data': {'id': user_request.get('data').get('eventtype_id')}})
+                eventtype_query = {'type': 'eventtypes', 'data': {'id': user_request.get('data').get('eventtype_id')}}
+                print "Going to find: "
+                print eventtype_query
+                eventtype = self.get(eventtype_query)
                 posted = requests.post(self.addr + self.map.get(user_request.get('type')) + eventtype.get('name'), data=data)
             else:
                 posted = requests.post(self.addr + self.map.get(user_request.get('type')), data=data)
