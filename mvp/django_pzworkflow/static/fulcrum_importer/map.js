@@ -2219,6 +2219,9 @@
 					console.log("Layer is active, removing");
 					map.removeLayer(eventLayer);
 				}
+
+				layerControl.removeLayer(eventLayer);
+				
 				eventLayerGeojson['features'].splice(deleteix, 1);
 				eventLayer = L.geoJson(eventLayerGeojson, {
 					onEachFeature: onEachEventFeature,
@@ -2234,13 +2237,14 @@
 					}
 				});
 
-				console.log("Removing layer control from the map");
-				layerControl.removeFrom(map);
-				console.log("Adding layer control to the map");
-				console.log(baseMaps);
-				console.log(overlays);
-				console.log(map);
-				layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
+				layerControl.removeLayer(eventLayer);
+				//console.log("Removing layer control from the map");
+				//layerControl.removeFrom(map);
+				//console.log("Adding layer control to the map");
+				//console.log(baseMaps);
+				//console.log(overlays);
+				//console.log(map);
+				//layerControl = L.control.groupedLayers(baseMaps, overlays).addTo(map);
 				if (eventLayerGeojson['features'].length > 0) {
 					layerControl.addOverlay(eventLayer, "PzEvents", "Pz-Alerts");
 					if (layerActive == true) {
