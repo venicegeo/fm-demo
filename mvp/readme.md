@@ -56,26 +56,11 @@ sudo bash /tmp/geoshape_fulcrum_install.sh
 ```
 
 You can modify your fulcrum api key entry in /var/lib/geonode/rogue_geonode/geoshape/local_settings.py file (sudo required).
-```
-FULCRUM_API_KEYS = ["xxxxx"]
-```
-Additionally in local_settings an S3_CREDENTIALS dict structured like:
-
-```
-S3_CREDENTIALS = [{'s3_bucket': ["xxxxx"],
-                   's3_key': "xxxxx",
-                   's3_secret': "xxxxx",
-                   's3_gpg': "xxxxx"},
-                   {'s3_bucket': ["xxxxx"],
-                   's3_key': "xxxxx",
-                   's3_secret': "xxxxx",
-                   's3_gpg': "xxxxx"}]
-```
-
+Additionally in local_settings an S3_CREDENTIALS dict can be added and the app will pull data from an s3 bucket. For examples of these entries, refer to the settings documentation further down the page.
 Alternatively you may enter this information in the admin console.  It is more secure in the local_settings file, but the server would need to be restarted, after information is added or removed.
 
-To allow for geoshape tile truncation on addition of new data, make sure there is a default OGC_SERVER value in the  /var/lib/geonode/rogue_genode/geoshape/local_settings.py file. It should look like OGC_SERVER = { 'default': { 'your settings here'}}
-The setting keys required for tile truncation are USER and PASSWORD. These should correspond to the username/password of your GeoServer.
+To allow for geoshape tile truncation on addition of new data, make sure there is a default OGC_SERVER value in the  /var/lib/geonode/rogue_genode/geoshape/local_settings.py file.
+The setting keys required for tile truncation are USER and PASSWORD. These should correspond to the username/password of your GeoServer. For an example, refer to the settings documentation further down the page.
 
 Add any desired filters to the /var/lib/geonode/lib/Python27/site-packages/djfulcrum/filters file. (US geospatial and phone number filters are added by default.)
 (By default these filters will be turned on, but they can be turned off in the admin console. Please be aware that the filter status changes will not be reflected in already processed data.)
@@ -83,10 +68,6 @@ Add any desired filters to the /var/lib/geonode/lib/Python27/site-packages/djful
 
 If you have specific basemaps you would like to use, add them to the `LEAFLET_CONFIG['TILES']` array in /var/lib/geonode/rogue_geonode/geoshape/setting.py. 
 Each value in the array should be a tuple where the first element is the basemap name, the second element is the basemap URL, and the third element is the atrribution. All three elements are required. 
-Example: `( 'OpenStreetMap',
-         'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-         'Map data &copy  <a href="http://openstreetmap.org">OpenStreetMap</a> contributors' )`
-         
 
 Finally run the command:
 ```
@@ -123,10 +104,10 @@ python manage.py runserver
 
 ## Settings
 
-These various settings are allowed in the setting.py file for your project
+###-The following settings can be defined in the local_setting.py file for your project
 
-####'DATABASES': (Required)
-A database in which the Fulcrum data can be stored. 
+#### DATABASES: (Required)
+A database in which the geospatial data can be stored. 
 Example: ```
     DATABASES = {
         'fulcrum': {
@@ -140,12 +121,31 @@ Example: ```
     }
 ```
 
-#### 'FULCRUM_UPLOAD': (Optional)
+#### OGC_SERVER: (Required)
+Server to host layers in the database.
+Example: ```
+    OGC_SERVER = {
+        'default': {
+            'BACKEND': 'backend.geoserver',
+            'LOCATION': GEOSERVER_URL,
+            'PUBLIC_LOCATION': GEOSERVER_URL,
+            'USER': 'admin',
+            'PASSWORD': 'xxxxxxx',
+            'DATASTORE': 'geoshape_imports',
+        }
+    }```
+   
+
+#### FULCRUM_API_KEYS: (Optional)
+The API key which allows the application access to the data in your Fulcrum account.
+Example: `FULCRUM_API_KEY= ['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']`
+            
+#### FULCRUM_UPLOAD: (Optional)
 A file path where user uploaded files or S3 files will be stored while processing.
 Example: `FULCRUM_UPLOAD = '/var/lib/geonode/fulcrum_data'`
 
-#### 'S3_CREDENTIALS': (Optional)
-Configuration for an S3 bucket to pull data from
+#### S3_CREDENTIALS: (Optional)
+Configuration to pull data from an S3 bucket.
 Example: ```
     S3_CREDENTIALS = [{
         's3_bucket': ['my_s3_bucket'],
@@ -155,7 +155,59 @@ Example: ```
     }]
 ```
 
-       
+#### --- NOTE: For this app to be functional, you should add at least one of the options: FULCRUM_API_KEYS, FULCRUM_UPLOAD, or S3_CREDENTIALs ---
+
+###-The following settings can be defined in the local_setting.py file for your project
+
+#### INSTALLED_APPS: (Required)
+The name of this app must be added to the installed_app variable so it can run as part of the host django project.
+Example: `INSTALLED_APPS += ('djfulcrum',)`
+
+#### CACHES: (Required)
+Define the cache to be used. Memcache is suggested, but other process safe caches can be used too.
+Example: ```
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+            'LOCATION': '127.0.0.1:11211',
+        }
+    }```
+
+#### CELERY: (Optional)
+If you plan to use celery as a task runner there are several celery variables to define.
+Examples:
+```
+CELERY_ACCEPT_CONTENT=['json']
+CELERY_TASK_SERIALIZER='json'
+CELERY_RESULT_SERIALIZER='json'
+CELERY_SEND_EVENTS=True
+CELERYBEAT_USER='geoshape'
+CELERYBEAT_GROUP='geoservice'
+CELERYBEAT_SCHEDULER='djcelery.schedulers.DatabaseScheduler'
+CELERYBEAT_SCHEDULE = {
+    'Update_layers_30_secs': {
+        'task': 'djfulcrum.tasks.task_update_layers',
+        'schedule': timedelta(seconds=30),
+        'args': None
+    },
+    'Pull_s3_data_120_secs': {
+        'task': 'djfulcrum.tasks.pull_s3_data',
+        'schedule': timedelta(seconds=120),
+        'args': None
+    },
+}```
+
+#### LEAFLET_CONFIG: (Optional)
+Defines the basemaps to be used in the fulcrum viewer map. If you plan to use the fulcrum viewer, you will need to define your selected basemaps here.
+Example: ```
+    LEAFLET_CONFIG = {
+        'TILES': [
+            ('BasemapName',
+             'url-to-basemap-server-here',
+             'Attribution for the basemap'),
+        ]
+    }```
+
 
 ## Known Issues
 - Tiles are completely dumped when a layer is updated.  This is because the GWC bounding box tools was unsuccessful during various attempts even using their built in web tool.  This solution while inefficient is probably ok for static datasets and rarely updated data, as opposed to just not caching tiles at all.
