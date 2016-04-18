@@ -108,7 +108,8 @@ python manage.py runserver
 
 #### DATABASES: (Required)
 A database in which the geospatial data can be stored. 
-Example: ```
+Example: 
+```
     DATABASES = {
         'fulcrum': {
             'ENGINE': 'django.contrib.gis.db.backends.postgis',
@@ -119,11 +120,12 @@ Example: ```
             'PORT': *database port*,
         }
     }
-```
+ ```
 
 #### OGC_SERVER: (Required)
 Server to host layers in the database.
-Example: ```
+Example:
+```
     OGC_SERVER = {
         'default': {
             'BACKEND': 'backend.geoserver',
@@ -133,8 +135,8 @@ Example: ```
             'PASSWORD': 'xxxxxxx',
             'DATASTORE': 'geoshape_imports',
         }
-    }```
-   
+    }
+```
 
 #### FULCRUM_API_KEYS: (Optional)
 The API key which allows the application access to the data in your Fulcrum account.
@@ -146,7 +148,8 @@ Example: `FULCRUM_UPLOAD = '/var/lib/geonode/fulcrum_data'`
 
 #### S3_CREDENTIALS: (Optional)
 Configuration to pull data from an S3 bucket.
-Example: ```
+Example: 
+```
     S3_CREDENTIALS = [{
         's3_bucket': ['my_s3_bucket'],
         's3_key': 'XXXXXXXXXXXXXXXXXXXX',
@@ -165,13 +168,15 @@ Example: `INSTALLED_APPS += ('djfulcrum',)`
 
 #### CACHES: (Required)
 Define the cache to be used. Memcache is suggested, but other process safe caches can be used too.
-Example: ```
+Example: 
+```
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
             'LOCATION': '127.0.0.1:11211',
         }
-    }```
+    }
+```
 
 #### CELERY: (Optional)
 If you plan to use celery as a task runner there are several celery variables to define.
@@ -195,18 +200,21 @@ CELERYBEAT_SCHEDULE = {
         'schedule': timedelta(seconds=120),
         'args': None
     },
-}```
+}
+```
 
 #### LEAFLET_CONFIG: (Optional)
 Defines the basemaps to be used in the fulcrum viewer map. If you plan to use the fulcrum viewer, you will need to define your selected basemaps here.
-Example: ```
+Example: 
+```
     LEAFLET_CONFIG = {
         'TILES': [
             ('BasemapName',
              'url-to-basemap-server-here',
              'Attribution for the basemap'),
         ]
-    }```
+    }
+```
 
 
 ## Known Issues
