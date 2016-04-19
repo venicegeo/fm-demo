@@ -2,54 +2,62 @@ from types import *
 import json
 import copy
 import re
+from django.db import transaction
 
 
-def filter_features(input):
+def filter_features(input_features, **kwargs):
     """
     Args:
-         input: A Geojson feature collection
+         input_features: A Geojson feature collection
 
     Returns:
         A json of two geojson feature collections: passed and failed
-    """
-    passed_failed = filter_number_features(input)
-    return passed_failed
-
-
-def filter_number_features(input_features):
-    """
-    Args:
-         input: A Geojson feature collection
-
-    Returns:
-        A json of two geojson feature collections: passed and failed, or None if input is not geojson
     """
     if type(input_features) is DictType:
         if input_features.get("features"):
-            return iterate_geojson(input_features)
+            return iterate_geojson(input_features, **kwargs)
     else:
-        print "Returning none"
-        print type(input_features)
+        print("The input_features are in a format {}, "
+              "which is not compatible with filter_features. Should be dict.".format(type(input_features)))
         return None
 
 
-def iterate_geojson(input_features):
+def iterate_geojson(input_features, filter_inclusion = None):
     """
     Args:
-         input: A Geojson feature collection
+         input_features: A Geojson feature collection
+         filter_inclusion: Optionally choose whether filter should override database settings for inclusion.
 
     Returns:
         A json of two geojson feature collections: passed and failed
     """
+    from ..models import Filter, TextFilter
+    from django.core.exceptions import ObjectDoesNotExist
+    from django.db import IntegrityError
+    if filter_inclusion is not None:
+        filter_inclusion = filter_inclusion
+    else:
+        try:
+            text_filter = Filter.objects.get(filter_name__iexact='us_phone_number_filter.py')
+        except ObjectDoesNotExist:
+            print("The phone number filter was not imported.")
+            return
+        try:
+            phone_number_filter = TextFilter.objects.get(filter=text_filter)
+            filter_inclusion = phone_number_filter.filter.filter_inclusion
+        except IntegrityError:
+            print("The text filter was not created.")
+            return
     passed = []
     failed = []
     for feature in input_features.get("features"):
         if not feature:
             continue
-        if check_numbers(json.dumps(feature.get('properties'))):
-            failed.append(feature)
-        else:
+        if((check_numbers(json.dumps(feature.get('properties'))) and filter_inclusion) or
+           (not check_numbers(json.dumps(feature.get('properties'))) and not filter_inclusion)):
             passed.append(feature)
+        else:
+            failed.append(feature)
     passed_features = copy.deepcopy(input_features)
     passed_features['features'] = []
     passed_features['features'] = passed
@@ -80,6 +88,25 @@ def check_numbers(attributes):
             return False
     else:
         return False
+
+
+def setup_filter_model():
+    from ..models import Filter, TextFilter
+    from django.core.exceptions import ObjectDoesNotExist
+    from django.db import IntegrityError
+
+    try:
+        text_filter = Filter.objects.get(filter_name__iexact='us_phone_number_filter.py')
+    except ObjectDoesNotExist:
+        return False
+    try:
+        filter_area_names = TextFilter.objects.filter(filter=text_filter)
+        if not filter_area_names.exists():
+            with transaction.atomic():
+                TextFilter.objects.create(filter=text_filter)
+    except IntegrityError:
+        pass
+    return True
 
 
 def get_area_codes():

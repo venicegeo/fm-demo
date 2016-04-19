@@ -29,6 +29,4 @@ urlpatterns = [
     url(r'^fulcrum_pzworkflow$', views.pzworkflow)
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
+from .signals import handlers

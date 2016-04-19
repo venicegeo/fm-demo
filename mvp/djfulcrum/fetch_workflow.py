@@ -41,7 +41,7 @@ class PzWorkflow:
         print "Finding by data objects"
         for item in items:
             if item is not None:
-                un_matched = 0
+                un_passed = 0
                 key_in_item = False
                 #print 'Comparing to item ' + str(item)
                 for key in user_request.get('data'):
@@ -49,8 +49,8 @@ class PzWorkflow:
                     if key in item:
                         key_in_item = True
                         if item.get(key) != user_request.get('data').get(key):
-                            un_matched -= 1
-                if un_matched == 0 and key_in_item is True:
+                            un_passed -= 1
+                if un_passed == 0 and key_in_item is True:
                     return item
         print "Could not find item by keys"
         return None
@@ -130,23 +130,7 @@ class PzWorkflow:
 
 # post trigger, get trigger, post event, get event, delete trigger, get alerts
 def main():
-
-    pz_workflow = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
-    user_request = {"type": "event", "action": "delete", "eventname" : "US-Phone-Number"}
-    #trigger
-    #user_request["data"] = {"title": "US-Phone-Number", "condition": {"type": "W3", "query": {"query": {"bool": {"must": [{"match": {"severity": 4}},{"match": {"problem": "US-Phone-Number"}}]}}}, "job": {"task" :"somestring"}}}
-    #event type
-    #user_request["data"] = {"name": "US-Phone-Number", "mapping" : {"itemId": "string", "severity": "integer", "problem": "string"}}
-    #event
-    #user_request["data"] = {"type": "W3", "date": "2007-04-05T14:30:00Z", "data": {"severity": 4, "problem": "US-Phone-Number"}}
-    user_request["data"] = {"id": "W15"}
-    #user_request["data"] = {"type": "ET1", "date": "2007-05-05T14:30:00Z", "data": {"code": "PHONE", "filename": "featuresFile", "severity": 3}}
-    print pz_workflow.status()
-
-    print pz_workflow.request(json.dumps(user_request))
-    #requests.post(self.addr + self.map.get('event'), data=data)
     pass
-
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 import os
 from importlib import import_module
-from django.core.cache import cache
 
 
 def filter_features(features, filter_name=None, run_once=False):
@@ -19,6 +18,7 @@ def filter_features(features, filter_name=None, run_once=False):
 
     from ..models import Filter
     from ..djfulcrum import delete_feature
+
     workspace = os.path.dirname(os.path.abspath(__file__))
     files = os.listdir(workspace)
 
@@ -34,6 +34,8 @@ def filter_features(features, filter_name=None, run_once=False):
             for filter_model in filter_models:
                 if filter_model.filter_name in files:
                     if filter_model.filter_active or run_once:
+                        if not features:
+                            break
                         try:
                             module_name = 'djfulcrum.filters.' + str(filter_model.filter_name.rstrip('.py'))
                             mod = import_module(module_name)
@@ -41,7 +43,8 @@ def filter_features(features, filter_name=None, run_once=False):
                             filtered_results = mod.filter_features(features)
                         except ImportError:
                             print "Could not filter features - ImportError"
-                        except TypeError:
+                        except TypeError as te:
+                            print te
                             print "Could not filter features - TypeError"
                         except Exception as e:
                             "Unknown error occurred, could not filter features"
@@ -67,15 +70,18 @@ def filter_features(features, filter_name=None, run_once=False):
                     un_needed.append(filter_model)
             if un_needed:
                 for filter_model in un_needed:
-                    print "Deleting un-needed filter entry: {}".format(filter_model.filter_name)
-                    filter_model.delete()
+                    print("The filter {} was found in the database but the module is "
+                          "missing.".format(filter_model.filter_name))
+                    print("It will be disabled.  If the module is installed later, reenable the filter "
+                          "in the admin console.")
+                    filter_model.filter_active = False
     else:
         features = None
         filtered_feature_count = 0
     return features, filtered_feature_count
 
 
-def check_filters(test=None):
+def check_filters():
     """
     Args:
         test: should be set to try if running tests.
@@ -84,28 +90,32 @@ def check_filters(test=None):
     Sets cache value so function will not running fully every time it is called by tasks.py
     """
     from ..models import Filter
+    from ..tasks import get_lock_id
+    from django.db import IntegrityError
+    from importlib import import_module
+    from django.core.cache import cache
     workspace = os.path.dirname(os.path.abspath(__file__))
     files = os.listdir(workspace)
     if files:
-        lock_expire = 10
-        lock_id = 'list-filters-success'
+        lock_id = get_lock_id('list-filters-success')
         if cache.get(lock_id):
-            return
+            return True
         for filter_file in files:
             if filter_file.endswith('.py'):
-                if filter_file != 'run_filters.py' and filter_file != '__init__.py':
-                    if test:
-                        if not filter_file.startswith('test_'):
-                            continue
-                    else:
-                        if filter_file.startswith('test_'):
-                            continue
-                    try:
-                        filter_names = Filter.objects.filter(filter_name=filter_file)
-                        if not filter_names.exists():
-                            Filter.objects.create(filter_name=filter_file)
-                    except Exception as e:
-                        print repr(e)
-                        continue
-        cache.set(lock_id, True, lock_expire)
-    return
+                if filter_file == 'run_filters.py' or filter_file == '__init__.py':
+                    continue
+                try:
+                    filter_names = Filter.objects.filter(filter_name__iexact=filter_file)
+                    if not filter_names.exists():
+                        filter_model = Filter.objects.create(filter_name=filter_file)
+                        print ("Created filter {}".format(filter_model.filter_name))
+                except IntegrityError:
+                    return False
+                try:
+                    mod = import_module('djfulcrum.filters.' + str(filter_file.rstrip('.py')))
+                    if 'setup_filter_model' in dir(mod):
+                        mod.setup_filter_model()
+                except ImportError:
+                    return False
+        cache.set(lock_id, True, 20)
+        return True

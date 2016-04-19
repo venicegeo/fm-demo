@@ -34,8 +34,6 @@ from django.db import transaction
 @shared_task(name="djfulcrum.tasks.task_update_layers")
 def task_update_layers():
 
-    check_filters()
-
     fulcrum_api_keys = []
     try:
         fulcrum_api_keys = settings.FULCRUM_API_KEYS
@@ -52,11 +50,14 @@ def task_update_layers():
         print("Cannot update layers from fulcrum without an API key added to the admin page, "
               "or FULCRUM_API_KEYS = ['some_key'] defined in settings.")
 
-    #http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
+    # http://docs.celeryproject.org/en/latest/tutorials/task-cookbook.html#ensuring-a-task-is-only-executed-one-at-a-time
     lock_id = get_lock_id("djfulcrum.tasks.task_update_layers")
 
     lock_expire = 60 * 60
     if acquire_lock(lock_id, lock_expire):
+        if not check_filters():
+            release_lock(lock_id)
+            return False
         try:
             for fulcrum_api_key in fulcrum_api_keys:
                 if not fulcrum_api_key:
@@ -73,58 +74,87 @@ def task_update_layers():
 
 @shared_task(name="djfulcrum.tasks.pull_s3_data")
 def pull_s3_data():
-    check_filters()
+    if not check_filters():
+        return False
     pull_all_s3_data()
 
 
 @shared_task(name="djfulcrum.tasks.task_update_tiles")
-def update_tiles(filtered_features, layer_name):
+def update_tiles(filtered_features, layer_name=''):
     truncate_tiles(layer_name=layer_name.lower(), srs=4326)
     truncate_tiles(layer_name=layer_name.lower(), srs=900913)
 
 
 @shared_task(name="djfulcrum.tasks.task_filter_features")
 def task_filter_features(filter_name, features, run_once=False, run_time=None):
-    from .models import Filter
+    from .models import Filter, Layer
     from .filters.run_filters import filter_features
 
+    check_filters()
+
+    task_name = "djfulcrum.tasks.task_filter_features"
     filter_lock_expire = 60 * 60
     filter_model = Filter.objects.get(filter_name=filter_name)
-    if acquire_lock(filter_model.get_lock_id(), filter_lock_expire):
+    if acquire_lock(Filter.get_lock_id(task_name, filter_model.filter_name), filter_lock_expire):
         filter_model.save()
         while is_feature_task_locked():
             time.sleep(1)
         try:
-            filter_features(features, filter_name=filter_name, run_once=run_once)
+            filtered_features = filter_features(features, filter_name=filter_name, run_once=run_once)
+            for layer in Layer.objects.all():
+                update_tiles(filtered_features=filtered_features, layer_name=layer.layer_name)
             filter_model.filter_previous_time = run_time
         finally:
-            release_lock(filter_model.get_lock_id())
+            release_lock(Filter.get_lock_id(task_name, filter_model.filter_name))
             filter_model.save()
+
 
 @shared_task(name="djfulcrum.tasks.task_filter_assets")
-def task_filter_features(filter_name, features, run_once=False, run_time=None):
+def task_filter_assets(filter_name, after_time_added, run_once=False, run_time=None):
     from .models import Filter, Asset
-    from .filters.run_filters import filter_features
+    from dateutil.parser import parse
     from .djfulcrum import is_valid_photo
 
-    Asset.objects.exclude(asset_added_time__lt=after_time_added)
+    task_name = "djfulcrum.tasks.task_filter_assets"
     filter_lock_expire = 60 * 60
     filter_model = Filter.objects.get(filter_name=filter_name)
-    if acquire_lock(filter_model.get_lock_id(), filter_lock_expire):
+    if acquire_lock(Filter.get_lock_id(task_name, filter_model.filter_name), filter_lock_expire):
+        assets = Asset.objects.exclude(asset_added_time__lt=parse(after_time_added))
         filter_model.save()
         while is_feature_task_locked():
             time.sleep(1)
         try:
-            filter_features(features, filter_name=filter_name, run_once=run_once)
+            delete_list = []
+            for asset in assets:
+                if asset.asset_type == 'photos':
+                    if not is_valid_photo(asset.asset_data.path, filter_name=filter_name, run_once=run_once):
+                        print("Attempting to delete {}".format(asset.asset_data.path))
+                        delete_list += [asset.asset_uid]
+            for asset_uid in delete_list:
+                Asset.objects.filter(asset_uid__iexact=asset_uid).delete()
             filter_model.filter_previous_time = run_time
         finally:
-            release_lock(filter_model.get_lock_id())
+            release_lock(Filter.get_lock_id(task_name, filter_model.filter_name))
             filter_model.save()
+
 
 def is_feature_task_locked():
     """Returns True if one of the tasks which add features is currently running."""
     for task_name in list_task_names():
         if cache.get(get_lock_id(task_name)):
+            return True
+
+
+def is_filter_task_locked(filter_name):
+    """
+    Args:
+        filter_name: The name of the filter task to look for.
+
+    Returns True if one of the tasks which filters is currently running."""
+    from .models import Filter
+
+    for task_name in list_task_names():
+        if cache.get(Filter.get_lock_id(task_name, filter_name)):
             return True
 
 

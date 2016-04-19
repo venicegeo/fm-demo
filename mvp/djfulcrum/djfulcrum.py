@@ -408,7 +408,7 @@ def process_fulcrum_data(f):
     return layers
 
 
-def filter_features(features):
+def filter_features(features, **kwargs):
     """
     Args:
         features: A dict formatted like a geojson, containing features to be passed through various filters.
@@ -417,7 +417,7 @@ def filter_features(features):
         The filtered features and the feature count as a tuple.
     """
 
-    filtered_features, filtered_feature_count = run_filters.filter_features(features)
+    filtered_features, filtered_feature_count = run_filters.filter_features(features, **kwargs)
 
     return filtered_features, filtered_feature_count
 
@@ -610,7 +610,7 @@ def get_update_layer_media_keys(media_keys=None, layer=None):
         return layer_media_keys
 
 
-def write_layer(name, layer_id='', date=0, media_keys={}):
+def write_layer(name, layer_id='', date=0, media_keys=None):
     """
     Args:
         name: An SQL compatible string.
@@ -621,6 +621,8 @@ def write_layer(name, layer_id='', date=0, media_keys={}):
     Returns:
         The layer model object.
     """
+    if not media_keys:
+        media_keys = {}
     with transaction.atomic():
         layer_name = 'fulcrum_{}'.format(name.lower())
         try:
@@ -691,7 +693,7 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
             asset = Asset.objects.get(asset_uid=asset_uid)
         if asset.asset_data:
             if getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template'):
-                return '{}{}.{}'.format(getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template').rstrip("{}"),
+                return '{}{}.{}'.format(getattr(settings,'FILESERVICE_CONFIG', {}).get('url_template').rstrip("{}"),
                                         asset_uid,
                                         get_type_extension(asset.asset_type))
             else:
@@ -725,10 +727,10 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
         return asset, created
 
 
-def is_valid_photo(photo_file):
+def is_valid_photo(photo_file_path, **kwargs):
     """
     Args:
-        photo_file: A File object of a photo:
+        photo_file_path: A File object of a photo:
 
     Returns:
          True if the photo does not contain us-coords.
@@ -737,11 +739,11 @@ def is_valid_photo(photo_file):
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
 
     try:
-        im = Image.open(photo_file)
+        im = Image.open(photo_file_path)
         info = im._getexif()
-    except:
+    except Exception as e:
         print "Failed to get exif data"
-        return True
+        print e
     if info:
         properties = get_gps_info(info)
     else:
@@ -758,7 +760,7 @@ def is_valid_photo(photo_file):
                        }
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
-            filtered_features, count = filter_features(geojson)
+            filtered_features, count = filter_features(geojson, **kwargs)
             if filtered_features:
                 return True
             else:
@@ -1596,7 +1598,8 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
     # See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
     # See also https://github.com/GeoNode/geonode/issues/1656
     params = kwargs
-    params.setdefault("name", "geonode:{0}".format(layer_name))
+    if layer_name:
+        params.setdefault("name", "geonode:{0}".format(layer_name))
     params.setdefault("srs", {"number": srs})
     params.setdefault("zoomStart", 0)
     if srs == 4326:

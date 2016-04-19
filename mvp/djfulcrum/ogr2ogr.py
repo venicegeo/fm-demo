@@ -35,6 +35,8 @@
 # Note : this is the most direct port of ogr2ogr.cpp possible
 # It could be made much more Python'ish !
 
+# flake8: noqa
+
 import sys
 import os
 import stat

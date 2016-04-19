@@ -16,7 +16,6 @@ from __future__ import unicode_literals
 
 from django.db import models
 from django.core.files.storage import FileSystemStorage
-from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
 import os
@@ -100,30 +99,28 @@ def get_all_features(after_time_added=None):
             features += [json.loads(feature.feature_data)]
     return {"features": features}
 
-def get_all_assets(after_time_added=None):
-    """
 
-    Args:
-        after_time_added: get all features that were added to the db after this date.
+class CustomStorage(FileSystemStorage):
+    def get_available_name(self, name):
+        return name
 
-    Returns:
+    def _save(self, name, content):
+        if self.exists(name):
+            return name
+        return super(CustomStorage, self)._save(name, content)
 
-    """
-    assets = []
-    if after_time_added:
-        for feature in Feature.objects.exclude(feature_added_time__lt=after_time_added):
-            features += [json.loads(feature.feature_data)]
-    else:
-        for feature in Feature.objects.all():
-            features += [json.loads(feature.feature_data)]
-    return {"features": features}
 
 class Asset(models.Model):
     """Structure to hold file locations."""
     asset_uid = models.CharField(max_length=100, primary_key=True)
     asset_type = models.CharField(max_length=100)
-    asset_data = models.FileField(storage=FileSystemStorage(location=get_media_dir()), upload_to=get_asset_name)
+    asset_data = models.FileField(storage=CustomStorage(location=get_media_dir()), upload_to=get_asset_name)
     asset_added_time = models.DateTimeField(default=timezone.now())
+
+    def delete(self, *args, **kwargs):
+        super(Asset, self).delete(*args, **kwargs)
+        self.asset_data.delete()
+
 
 class Layer(models.Model):
     """Structure to hold information about layers."""
@@ -141,7 +138,7 @@ class Feature(models.Model):
     feature_uid = models.CharField(max_length=100)
     feature_version = models.IntegerField(default=0)
     layer = models.ForeignKey(Layer, on_delete=models.CASCADE, default="")
-    feature_data = models.CharField(max_length=10000)
+    feature_data = models.TextField()
     feature_added_time = models.DateTimeField(default=timezone.now())
 
     class Meta:
@@ -154,16 +151,16 @@ class S3Sync(models.Model):
 
 
 class S3Credential(models.Model):
-    s3_name = models.CharField(max_length=100)
-    s3_key = models.CharField(max_length=100)
-    s3_secret = models.CharField(max_length=255)
-    s3_gpg = models.CharField(max_length=255)
+    s3_description = models.TextField(help_text="A name to use for these credentials.")
+    s3_key = models.CharField(max_length=100, help_text="The access key.")
+    s3_secret = models.CharField(max_length=255, help_text="The secret key.")
+    s3_gpg = models.CharField(max_length=255, help_text="An arbitrary key for GPG.")
 
     class Meta:
         unique_together = (("s3_key", "s3_secret"),)
 
     def __unicode__(self):
-        return "{}({})".format(self.s3_name, self.s3_key)
+        return "{}({})".format(self.s3_description, self.s3_key)
 
 
 class S3Bucket(models.Model):
@@ -182,40 +179,79 @@ class FulcrumApiKey(models.Model):
         return self.fulcrum_api_description
 
 
+def get_init_time():
+    return datetime(1, 1, 1)
+
+
 class Filter(models.Model):
     """Structure to hold knowledge of filters in the filter package."""
-
+    INCLUSION = (
+        (False, "Exclude"),
+        (True, "Include")
+    )
     filter_name = models.TextField(primary_key=True)
-    filter_active = models.BooleanField(default=False)
+    filter_active = models.BooleanField(default=True)
+    filter_inclusion = models.BooleanField(default=False,
+                                           choices=INCLUSION,
+                                           help_text="Exclude: Do not show data that matches this filter.\n"
+                                                     "Include: Only show data that matches this filter.")
     filter_previous = models.BooleanField(default=False)
     filter_previous_status = models.TextField(default="")
-    filter_previous_time = models.DateTimeField(default=timezone.now() - timedelta(minutes=5))
+    filter_previous_time = models.DateTimeField(default=get_init_time())
 
-    def get_lock_id(self):
+    __filter_inclusion = None
+
+    def __init__(self, *args, **kwargs):
+        super(Filter, self).__init__(*args, **kwargs)
+        self.__filter_inclusion = self.filter_inclusion
+
+    @staticmethod
+    def get_lock_id(task_name, filter_name):
         """
+
+        Args:
+            task_name: The name of the task using the lock
 
         Returns: A name to use to store the lock.
 
         """
-        name = "djfulcrum.tasks.task_update_layers"
-        return '{0}-lock-{1}'.format(name, self.filter_name)
+        return '{0}-lock-{1}'.format(task_name, filter_name)
 
     def save(self, *args, **kwargs):
-        super(Filter, self).save(*args, **kwargs)
+
+        if self.filter_inclusion != self.__filter_inclusion:
+            self.filter_previous_time = get_init_time()
+        self.__filter_inclusion = self.filter_inclusion
+
+        if not self.is_filter_running():
+            super(Filter, self).save(*args, **kwargs)
+        else:
+            self.filter_previous_status = "Filtering is in progress..."
+            super(Filter, self).save(update_fields=["filter_previous_status"])
+            return
         if self.filter_previous and not self.is_filter_running():
-            run_time = timezone.now().isoformat()
-            from .tasks import task_filter_features
+            # add a time buffer to account for subtle time differences.
+            run_time = (timezone.now() - timedelta(minutes=1)).isoformat()
+            from .tasks import task_filter_features, task_filter_assets
             if getattr(settings, 'DJANGO_FULCRUM_USE_CELERY', True):
                 task_filter_features.apply_async(kwargs={'filter_name': self.filter_name,
                                                          'features': get_all_features(
                                                                  after_time_added=self.filter_previous_time),
                                                          'run_once': True,
                                                          'run_time': run_time})
+                task_filter_assets.apply_async(kwargs={'filter_name': self.filter_name,
+                                                       'after_time_added': self.filter_previous_time.isoformat(),
+                                                       'run_once': True,
+                                                       'run_time': run_time})
             else:
                 task_filter_features(filter_name=self.filter_name,
                                      features=self.filter_previous_time,
                                      run_once=True,
                                      run_time=run_time)
+                task_filter_assets(filter_name=self.filter_name,
+                                   after_time_added=self.filter_previous_time.isoformat(),
+                                   run_once=True,
+                                   run_time=run_time)
             self.filter_previous = False
         if self.is_filter_running():
             self.filter_previous_status = "Filtering is in progress..."
@@ -229,8 +265,8 @@ class Filter(models.Model):
         Returns: True if a lock exists for the current filter.
 
         """
-
-        if cache.get(self.get_lock_id()):
+        from .tasks import is_filter_task_locked
+        if is_filter_task_locked(self.filter_name):
             return True
         return False
 
@@ -244,26 +280,35 @@ class Filter(models.Model):
         return self.filter_name + status
 
 
-# def get_defaults(Model):
-#     from django.db.models.fields import NOT_PROVIDED
-#     defaults = {}
-#     for field in get_all_field_names(Model):
-#         default_value = Model._meta.get_field(field).default
-#         if default_value != NOT_PROVIDED:
-#             defaults[field] = Model._meta.get_field(field).default
-#     return defaults
-#
-#
-# def get_all_field_names(Model):
-#     # https://docs.djangoproject.com/en/1.9/ref/models/meta/
-#     try:
-#         from itertools import chain
-#         return list(set(chain.from_iterable(
-#                 (field.name, field.attname) if hasattr(field, 'attname') else (field.name,)
-#                 for field in Model._meta.get_fields()
-#                 # For complete backwards compatibility, you may want to exclude
-#                 # GenericForeignKey from the results.
-#                 if not (field.many_to_one and field.related_model is None)
-#         )))
-#     except AttributeError:
-#         return Model._meta.get_all_field_names()
+class FilterGeneric(models.Model):
+    filter = models.ForeignKey(Filter)
+
+
+class TextFilter(FilterGeneric):
+    pass
+
+
+class FilterArea(FilterGeneric):
+    filter_area_enabled = models.BooleanField(default=True)
+    filter_area_name = models.CharField(max_length=100)
+    filter_area_buffer = models.FloatField(default=0.1,
+                                           help_text="Distance to increase or decrease around the geometries.")
+    filter_area_data = models.TextField(help_text="A geojson geometry or features containing geometries.")
+
+    __filter_area_buffer = None
+    __filter_area_data = None
+
+    def __init__(self, *args, **kwargs):
+        super(FilterArea, self).__init__(*args, **kwargs)
+        self.__filter_area_buffer = self.filter_area_buffer
+        self.__filter_area_data = self.filter_area_data
+
+    def save(self, force_insert=False, force_update=False, *args, **kwargs):
+        if (self.filter_area_buffer != self.__filter_area_buffer or
+                self.filter_area_data != self.__filter_area_data or
+                not self.pk):
+            self.filter.filter_previous_time = get_init_time()
+            self.filter.save()
+        super(FilterArea, self).save(force_insert, force_update, *args, **kwargs)
+        self.__filter_area_buffer = self.filter_area_buffer
+        self.__filter_area_data = self.filter_area_data
