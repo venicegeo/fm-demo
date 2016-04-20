@@ -2,33 +2,34 @@ import json
 import requests
 from django.conf import settings
 
+
 # post, get, get all, delete
 class PzWorkflow:
-
-
     def __init__(self, url):
         self.addr = url
-        self.map = {'trigger': "/v1/triggers/", 'eventtypes': '/v1/eventtypes/', 'event': "/v1/events/", 'alert': "/v1/alerts/"}
+        self.map = {'trigger': "/v1/triggers/", 'eventtypes': '/v1/eventtypes/', 'event': "/v1/events/",
+                    'alert': "/v1/alerts/"}
         print "Pz object created with url: " + self.addr
 
     def status(self):
-        return requests.get(self.addr, verify=getattr(settings, 'SSL_VERIFY', True)).status_code;
+        return requests.get(self.addr, verify=getattr(settings, 'SSL_VERIFY', True)).status_code
 
     def request(self, user_request):
         user_request = json.loads(user_request)
-        if(user_request.get('action') == 'post'):
+        if user_request.get('action') == 'post':
             return self.post(user_request)
-        elif(user_request.get('action') == 'get'):
+        elif user_request.get('action') == 'get':
             return self.get(user_request)
-        elif(user_request.get('action') == 'get_all'):
+        elif user_request.get('action') == 'get_all':
             return self.get_all(user_request)
-        elif(user_request.get('action') == 'delete'):
+        elif user_request.get('action') == 'delete':
             return self.delete(user_request)
         else:
             print "Could not find action"
             return None
 
-    def find_by_id(self, items, user_request):
+    @staticmethod
+    def find_by_id(items, user_request):
         print "Finding by ID"
         for item in items:
             if item is not None:
@@ -37,15 +38,14 @@ class PzWorkflow:
         print "Could not find item"
         return None
 
-    def find_by_data(self, items, user_request):
+    @staticmethod
+    def find_by_data(items, user_request):
         print "Finding by data objects"
         for item in items:
             if item is not None:
                 un_passed = 0
                 key_in_item = False
-                #print 'Comparing to item ' + str(item)
                 for key in user_request.get('data'):
-                    #print 'Searching for "' + key + '" in item'
                     if key in item:
                         key_in_item = True
                         if item.get(key) != user_request.get('data').get(key):
@@ -60,7 +60,7 @@ class PzWorkflow:
             items = requests.get(self.addr + self.map.get(user_request.get('type')),
                                  verify=getattr(settings, 'SSL_VERIFY', True))
             items = items.json()
-        except:
+        except ValueError:
             print "Could not get items"
             return None
 
@@ -108,13 +108,13 @@ class PzWorkflow:
             print "Deleting"
 
             if user_request.get('type') == "event":
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))
-                                             + user_request.get('data').get('eventname') + "/"
-                                             + user_request.get('data').get('id'),
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) +
+                                             user_request.get('data').get('eventname') + "/" +
+                                             user_request.get('data').get('id'),
                                              verify=getattr(settings, 'SSL_VERIFY', True))
-            else :
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))
-                                             + user_request.get('data').get('id'),
+            else:
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) +
+                                             user_request.get('data').get('id'),
                                              verify=getattr(settings, 'SSL_VERIFY', True))
             check = self.get(user_request)
             if check:
@@ -131,6 +131,7 @@ class PzWorkflow:
 # post trigger, get trigger, post event, get event, delete trigger, get alerts
 def main():
     pass
+
 
 if __name__ == "__main__":
     main()

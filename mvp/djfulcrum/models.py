@@ -101,6 +101,7 @@ def get_all_features(after_time_added=None):
 
 
 class CustomStorage(FileSystemStorage):
+
     def get_available_name(self, name):
         return name
 
@@ -211,6 +212,7 @@ class Filter(models.Model):
 
         Args:
             task_name: The name of the task using the lock
+            filter_name: The name of the filter as a string.
 
         Returns: A name to use to store the lock.
 

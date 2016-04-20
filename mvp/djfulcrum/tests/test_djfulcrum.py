@@ -246,11 +246,11 @@ class DjangoFulcrumTests(TestCase):
             "data_name": "audio",
         }
         ]}
+        result_element_map = fi.get_element_map(form)
         expected_element_map = {'3320': 'name',
                                 'a1b0': 'photos',
                                 '5834': 'videos',
                                 '2f32': 'audio'}
-        result_element_map = fi.get_element_map(form)
         self.assertEqual(expected_element_map, result_element_map)
 
     def test_get_media_map(self):
@@ -445,8 +445,8 @@ class DjangoFulcrumTests(TestCase):
         from PIL import Image
 
         script_path = os.path.dirname(os.path.abspath(__file__))
-        file = os.path.join(script_path, 'good_photo.jpg')
-        good_photo = Image.open(file)
+        file_path = os.path.join(script_path, 'good_photo.jpg')
+        good_photo = Image.open(file_path)
         info = good_photo._getexif()
         properties = get_gps_info(info)
         self.assertNotIn("GPSInfo", properties)
@@ -696,6 +696,8 @@ class FulcrumImporterDBTests(TransactionTestCase):
         results = dictfetchall(cur)
         if results:
             imported_feature = results[0]
+        else:
+            imported_feature = {}
 
         expected_version = 1
 

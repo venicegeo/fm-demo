@@ -221,25 +221,3 @@ class FilterTests(TestCase):
         filtered_features = filter_number_features(my_features, filter_inclusion=False)
         self.assertEqual(len(filtered_features.get('passed').get('features')), 4)
         self.assertEqual(len(filtered_features.get('failed').get('features')), 4)
-
-    def test_run_filters(self):
-        """
-        Test complete filtering process.
-        Non_us_test_features should have 3 features after filtering. (US phone numbers found)
-        Us_test_features should have 0 features after filtering. (Features located in the US)
-        """
-
-        test_dir = os.path.dirname(__file__)
-
-        with open(os.path.join(test_dir, 'failed_test_features.geojson')) as testfile:
-            features = json.load(testfile)
-        filtered_results, filtered_results_count = filter_features(features, run_once=True)
-        self.assertIsNotNone(filtered_results)
-        self.assertEqual(filtered_results_count, 3)
-
-        with open(
-                os.path.join(test_dir, 'passed_test_features.geojson')) as testfile2:
-            features2 = json.load(testfile2)
-        filtered_results2, filtered_results_count2 = filter_features(features2, run_once=True)
-        self.assertIsNone(filtered_results2)
-        self.assertEqual(filtered_results_count2, 0)

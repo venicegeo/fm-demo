@@ -15,8 +15,9 @@
 from __future__ import absolute_import
 
 from django.contrib import admin
-from .models import S3Credential, S3Bucket, FulcrumApiKey, Filter, FilterGeneric, FilterArea, TextFilter
+from .models import S3Credential, S3Bucket, FulcrumApiKey, Filter, FilterGeneric, FilterArea
 from django.contrib import messages
+
 
 class S3BucketInline(admin.TabularInline):
     model = S3Bucket
@@ -43,7 +44,6 @@ class FilterGenericInline(admin.TabularInline):
 class FilterAreaInline(FilterGenericInline):
     model = FilterArea
     extra = 0
-   # readonly_fields = ('filter_area_name',)
     fieldsets = (
         (None, {
             'fields': ('filter_area_enabled',
@@ -62,7 +62,8 @@ class FilterAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             'fields': ('filter_name', 'filter_previous_status', 'filter_active', 'filter_inclusion', 'filter_previous'),
-            'description': "Filters are DESTRUCTIVE, points cannot be recovered if filtered.  Filters are applied to ALL layers."
+            'description': "Filters are DESTRUCTIVE, points cannot be recovered if filtered.  "
+                           "Filters are applied to ALL layers."
         }),
     )
 
@@ -85,8 +86,8 @@ class FilterAdmin(admin.ModelAdmin):
             inline = inline_class(self.model, self.admin_site)
             if request:
                 if not (inline.has_add_permission(request) or
-                            inline.has_change_permission(request) or
-                            inline.has_delete_permission(request)):
+                        inline.has_change_permission(request) or
+                        inline.has_delete_permission(request)):
                     continue
                 if not inline.has_add_permission(request):
                     inline.max_num = 0
@@ -100,5 +101,4 @@ class FilterAdmin(admin.ModelAdmin):
 
 admin.site.register(S3Credential, S3Admin)
 admin.site.register(FulcrumApiKey)
-# admin.site.register(FilterArea)
 admin.site.register(Filter, FilterAdmin)

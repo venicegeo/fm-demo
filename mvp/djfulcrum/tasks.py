@@ -28,7 +28,6 @@ from .models import FulcrumApiKey
 from .filters.run_filters import check_filters
 from fulcrum.exceptions import UnauthorizedException
 import time
-from django.db import transaction
 
 
 @shared_task(name="djfulcrum.tasks.task_update_layers")

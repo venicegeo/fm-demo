@@ -51,11 +51,11 @@ def iterate_geojson(input_features, filter_inclusion=None, **kwargs):
         coords = feature.get('geometry').get('coordinates')
         if coords:
             for filter_shape in filter_list:
-                if (check_geometry(coords, filter_shape) and filter_inclusion):
-                    feature_passed = True # To pass inclusion the feature needs to be in only one shape.
+                if check_geometry(coords, filter_shape) and filter_inclusion:
+                    feature_passed = True  # To pass inclusion the feature needs to be in only one shape.
                     break
-                elif (not check_geometry(coords, filter_shape) and not filter_inclusion):
-                    continue # To pass exclusion the feature needs to not exist in any shape.
+                elif not check_geometry(coords, filter_shape) and not filter_inclusion:
+                    continue  # To pass exclusion the feature needs to not exist in any shape.
                 else:
                     feature_passed = False
             if feature_passed is None:

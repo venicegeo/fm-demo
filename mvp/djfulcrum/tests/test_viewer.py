@@ -14,12 +14,11 @@
 from __future__ import absolute_import
 
 from django.test import TestCase
-from ..djfulcrum import *
 from ..models import *
 from ..fetch_workflow import PzWorkflow
 
-class ViewerTests(TestCase):
 
+class ViewerTests(TestCase):
     def setUp(self):
         pass
 
@@ -39,23 +38,33 @@ class ViewerTests(TestCase):
     def test_find_by_data(self):
         print "Testing find_by_data"
         pz_workflow = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
-        user_request = {'type': 'event', 'action': 'get', 'data': {'type': 'sometype', 'date': 'somedate', 'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}}}
         items = [
-                {'type': 'sometype2', 'date': 'somedate2', 'data': {'filename': 'filename2', 'severity': 3, 'code': 'somecode2'}},
-                {'type': 'sometype', 'date': 'somedate', 'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}},
-                {'type': 'sometype3', 'date': 'somedate3', 'data': {'filename': 'filename3', 'severity': 22, 'code': 'somecode3'}}
-                ]
+            {'type': 'sometype2', 'date': 'somedate2',
+             'data': {'filename': 'filename2', 'severity': 3, 'code': 'somecode2'}},
+            {'type': 'sometype', 'date': 'somedate',
+             'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}},
+            {'type': 'sometype3', 'date': 'somedate3',
+             'data': {'filename': 'filename3', 'severity': 22, 'code': 'somecode3'}}
+        ]
+        user_request = {'type': 'event', 'action': 'get', 'data': {'type': 'sometype', 'date': 'somedate',
+                                                                   'data': {'filename': 'filename', 'severity': 44,
+                                                                            'code': 'somecode'}}}
         self.assertEqual(pz_workflow.find_by_data(items, user_request), user_request["data"])
 
     def test_find_by_id(self):
         print "Testing find_by_id"
         pz_workflow = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
-        user_request = {'type': 'event', 'action': 'get', 'data': {'id': 'E23', 'type': 'sometype', 'date': 'somedate', 'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}}}
+        user_request = {'type': 'event', 'action': 'get', 'data': {'id': 'E23', 'type': 'sometype', 'date': 'somedate',
+                                                                   'data': {'filename': 'filename', 'severity': 44,
+                                                                            'code': 'somecode'}}}
         items = [
-                {'id': 'E24','type': 'sometype2', 'date': 'somedate2', 'data': {'filename': 'filename2', 'severity': 3, 'code': 'somecode2'}},
-                {'id': 'E23', 'type': 'sometype', 'date': 'somedate', 'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}},
-                {'id': 'E25','type': 'sometype3', 'date': 'somedate3', 'data': {'filename': 'filename3', 'severity': 22, 'code': 'somecode3'}}
-                ]
+            {'id': 'E24', 'type': 'sometype2', 'date': 'somedate2',
+             'data': {'filename': 'filename2', 'severity': 3, 'code': 'somecode2'}},
+            {'id': 'E23', 'type': 'sometype', 'date': 'somedate',
+             'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}},
+            {'id': 'E25', 'type': 'sometype3', 'date': 'somedate3',
+             'data': {'filename': 'filename3', 'severity': 22, 'code': 'somecode3'}}
+        ]
         self.assertEqual(pz_workflow.find_by_data(items, user_request), user_request["data"])
 
     def test_bad_get_id(self):
@@ -68,6 +77,8 @@ class ViewerTests(TestCase):
     def test_bad_get_data(self):
         print "Testing get by bad data"
         pz_workflow = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
-        bad_request = json.dumps({'type': 'event', 'data': {'type': 'sometype', 'date': 'somedate', 'data': {'filename': 'filename', 'severity': 44, 'code': 'somecode'}}, 'action':'get'})
+        bad_request = json.dumps({'type': 'event', 'data': {'type': 'sometype', 'date': 'somedate',
+                                                            'data': {'filename': 'filename', 'severity': 44,
+                                                                     'code': 'somecode'}}, 'action': 'get'})
         request = pz_workflow.request(bad_request)
         self.assertIsNone(request)

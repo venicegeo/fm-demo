@@ -22,7 +22,7 @@ def filter_features(input_features, **kwargs):
         return None
 
 
-def iterate_geojson(input_features, filter_inclusion = None):
+def iterate_geojson(input_features, filter_inclusion=None):
     """
     Args:
          input_features: A Geojson feature collection
@@ -53,8 +53,8 @@ def iterate_geojson(input_features, filter_inclusion = None):
     for feature in input_features.get("features"):
         if not feature:
             continue
-        if((check_numbers(json.dumps(feature.get('properties'))) and filter_inclusion) or
-           (not check_numbers(json.dumps(feature.get('properties'))) and not filter_inclusion)):
+        if ((check_numbers(json.dumps(feature.get('properties'))) and filter_inclusion) or
+                (not check_numbers(json.dumps(feature.get('properties'))) and not filter_inclusion)):
             passed.append(feature)
         else:
             failed.append(feature)
@@ -76,7 +76,8 @@ def check_numbers(attributes):
         True if a US phone number is found in the string
         False if there is no US phone number found in the string
     """
-    pattern = re.compile('([^0-9]+[(]?[2-9]\d{2}[)]?|^[(]?[2-9]\d{2}[)]?)[^a-zA-Z0-9][2-9]\d{2}(\s|-|[.])(\d{4}[^0-9]+|\d{4}$)')
+    pattern = re.compile(
+        '([^0-9]+[(]?[2-9]\d{2}[)]?|^[(]?[2-9]\d{2}[)]?)[^a-zA-Z0-9][2-9]\d{2}(\s|-|[.])(\d{4}[^0-9]+|\d{4}$)')
     phone_number = pattern.search(attributes)
     if phone_number:
         area_code_pattern = re.compile('[2-9]\d{2}')
@@ -111,9 +112,6 @@ def setup_filter_model():
 
 def get_area_codes():
     """
-    Args:
-        None
-
     Returns:
          An array of US phone area codes
     """
@@ -123,7 +121,8 @@ def get_area_codes():
         907, 250,  # Alaska
         480, 520, 602, 623, 928,  # Arizona
         327, 479, 501, 870,  # Arkansas
-        209, 213, 310, 323, 408, 415, 424, 442, 510, 530, 559, 562, 619, 626, 628, 650, 657, 661, 669, 707, 714, 747, 760, 805, 818, 831, 858, 909, 916, 925, 949, 951,  # California
+        209, 213, 310, 323, 408, 415, 424, 442, 510, 530, 559, 562, 619, 626, 628, 650, 657, 661, 669, 707, 714, 747,
+        760, 805, 818, 831, 858, 909, 916, 925, 949, 951,  # California
         303, 719, 720, 970,  # Colorado
         203, 475, 860, 959,  # Connecticut
         302,  # Deleware
@@ -162,7 +161,8 @@ def get_area_codes():
         803, 843, 854, 864,  # South Carolina
         605,  # South Dakota
         423, 615, 629, 731, 865, 901, 931,  # Tennessee
-        210, 214, 254, 281, 325, 346, 361, 409, 430, 432, 469, 512, 682, 713, 737, 806, 817, 830, 832, 903, 915, 936, 940, 956, 972, 979,  # Texas
+        210, 214, 254, 281, 325, 346, 361, 409, 430, 432, 469, 512, 682, 713, 737, 806, 817, 830, 832, 903, 915, 936,
+        940, 956, 972, 979,  # Texas
         385, 435, 801,  # Utah
         802,  # Vermont
         276, 434, 540, 571, 703, 757, 804,  # Virginia

@@ -83,9 +83,8 @@ def filter_features(features, filter_name=None, run_once=False):
 
 def check_filters():
     """
-    Args:
-        test: should be set to try if running tests.
-    Returns: None
+    Returns: True if checking the filters was successful.
+
     Finds '.py' files used for filtering and adds to db model for use in admin console.
     Sets cache value so function will not running fully every time it is called by tasks.py
     """
