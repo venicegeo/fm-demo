@@ -17,6 +17,8 @@ from __future__ import absolute_import
 from django.contrib import admin
 from .models import S3Credential, S3Bucket, FulcrumApiKey, Filter, FilterGeneric, FilterArea
 from django.contrib import messages
+from django.contrib.admin import helpers
+from django.template.response import TemplateResponse
 
 
 class S3BucketInline(admin.TabularInline):
@@ -61,7 +63,11 @@ class FilterAdmin(admin.ModelAdmin):
     model = Filter
     fieldsets = (
         (None, {
-            'fields': ('filter_name', 'filter_previous_status', 'filter_active', 'filter_inclusion', 'filter_previous'),
+            'fields': ('filter_name',
+                       'filter_active',
+                       'filter_inclusion',
+                       'filter_previous',
+                       'filter_previous_status',),
             'description': "Filters are DESTRUCTIVE, points cannot be recovered if filtered.  "
                            "Filters are applied to ALL layers."
         }),
@@ -72,7 +78,13 @@ class FilterAdmin(admin.ModelAdmin):
             messages.error(request, "The filter settings cannot be changed while filtering is in progress. \n"
                                     "The current changes have not been saved.")
         else:
-            super(FilterAdmin, self).save_model(request, obj, form, change)
+            context = {
+                'title': "Are you sure?",
+                'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            }
+            return TemplateResponse(request, '/confirmation.html',
+                                    context, current_app=self.admin_site.name)
+
 
     def get_inline_instances(self, request, obj=None):
         inline_instances = []
@@ -86,8 +98,8 @@ class FilterAdmin(admin.ModelAdmin):
             inline = inline_class(self.model, self.admin_site)
             if request:
                 if not (inline.has_add_permission(request) or
-                        inline.has_change_permission(request) or
-                        inline.has_delete_permission(request)):
+                            inline.has_change_permission(request) or
+                            inline.has_delete_permission(request)):
                     continue
                 if not inline.has_add_permission(request):
                     inline.max_num = 0

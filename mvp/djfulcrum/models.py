@@ -196,8 +196,11 @@ class Filter(models.Model):
                                            choices=INCLUSION,
                                            help_text="Exclude: Do not show data that matches this filter.\n"
                                                      "Include: Only show data that matches this filter.")
-    filter_previous = models.BooleanField(default=False)
-    filter_previous_status = models.TextField(default="")
+    filter_previous = models.BooleanField(verbose_name="Filter previous points",
+                                          default=False,
+                                          help_text="Selecting this will permenantly remove all points based on the current"
+                                                    " filter settings.")
+    filter_previous_status = models.TextField(verbose_name="Filter previous last run", default="")
     filter_previous_time = models.DateTimeField(default=get_init_time())
 
     __filter_inclusion = None
@@ -258,7 +261,7 @@ class Filter(models.Model):
         if self.is_filter_running():
             self.filter_previous_status = "Filtering is in progress..."
         else:
-            self.filter_previous_status = "Filtering is current as of {}.".format(self.filter_previous_time)
+            self.filter_previous_status = "Filter previous last ran at {}.".format(self.filter_previous_time)
         super(Filter, self).save(*args, **kwargs)
 
     def is_filter_running(self):
