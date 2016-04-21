@@ -16,7 +16,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 	# config.vm.network :public_network, :bridge => 'en0: Wi-Fi (AirPort)', ip: "192.168.10.222", netmask: "255.255.255.0"
 
 	# Example of share an additional folder to the guest VM.
- 	# config.vm.synced_folder "F:/Piazza/fm-mvp/mvp/fulcrum_importer", "/var/lib/geonode/lib/python2.7/site-packages/fulcrum_importer"
+ 	# config.vm.synced_folder "F:/Piazza/fm-mvp/mvp/djfulcrum", "/var/lib/geonode/lib/python2.7/site-packages/djfulcrum"
 	# owner: "geoshape", group: "geoservice"
 
 	file_to_disk = './tmp/large_disk.vdi'
