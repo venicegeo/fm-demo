@@ -15,8 +15,8 @@ from __future__ import absolute_import
 
 from django.test import TestCase
 from ..djfulcrum import *
-from ..models import *
 from ..fetch_workflow import PzWorkflow
+
 
 class ViewerTests(TestCase):
 
