@@ -116,12 +116,12 @@ def check_geometry(coords, boundary_features):
 def setup_filter_model():
     from ..models import FilterArea, Filter
     from django.core.exceptions import ObjectDoesNotExist
-    from django.db import IntegrityError
+    from django.db import IntegrityError, transaction
 
     try:
         geospatial_filter = Filter.objects.get(filter_name__iexact='geospatial_filter.py')
     except ObjectDoesNotExist:
-        print("Geospatial Filter wasn't created yet.")
+        print("Geospatial Filter hasn't been saved to the database yet.")
         return False
     boundary_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'boundary_polygons')
     for boundary_file in os.listdir(boundary_file_path):
@@ -131,10 +131,11 @@ def setup_filter_model():
                 if not filter_area_names.exists():
                     FilterArea.objects.create(filter_area_name=boundary_file, filter=geospatial_filter)
                 else:
-                    filter_area = filter_area_names[0]
-                    with open(os.path.join(boundary_file_path, boundary_file)) as file_data:
-                        filter_area.filter_area_data = file_data.read()
-                        filter_area.save()
+                    with transaction.atomic():
+                        filter_area = filter_area_names[0]
+                        with open(os.path.join(boundary_file_path, boundary_file)) as file_data:
+                            filter_area.filter_area_data = file_data.read()
+                            filter_area.save()
             except IntegrityError:
                 continue
     return True

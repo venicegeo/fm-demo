@@ -231,8 +231,9 @@ class Filter(models.Model):
         if not self.is_filter_running():
             super(Filter, self).save(*args, **kwargs)
         else:
-            self.filter_previous_status = "Filtering is in progress..."
-            super(Filter, self).save(update_fields=["filter_previous_status"])
+            if self.filter_previous_status:
+                self.filter_previous_status = "Filtering is in progress..."
+                super(Filter, self).save(update_fields=["filter_previous_status"])
             return
         if self.filter_previous and not self.is_filter_running():
             # add a time buffer to account for subtle time differences.
