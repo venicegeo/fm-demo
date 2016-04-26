@@ -13,14 +13,11 @@
 # limitations under the License.
 
 from django.shortcuts import render
-from .models import Asset
 from .forms import UploadFulcrumData
 from .filters.run_filters import check_filters
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse
 from django.conf import settings
 import json
-import time
-import os
 
 
 def index(request):
@@ -29,33 +26,34 @@ def index(request):
 
 def geojson(request):
     from .mapping import get_geojson
-    if request.method=='GET':
+
+    geojson_dict = {}
+    if request.method == 'GET':
         if 'layer' not in request.GET:
-            return HttpResponse("No layer exists, or a layer was not specified.",status=400)
-        geojson = {}
+            return HttpResponse("No layer exists, or a layer was not specified.", status=400)
         for layer in request.GET.getlist('layer'):
-            if get_geojson(layer):
-                geojson[layer] = json.loads(get_geojson(layer))
-    if not geojson:
-        return HttpResponse("No layer exists, or a layer was not specified.",status=400)
-    return HttpResponse(json.dumps(geojson), content_type="application/json")
+            if get_geojson(layer=layer):
+                geojson_dict[layer] = json.loads(get_geojson(layer=layer))
+    if not geojson_dict:
+        return HttpResponse("No layer exists, or a layer was not specified.", status=400)
+    return HttpResponse(json.dumps(geojson_dict), content_type="application/json")
 
 
 def upload(request):
     from .djfulcrum import process_fulcrum_data
     from .mapping import get_geojson
 
+    geojson_dict = {}
     if request.method == 'POST':
         form = UploadFulcrumData(request.POST, request.FILES)
         print request.FILES
-        geojson = {}
         if form.is_valid():
             check_filters()
-            layers = process_fulcrum_data(request.FILES['file'])
-            for layer in layers:
-                if get_geojson(layer):
-                    geojson[layer] = json.loads(get_geojson(layer))
-            return HttpResponse(json.dumps(geojson), content_type="application/json")
+            available_layers = process_fulcrum_data(request.FILES['file'])
+            for layer in available_layers:
+                if get_geojson(layer=layer):
+                    geojson_dict[layer] = json.loads(get_geojson(layer=layer))
+            return HttpResponse(json.dumps(geojson_dict), content_type="application/json")
         else:
             print "FORM NOT VALID."
     else:
@@ -65,23 +63,25 @@ def upload(request):
 
 def viewer(request):
     from .mapping import get_geojson
-    if request.method=='GET':
+    if request.method == 'GET':
         basemaps = []
         tuples = settings.LEAFLET_CONFIG['TILES']
         for layer_tuple in tuples:
             name, link, attr = layer_tuple
             basemaps.append([name, link, attr])
         if 'layer' not in request.GET:
-            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'', 'basemaps': basemaps})
-        geojson = {}
-        layers = []
+            return render(request, 'djfulcrum/map.html', {'geojson_request_url': '', 'basemaps': basemaps})
+        geojson_dict = {}
+        available_layers = []
         for layer in request.GET.getlist('layer'):
-            if get_geojson(layer):
-                layers += ['layer=' + layer]
-        if geojson:
-            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'/djfulcrum/geojson?{}'+'&'.join(layers), 'basemaps': basemaps})
+            if get_geojson(layer=layer):
+                available_layers += ['layer=' + layer]
+        if geojson_dict:
+            return render(request, 'djfulcrum/map.html',
+                          {'geojson_request_url': '/djfulcrum/geojson?{}' + '&'.join(available_layers),
+                           'basemaps': basemaps})
         else:
-            return render(request, 'djfulcrum/map.html', {'geojson_request_url':'', 'basemaps': basemaps})
+            return render(request, 'djfulcrum/map.html', {'geojson_request_url': '', 'basemaps': basemaps})
 
 
 def layers(request):
@@ -91,7 +91,7 @@ def layers(request):
 
 def pzworkflow(request):
     from .fetch_workflow import PzWorkflow
-    if request.method=='POST':
+    if request.method == 'POST':
         json_data = request.body
         print "Data passed in: " + json_data
         pz = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
@@ -100,13 +100,13 @@ def pzworkflow(request):
             response = pz.request(json_data)
             if response:
                 user_request = json.loads(json_data)
-                if(user_request.get('action') == 'get'):
+                if user_request.get('action') == 'get':
                     return HttpResponse(json.dumps(response), content_type="application/json")
-                elif(user_request.get('action') == 'post'):
+                elif user_request.get('action') == 'post':
                     return HttpResponse(json.dumps(response.json()), content_type="application/json")
-                elif(user_request.get('action') == 'get_all'):
+                elif user_request.get('action') == 'get_all':
                     return HttpResponse(json.dumps(response.json()), content_type="application/json")
-                elif(user_request.get('action') == 'delete'):
+                elif user_request.get('action') == 'delete':
                     return HttpResponse(json.dumps(response.json()), content_type="application/json")
                 else:
                     return HttpResponse("What one earth happened", status=400)

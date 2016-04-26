@@ -122,7 +122,7 @@ Example:
     }
  ```
 
-#### OGC_SERVER: (Required)
+#### OGC_SERVER: (Optional)
 Server to host layers in the database.
 Example:
 ```
@@ -215,6 +215,20 @@ Example:
         ]
     }
 ```
+
+## Usage
+Once up and running you need to configure filters and import data from FulrumApp.
+
+To configure the filters, navigate to the django admin console and navigate to djfulcrum - filters.
+Then click on each filter and either make it not active or change the settings.  By default for testing, there are filters active which excludes data in the US.  Optionally, you can switch to show ONLY data in the US, or deactivate the filter.
+Filters are available to reduce the amount of undesired redundant data on your remote system.  This is to allow only subsets to exist on the current system. Note that the filters are destructive. If you filter points, the system marks the time that they were "filtered" and won't evaluate them again, so old data won't show up if it was "filtered" previously.  Likewise if you run a new filter on old points, "filtered" points (or media) will be deleted.
+
+To import data you can (all of which will be run through existing filters):
+ - upload a geojson zip archive from Fulcrum through the fulcrum_viewer.
+ - Enter S3 Credentials to automatically download zip archives from an S3 bucket(s).
+ - Enter FulcrumApp API key to download the data directly from Fulcrum.  (Recommended)
+ Note that zip files are extracted and imported.  Extracted files are deleted but zip files are left in the FULCRUM_UPLOAD folder.
+ The advantage of using the API key is that all of your data will be downloaded and updated automatically. Furthermore it includes videos and audio files that historically have not been included in Fulcrum exports.
 
 
 ## Known Issues

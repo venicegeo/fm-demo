@@ -32,7 +32,7 @@ import ogr2ogr
 import shutil
 from django.core.files import File
 import os
-from .models import Asset, get_type_extension, Feature, Filter
+from .models import Asset, get_type_extension, Feature
 from .filters import run_filters
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
@@ -50,7 +50,8 @@ class DjangoFulcrum:
         self.fulcrum_api_key = fulcrum_api_key
         self.conn = self.get_fulcrum_connection(fulcrum_api_key)
 
-    def get_fulcrum_connection(self, fulcrum_api_key=None):
+    @staticmethod
+    def get_fulcrum_connection(fulcrum_api_key=None):
         """Handles getting the Fulcrum object.
         Args:
             fulcrum_api_key: A string for the fulcrum credentials.
@@ -63,7 +64,8 @@ class DjangoFulcrum:
         """A wrapper for getting Fulcrum froms from the API"""
         return self.conn.forms.find('').get('forms')
 
-    def ensure_layer(self, layer_name=None, layer_id=None):
+    @staticmethod
+    def ensure_layer(layer_name=None, layer_id=None):
         """
             A wrapper for write_layer
         Args:
@@ -84,15 +86,16 @@ class DjangoFulcrum:
         Returns:
             None
         """
+        element_map = self.get_element_map(form)
+        media_map = self.get_media_map(form, element_map)
         layer = Layer.objects.get(layer_uid=form.get('id'))
 
         if layer:
             records = self.get_latest_records(layer)
         else:
             print("A layer doesn't exist for {}".format(form.get('id')))
+            records = None
 
-        element_map = self.get_element_map(form)
-        media_map = self.get_media_map(form, element_map)
         get_update_layer_media_keys(media_keys=media_map, layer=layer)
         imported_features = self.convert_to_geojson(records, element_map, media_map).get('features')
 
@@ -108,12 +111,13 @@ class DjangoFulcrum:
         imported_features = sort_features(imported_features, time_field)
 
         latest_time = imported_features[-1].get('properties').get(time_field)
-
+        total_passed_features = 0
         for grouped_features in chunks(imported_features, 100):
             if not grouped_features:
                 break
 
             filtered_features, filtered_feature_count = filter_features({"features": grouped_features})
+            total_passed_features += filtered_feature_count
             uploads = []
             if filtered_features:
                 latest_time = layer.layer_date
@@ -135,14 +139,18 @@ class DjangoFulcrum:
                                 print("Getting asset :{}".format(media_id))
                                 try:
                                     if self.get_asset(media_id, media_map.get(media_key)):
-                                        feature['properties']['{}_url'.format(media_key)] += [self.get_asset(media_id, media_map.get(media_key))]
-                                        feature['properties']['{}'.format(media_key)] += [self.get_asset(media_id, media_map.get(media_key))]
+                                        feature['properties']['{}_url'.format(media_key)] += [
+                                            self.get_asset(media_id, media_map.get(media_key))]
+                                        feature['properties']['{}'.format(media_key)] += [
+                                            self.get_asset(media_id, media_map.get(media_key))]
                                     else:
                                         feature['properties']['{}'.format(media_key)] += []
                                 except KeyError:
                                     if self.get_asset(media_id, media_map.get(media_key)):
-                                        feature['properties']['{}_url'.format(media_key)] = [self.get_asset(media_id, media_map.get(media_key))]
-                                        feature['properties']['{}'.format(media_key)] = [self.get_asset(media_id, media_map.get(media_key))]
+                                        feature['properties']['{}_url'.format(media_key)] = [
+                                            self.get_asset(media_id, media_map.get(media_key))]
+                                        feature['properties']['{}'.format(media_key)] = [
+                                            self.get_asset(media_id, media_map.get(media_key))]
                                     else:
                                         feature['properties']['{}'.format(media_key)] += []
                     write_feature(feature.get('properties').get('fulcrum_id'),
@@ -170,7 +178,7 @@ class DjangoFulcrum:
             layer.save()
         print("RESULTS\n---------------")
         print("Total Records Pulled: {}".format(pulled_record_count))
-        print("Total Records Passed Filter: {}".format(filtered_feature_count))
+        print("Total Records Passed Filter: {}".format(total_passed_features))
         return
 
     def get_latest_records(self, layer):
@@ -249,7 +257,8 @@ class DjangoFulcrum:
         geojson = {"type": "FeatureCollection", "features": features}
         return geojson
 
-    def get_element_map(self, form):
+    @staticmethod
+    def get_element_map(form):
         """
 
         Args:
@@ -265,7 +274,8 @@ class DjangoFulcrum:
             element_map[element.get('key')] = element.get('data_name')
         return element_map
 
-    def get_media_map(self, form, element_map):
+    @staticmethod
+    def get_media_map(form, element_map):
         """
 
         Args:
@@ -277,18 +287,19 @@ class DjangoFulcrum:
 
         """
         elements = form.get('elements')
-        fieldType = {'PhotoField': 'photos', 'VideoField': 'videos', 'AudioField': 'audio'}
+        field_type = {'PhotoField': 'photos', 'VideoField': 'videos', 'AudioField': 'audio'}
         field_map = {}
         media_map = {}
         for element in elements:
-            if fieldType.get(element.get('type')):
-                field_map[element.get('key')] = fieldType.get(element.get('type'))
+            if field_type.get(element.get('type')):
+                field_map[element.get('key')] = field_type.get(element.get('type'))
         for key in field_map:
             if element_map.get(key):
                 media_map[element_map[key]] = field_map.get(key)
         return media_map
 
-    def form_values_to_properties(self, form_values, element_map, media_map):
+    @staticmethod
+    def form_values_to_properties(form_values, element_map, media_map):
         """
 
         Args:
@@ -317,7 +328,15 @@ class DjangoFulcrum:
         return properties
 
     def get_asset(self, asset_id, asset_type):
-        """A wrapper for write asset in case customization is needed."""
+        """
+
+        Args:
+            asset_id: The id for the asset as a string.
+            asset_type: The type of of assets as a string (i.e. 'photos','videos', or 'audio').
+
+        Returns:
+
+        """
         if asset_id:
             return write_asset_from_url(asset_id, asset_type, fulcrum_api_key=self.fulcrum_api_key)
         else:
@@ -336,7 +355,7 @@ def chunks(a_list, chunk_size):
         A list of sub-lists.
     """
     for i in xrange(0, len(a_list), chunk_size):
-        yield a_list[i:i+chunk_size]
+        yield a_list[i:i + chunk_size]
 
 
 def convert_to_epoch_time(date):
@@ -407,7 +426,7 @@ def process_fulcrum_data(f):
     return layers
 
 
-def filter_features(features):
+def filter_features(features, **kwargs):
     """
     Args:
         features: A dict formatted like a geojson, containing features to be passed through various filters.
@@ -416,10 +435,7 @@ def filter_features(features):
         The filtered features and the feature count as a tuple.
     """
 
-    filtered_features, filtered_feature_count = run_filters.filter_features(features)
-
-    if not filtered_feature_count:
-        print("All of the features were filtered. None remain.")
+    filtered_features, filtered_feature_count = run_filters.filter_features(features, **kwargs)
 
     return filtered_features, filtered_feature_count
 
@@ -444,7 +460,7 @@ def save_file(f, file_path):
         with open(file_path, 'wb+') as destination:
             for chunk in f.chunks():
                 destination.write(chunk)
-    except:
+    except IOError:
         print "Failed to save the file: {}".format(f.name)
         return False
     print "Saved the file: {}".format(f.name)
@@ -568,7 +584,6 @@ def find_media_keys(features):
     """
     Args:
         features: An array of features as a dict object.
-        layer: The model to update
     Returns:
         A value of keys and types for media fields.
     """
@@ -612,7 +627,7 @@ def get_update_layer_media_keys(media_keys=None, layer=None):
         return layer_media_keys
 
 
-def write_layer(name, layer_id='', date=0, media_keys={}):
+def write_layer(name, layer_id='', date=0, media_keys=None):
     """
     Args:
         name: An SQL compatible string.
@@ -623,18 +638,19 @@ def write_layer(name, layer_id='', date=0, media_keys={}):
     Returns:
         The layer model object.
     """
+    if not media_keys:
+        media_keys = {}
     with transaction.atomic():
         layer_name = 'fulcrum_{}'.format(name.lower())
         try:
             layer, layer_created = Layer.objects.get_or_create(layer_name=layer_name,
-                                                           layer_uid=layer_id,
-                                                           defaults={'layer_date': int(date),
-                                                                     'layer_media_keys': json.dumps(media_keys)})
+                                                               layer_uid=layer_id,
+                                                               defaults={'layer_date': int(date),
+                                                                         'layer_media_keys': json.dumps(media_keys)})
             return layer, layer_created
         except IntegrityError:
             layer = Layer.objects.get(layer_name=layer_name)
             return layer, False
-
 
 
 def write_feature(key, version, layer, feature_data):
@@ -692,8 +708,8 @@ def write_asset_from_url(asset_uid, asset_type, url=None, fulcrum_api_key=None):
         else:
             asset = Asset.objects.get(asset_uid=asset_uid)
         if asset.asset_data:
-            if getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template'):
-                return '{}{}.{}'.format(getattr(settings,'FILESERVICE_CONFIG',{}).get('url_template').rstrip("{}"),
+            if getattr(settings, 'FILESERVICE_CONFIG', {}).get('url_template'):
+                return '{}{}.{}'.format(getattr(settings, 'FILESERVICE_CONFIG', {}).get('url_template').rstrip("{}"),
                                         asset_uid,
                                         get_type_extension(asset.asset_type))
             else:
@@ -727,10 +743,10 @@ def write_asset_from_file(asset_uid, asset_type, file_dir):
         return asset, created
 
 
-def is_valid_photo(photo_file):
+def is_valid_photo(photo_file_path, **kwargs):
     """
     Args:
-        photo_file: A File object of a photo:
+        photo_file_path: A File object of a photo:
 
     Returns:
          True if the photo does not contain us-coords.
@@ -738,12 +754,13 @@ def is_valid_photo(photo_file):
     """
     # https://gist.github.com/erans/983821#file-get_lat_lon_exif_pil-py-L40
 
+    info = None
     try:
-        im = Image.open(photo_file)
+        im = Image.open(photo_file_path)
         info = im._getexif()
-    except:
+    except Exception as e:
         print "Failed to get exif data"
-        return True
+        print e
     if info:
         properties = get_gps_info(info)
     else:
@@ -760,7 +777,7 @@ def is_valid_photo(photo_file):
                        }
             features += [feature]
             geojson = {"type": "FeatureCollection", "features": features}
-            filtered_features, count = filter_features(geojson)
+            filtered_features, count = filter_features(geojson, **kwargs)
             if filtered_features:
                 return True
             else:
@@ -809,7 +826,7 @@ def get_gps_coords(properties):
         gps_lat_ref = gps_info["GPSLatitudeRef"]
         gps_long = gps_info["GPSLongitude"]
         gps_long_ref = gps_info["GPSLongitudeRef"]
-    except:
+    except KeyError:
         print "Could not get lat/long"
         return None
 
@@ -828,7 +845,7 @@ def get_gps_coords(properties):
 def convert_to_degrees(value):
     """
     Args:
-        Value: An exif format coordinate:
+        value: An exif format coordinate:
 
     Returns:
         Float value of a coordinate in Decimal Degree format
@@ -866,8 +883,8 @@ def update_geoshape_layers():
                '--ignore-errors',
                '--remove-deleted',
                '--skip-unadvertised']
-    DEVNULL = open(os.devnull, 'wb')
-    subprocess.Popen(execute, env=env, stdout=DEVNULL, stderr=DEVNULL)
+    devnull = open(os.devnull, 'wb')
+    subprocess.Popen(execute, env=env, stdout=devnull, stderr=devnull)
 
 
 def upload_to_db(feature_data, table, media_keys, database_alias=None):
@@ -883,12 +900,7 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     Returns:
         True, if no errors occurred.
     """
-    if database_alias:
-        db_conn = connections[database_alias]
-    else:
-        db_conn = connection
-
-    if 'postgis' not in db_conn.settings_dict.get('ENGINE') and 'postgres' not in db_conn.settings_dict.get('ENGINE'):
+    if not is_db_supported(database_alias):
         return False
 
     if not feature_data:
@@ -897,12 +909,12 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     if type(feature_data) != list:
         feature_data = [feature_data]
 
-    if getattr(settings,'SITENAME','').lower() == 'geoshape':
+    if getattr(settings, 'SITENAME', '').lower() == 'geoshape':
         feature_data = prepare_features_for_geoshape(feature_data, media_keys=media_keys)
 
     key_name = 'fulcrum_id'
 
-     # Sort the data in memory before making a ton of calls to the server.
+    # Sort the data in memory before making a ton of calls to the server.
     feature_data, non_unique_features = get_duplicate_features(features=feature_data, properties_id='fulcrum_id')
 
     # Use ogr2ogr to create a table and add an index, before any non unique values are added.
@@ -940,6 +952,18 @@ def upload_to_db(feature_data, table, media_keys, database_alias=None):
     return True
 
 
+def is_db_supported(database_alias=None):
+    if database_alias:
+        db_conn = connections[database_alias]
+    else:
+        db_conn = connection
+
+    if 'postgis' not in db_conn.settings_dict.get('ENGINE') and 'postgres' not in db_conn.settings_dict.get('ENGINE'):
+        return False
+    else:
+        return True
+
+
 def prepare_features_for_geoshape(feature_data, media_keys=None):
     """
 
@@ -964,11 +988,11 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
     maploom_media_keys = ["photos", "videos", "audios", "fotos"]
 
     for feature in feature_data:
+        new_props = {}
+        delete_prop = []
         for prop in feature.get('properties'):
             if not prop:
                 continue
-            delete_prop = []
-            new_props = {}
             if not feature.get('properties').get(prop):
                 feature['properties'][prop] = ''
             for mmkey in maploom_media_keys:
@@ -991,7 +1015,7 @@ def prepare_features_for_geoshape(feature_data, media_keys=None):
                 pass
             media_ext = get_type_extension(media_val)
             if media_val == 'audio':
-                #fulcrum calls it something, maploom calls it something else.
+                # fulcrum calls it something, maploom calls it something else.
                 media_val = 'audios'
             if media_val != media_key:
                 new_key = '{}_{}'.format(media_val, media_key)
@@ -1107,7 +1131,7 @@ def ogr2ogr_geojson_to_db(geojson_file, database_alias=None, table=None):
         options = ['-update', '-append']
     else:
         return True
-    #     db_format = 'SQLite'
+    # db_format = 'SQLite'
     #     sqlite_file = db_conn.settings_dict.get('NAME')
     #     dest = '{}'.format(sqlite_file)
     #     options = ['-update','-append']
@@ -1484,11 +1508,9 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
         print("An OGC_SERVER wasn't defined in the settings")
         return
 
-    if geoserver_base_url:
-        geoserver_base_url
-    else:
-        if get_ogc_server().get('LOCATION'):
-            geoserver_base_url = get_ogc_server().get('LOCATION').rstrip('/')
+    if get_ogc_server().get('LOCATION'):
+        geoserver_base_url = get_ogc_server().get('LOCATION').rstrip('/')
+
     if not geoserver_base_url:
         # print('The function publish_layer was called without a '
         #       'geoserver_base_url parameter or an OGC_SERVER defined in the settings')
@@ -1515,13 +1537,13 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
     cat = Catalog(url,
                   username=ogc_server.get('USER'),
                   password=ogc_server.get('PASSWORD'),
-                  disable_ssl_certificate_validation=not getattr(settings,'SSL_VERIFY', True))
+                  disable_ssl_certificate_validation=not getattr(settings, 'SSL_VERIFY', True))
 
     # Check if local workspace exists and if not create it
     workspace = cat.get_workspace(workspace_name)
 
     if workspace is None:
-        current_workspace = cat.create_workspace(workspace_name, workspace_uri)
+        cat.create_workspace(workspace_name, workspace_uri)
         print "Workspace " + workspace_name + " created."
 
     # Get list of datastores
@@ -1557,7 +1579,6 @@ def publish_layer(layer_name, geoserver_base_url=None, database_alias=None):
         return layer, True
     else:
         return layer, False
-    return None, False
 
 
 def dictfetchall(cursor):
@@ -1584,7 +1605,6 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
         layer_name: The GWC layer to remove tiles from.
         srs: The projection default is 4326.
         geoserver_base_url: A string where geoserver is accessed(i.e. "http://localhost:8080/geoserver")
-        **kwargs:
 
     Returns:
         None
@@ -1592,7 +1612,8 @@ def truncate_tiles(layer_name=None, srs=4326, geoserver_base_url=None, **kwargs)
     # See http://docs.geoserver.org/stable/en/user/geowebcache/rest/seed.html for more parameters.
     # See also https://github.com/GeoNode/geonode/issues/1656
     params = kwargs
-    params.setdefault("name", "geonode:{0}".format(layer_name))
+    if layer_name:
+        params.setdefault("name", "geonode:{0}".format(layer_name))
     params.setdefault("srs", {"number": srs})
     params.setdefault("zoomStart", 0)
     if srs == 4326:
@@ -1670,3 +1691,18 @@ def get_prototype(field_map):
             prototype[key] = ''
     return prototype
 
+
+def delete_feature(feature_uid):
+    if getattr(settings, 'DATABASES', {}).get('fulcrum'):
+        database_alias = 'fulcrum'
+    else:
+        database_alias = None
+
+    is_database_used = False
+    if is_db_supported(database_alias):
+        is_database_used = True
+
+    for feature in Feature.objects.filter(feature_uid=feature_uid):
+        if is_database_used:
+            delete_db_feature(json.loads(feature.feature_data), feature.layer.layer_name, database_alias=database_alias)
+        feature.delete()

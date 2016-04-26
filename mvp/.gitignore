@@ -22,3 +22,5 @@ test_data.sqlite3
 !djfulcrum/scripts/settings.py
 media/
 data/
+djfulcrum/tests/test_geojson.json
+

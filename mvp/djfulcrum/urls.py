@@ -15,20 +15,16 @@ Including another URLconf
 """
 from django.conf.urls import url
 from . import views
-from django.conf import settings
-from django.conf.urls.static import static
+from .signals import handlers  # Signals appear to be unused but they are actually registered with django.
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
-    url(r'^fulcrum_geojson$',views.geojson),
-    url(r'^fulcrum_map$',views.viewer),
-    url(r'^fulcrum_viewer$',views.viewer),
-    url(r'^fulcrum_upload$',views.upload),
-    url(r'^fulcrum_layers$',views.layers),
+    url(r'^fulcrum_geojson$', views.geojson),
+    url(r'^fulcrum_map$', views.viewer),
+    url(r'^fulcrum_viewer$', views.viewer),
+    url(r'^fulcrum_upload$', views.upload),
+    url(r'^fulcrum_layers$', views.layers),
     url(r'^fulcrum_pzworkflow$', views.pzworkflow)
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

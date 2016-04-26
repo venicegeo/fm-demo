@@ -2,33 +2,34 @@ import json
 import requests
 from django.conf import settings
 
+
 # post, get, get all, delete
 class PzWorkflow:
-
-
     def __init__(self, url):
         self.addr = url
-        self.map = {'trigger': "/v1/triggers/", 'eventtypes': '/v1/eventtypes/', 'event': "/v1/events/", 'alert': "/v1/alerts/"}
+        self.map = {'trigger': "/v1/triggers/", 'eventtypes': '/v1/eventtypes/', 'event': "/v1/events/",
+                    'alert': "/v1/alerts/"}
         print "Pz object created with url: " + self.addr
 
     def status(self):
-        return requests.get(self.addr, verify=getattr(settings, 'SSL_VERIFY', True)).status_code;
+        return requests.get(self.addr, verify=getattr(settings, 'SSL_VERIFY', True)).status_code
 
     def request(self, user_request):
         user_request = json.loads(user_request)
-        if(user_request.get('action') == 'post'):
+        if user_request.get('action') == 'post':
             return self.post(user_request)
-        elif(user_request.get('action') == 'get'):
+        elif user_request.get('action') == 'get':
             return self.get(user_request)
-        elif(user_request.get('action') == 'get_all'):
+        elif user_request.get('action') == 'get_all':
             return self.get_all(user_request)
-        elif(user_request.get('action') == 'delete'):
+        elif user_request.get('action') == 'delete':
             return self.delete(user_request)
         else:
             print "Could not find action"
             return None
 
-    def find_by_id(self, items, user_request):
+    @staticmethod
+    def find_by_id(items, user_request):
         print "Finding by ID"
         for item in items:
             if item is not None:
@@ -37,20 +38,19 @@ class PzWorkflow:
         print "Could not find item"
         return None
 
-    def find_by_data(self, items, user_request):
+    @staticmethod
+    def find_by_data(items, user_request):
         print "Finding by data objects"
         for item in items:
             if item is not None:
-                un_matched = 0
+                un_passed = 0
                 key_in_item = False
-                #print 'Comparing to item ' + str(item)
                 for key in user_request.get('data'):
-                    #print 'Searching for "' + key + '" in item'
                     if key in item:
                         key_in_item = True
                         if item.get(key) != user_request.get('data').get(key):
-                            un_matched -= 1
-                if un_matched == 0 and key_in_item is True:
+                            un_passed -= 1
+                if un_passed == 0 and key_in_item is True:
                     return item
         print "Could not find item by keys"
         return None
@@ -60,7 +60,7 @@ class PzWorkflow:
             items = requests.get(self.addr + self.map.get(user_request.get('type')),
                                  verify=getattr(settings, 'SSL_VERIFY', True))
             items = items.json()
-        except:
+        except ValueError:
             print "Could not get items"
             return None
 
@@ -108,13 +108,13 @@ class PzWorkflow:
             print "Deleting"
 
             if user_request.get('type') == "event":
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))
-                                             + user_request.get('data').get('eventname') + "/"
-                                             + user_request.get('data').get('id'),
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) +
+                                             user_request.get('data').get('eventname') + "/" +
+                                             user_request.get('data').get('id'),
                                              verify=getattr(settings, 'SSL_VERIFY', True))
-            else :
-                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type'))
-                                             + user_request.get('data').get('id'),
+            else:
+                deleted_id = requests.delete(self.addr + self.map.get(user_request.get('type')) +
+                                             user_request.get('data').get('id'),
                                              verify=getattr(settings, 'SSL_VERIFY', True))
             check = self.get(user_request)
             if check:
@@ -130,21 +130,6 @@ class PzWorkflow:
 
 # post trigger, get trigger, post event, get event, delete trigger, get alerts
 def main():
-
-    pz_workflow = PzWorkflow("http://pz-workflow.cf.piazzageo.io")
-    user_request = {"type": "event", "action": "delete", "eventname" : "US-Phone-Number"}
-    #trigger
-    #user_request["data"] = {"title": "US-Phone-Number", "condition": {"type": "W3", "query": {"query": {"bool": {"must": [{"match": {"severity": 4}},{"match": {"problem": "US-Phone-Number"}}]}}}, "job": {"task" :"somestring"}}}
-    #event type
-    #user_request["data"] = {"name": "US-Phone-Number", "mapping" : {"itemId": "string", "severity": "integer", "problem": "string"}}
-    #event
-    #user_request["data"] = {"type": "W3", "date": "2007-04-05T14:30:00Z", "data": {"severity": 4, "problem": "US-Phone-Number"}}
-    user_request["data"] = {"id": "W15"}
-    #user_request["data"] = {"type": "ET1", "date": "2007-05-05T14:30:00Z", "data": {"code": "PHONE", "filename": "featuresFile", "severity": 3}}
-    print pz_workflow.status()
-
-    print pz_workflow.request(json.dumps(user_request))
-    #requests.post(self.addr + self.map.get('event'), data=data)
     pass
 
 

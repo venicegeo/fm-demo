@@ -30,6 +30,7 @@ class DjangoFulcrumConfig(AppConfig):
         from django.conf import settings
         try:
             from .models import Layer
+            from .filters.run_filters import check_filters
             if not current_process().daemon:
                 test_lock, test_read = test_cache()
                 if not test_lock:
@@ -46,6 +47,7 @@ class DjangoFulcrumConfig(AppConfig):
                     runner = FulcrumTaskRunner()
                     runner.start(interval=30)
                     print("Server loaded.")
+            check_filters()
         except OperationalError:
             print("Data has not yet been migrated.")
             return

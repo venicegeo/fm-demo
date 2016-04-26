@@ -14,7 +14,6 @@
 from __future__ import absolute_import
 
 from django.test import TestCase
-from django.db import IntegrityError
 from ..djfulcrum import *
 from ..models import *
 from ..s3_downloader import is_loaded
