@@ -601,8 +601,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertTrue(os.path.isfile(geojson_file))
 
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
-                              table=table_name,
-                              database_alias='fulcrum')
+                              table=table_name)
 
         self.assertTrue(table_exists(table=table_name))
 
