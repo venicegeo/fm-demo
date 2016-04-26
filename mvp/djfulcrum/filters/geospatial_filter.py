@@ -37,9 +37,7 @@ def iterate_geojson(input_features, filter_inclusion=None, **kwargs):
     features = input_features.get("features")
     linked_filter, filter_list = create_filter_list(**kwargs)
     if not linked_filter:
-        if filter_inclusion is not None:
-            filter_inclusion = filter_inclusion
-        else:
+        if filter_inclusion is None:
             print('The filter has not been linked to a filter_name.')
             return
     else:

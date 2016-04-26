@@ -14,7 +14,7 @@
 from __future__ import absolute_import
 
 from django.test import TestCase
-from ..filters.run_filters import check_filters, filter_features
+from ..filters.run_filters import check_filters
 from ..filters.geospatial_filter import filter_features as filter_spatial_features
 from ..filters.geospatial_filter import get_boundary_features, check_geometry
 from ..filters.us_phone_number_filter import filter_features as filter_number_features, check_numbers, get_area_codes

@@ -90,7 +90,7 @@ def check_filters():
     """
     from ..models import Filter
     from ..tasks import get_lock_id
-    from django.db import IntegrityError, transaction
+    from django.db import IntegrityError
     from importlib import import_module
     from django.core.cache import cache
     workspace = os.path.dirname(os.path.abspath(__file__))

@@ -18,7 +18,7 @@ from ..djfulcrum import *
 import inspect
 from ..models import *
 import copy
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, transaction, connections
 
 
 class DjangoFulcrumTests(TestCase):
@@ -601,7 +601,8 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertTrue(os.path.isfile(geojson_file))
 
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
-                              table=table_name)
+                              table=table_name,
+                              database_alias='fulcrum')
 
         self.assertTrue(table_exists(table=table_name))
 
@@ -688,7 +689,8 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertTrue(os.path.isfile(geojson_file))
 
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
-                              table=table_name)
+                              table=table_name,
+                              database_alias='fulcrum')
 
         cur = connection.cursor()
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))

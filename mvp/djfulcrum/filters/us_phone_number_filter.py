@@ -34,9 +34,7 @@ def iterate_geojson(input_features, filter_inclusion=None):
     from ..models import Filter, TextFilter
     from django.core.exceptions import ObjectDoesNotExist
     from django.db import IntegrityError
-    if filter_inclusion is not None:
-        filter_inclusion = filter_inclusion
-    else:
+    if filter_inclusion is None:
         try:
             text_filter = Filter.objects.get(filter_name__iexact='us_phone_number_filter.py')
         except ObjectDoesNotExist:
