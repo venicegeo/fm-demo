@@ -22,8 +22,15 @@ from django.db import IntegrityError, transaction, connections
 
 
 class DjangoFulcrumTests(TestCase):
-    def setUp(self):
-        pass
+    @classmethod
+    def setUpClass(self):
+        try:
+            cur = connection.cursor()
+            cur.execute('CREATE EXTENSION postgis;')
+        except ProgrammingError:
+            pass
+        finally:
+            cur.close()
 
     def test_find_media_keys_from_urls(self):
         """
@@ -473,8 +480,17 @@ class DjangoFulcrumTests(TestCase):
     #         # self.assertEqual(new_repo,repo)
 
 
-class FulcrumImporterDBTests(TransactionTestCase):
+class DjFulcrumDBTests(TransactionTestCase):
     """Test cases for model functions to prevent locking issues due to transactions."""
+    @classmethod
+    def setUpClass(self):
+        try:
+            cur = connection.cursor()
+            cur.execute('CREATE EXTENSION postgis;')
+        except ProgrammingError:
+            pass
+        finally:
+            cur.close()
 
     def test_table_exist(self):
         """Ensure table is properly created and that the function properly checks for it."""
@@ -486,6 +502,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
 
         with transaction.atomic():
             cur.execute(query)
+        cur.close()
 
         self.assertTrue(table_exists(table=table_name))
 
@@ -515,6 +532,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
             cur = connection.cursor()
             cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
             imported_feature = dictfetchall(cur)[0]
+            cur.close()
 
         expected_version = 1
 
@@ -542,6 +560,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
             cur = connection.cursor()
             cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
             imported_feature = dictfetchall(cur)[0]
+            cur.close()
 
         expected_version = 2
 
@@ -569,6 +588,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
             cur = connection.cursor()
             cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
             imported_feature = dictfetchall(cur)[0]
+            cur.close()
 
         # There should be no change because the server should reject an older version.
         expected_version = 2
@@ -609,7 +629,7 @@ class FulcrumImporterDBTests(TransactionTestCase):
         cur.execute("SELECT name FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
 
         imported_name = dictfetchall(cur)[0].get('name')
-
+        cur.close()
         self.assertEqual("Dinagat Islands", imported_name)
         os.remove(geojson_file)
 
@@ -688,13 +708,13 @@ class FulcrumImporterDBTests(TransactionTestCase):
         self.assertTrue(os.path.isfile(geojson_file))
 
         ogr2ogr_geojson_to_db(geojson_file=geojson_file,
-                              table=table_name,
-                              database_alias='fulcrum')
+                              table=table_name)
 
         cur = connection.cursor()
         cur.execute("SELECT * FROM {} WHERE fulcrum_id = '123' LIMIT 1;".format(table_name))
 
         results = dictfetchall(cur)
+        cur.close()
         if results:
             imported_feature = results[0]
         else:
